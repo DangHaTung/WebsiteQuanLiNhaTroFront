@@ -1,0 +1,25 @@
+.nav-menu a {
+  position: relative;
+  text-decoration: none;
+  color: #333;
+  transition: color 0.3s ease;
+}
+
+.nav-menu a::after {
+  content: "";
+  position: absolute;
+  width: 0;
+  height: 2px;
+  bottom: -4px;
+  left: 0;
+  background-color: #0D2A5C;
+  transition: width 0.3s ease;
+}
+
+.nav-menu a:hover {
+  color: #0D2A5C;
+}
+
+.nav-menu a:hover::after {
+  width: 100%;
+}
