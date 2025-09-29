@@ -1,11 +1,11 @@
 import React from "react";
 import Navbar from "./Navbar";
 import { Layout } from "antd";
-import type { MainLayoutProps } from "../../types/layout";
+import { Outlet } from "react-router-dom";
 
 const { Content, Footer } = Layout;
 
-const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+const ClientLayout: React.FC = () => {
   return (
     <Layout style={{ minHeight: "100vh" }}>
       {/* Header */}
@@ -13,7 +13,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
 
       {/* Content */}
       <Content style={{ width: "100%", padding: "24px 20px", maxWidth: "1300px", margin: "0 auto" }}>
-        {children}
+        <Outlet />
       </Content>
 
       {/* Footer */}
@@ -24,4 +24,4 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
   );
 };
 
-export default MainLayout;
+export default ClientLayout;

@@ -1,19 +1,32 @@
 import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import MainLayout from "./layouts/client/MainLayout";
-import Rooms from "./modules/client/pages/Rooms";
+import { Routes, Route, Navigate } from "react-router-dom";
 
-import "antd/dist/reset.css";
+import ClientLayout from "./layouts/client/ClientLayout";
+import AdminLayout from "./layouts/admin/AdminLayout";
 
-const App: React.FC = () => {
+import clientRoutes from "./routes/clientRoutes";
+import adminRoutes from "./routes/adminRoutes";
+
+const App = () => {
   return (
-    <BrowserRouter>
-      <MainLayout>
-        <Routes>
-          <Route path="/rooms" element={<Rooms />} />
-        </Routes>
-      </MainLayout>
-    </BrowserRouter>
+    <Routes>
+      {/* Client routes */}
+      <Route path="/" element={<ClientLayout />}>
+        {clientRoutes.map((route) => (
+          <Route key={route.path} path={route.path} element={route.element} />
+        ))}
+      </Route>
+
+      {/* Admin routes */}
+      <Route path="/admin/*" element={<AdminLayout />}>
+        {adminRoutes.map((route) => (
+          <Route key={route.path} path={route.path} element={route.element} />
+        ))}
+      </Route>
+
+      {/* 404 redirect */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 };
 
