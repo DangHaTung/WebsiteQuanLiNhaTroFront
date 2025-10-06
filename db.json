@@ -1,7 +1,47 @@
 {
   "rooms": [
-    { "id": 1, "name": "Phòng trọ 1", "price": 1500000, "address": "123 Nguyễn Trãi, Q.1" },
-    { "id": 2, "name": "Phòng trọ 2", "price": 2000000, "address": "456 Lê Lợi, Q.3" },
-    { "id": 3, "name": "Phòng trọ 3", "price": 1800000, "address": "789 Cách Mạng Tháng 8, Q.10" }
+    {
+      "id": 1,
+      "title": "Phòng trọ cao cấp",
+      "price": 2500000,
+      "address": "HÀ Nội",
+      "image": "https://picsum.photos/id/1018/800/400",
+      "bedrooms": 2,
+      "bathrooms": 1,
+      "area": 30,
+      "isNew": true
+    },
+    {
+      "id": 2,
+      "title": "Phòng mini",
+      "price": 1800000,
+      "address": "HÀ Nội",
+      "image": "https://picsum.photos/id/1021/800/400",
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "area": 25,
+      "isHot": true
+    },
+    {
+      "id": 3,
+      "title": "Căn hộ dịch vụ",
+      "price": 3200000,
+      "address": "HÀ Nội",
+      "image": "https://picsum.photos/id/1032/800/400",
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "area": 40
+    },
+    {
+      "id": 4,
+      "title": "Phòng trọ tiện nghi",
+      "price": 2000000,
+      "address": "HÀ Nội",
+      "image": "https://picsum.photos/id/1045/800/400",
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "area": 28,
+      "isNew": true
+    }
   ]
 }
