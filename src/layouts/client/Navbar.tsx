@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { Input, Badge } from "antd";
 import Logo from "../../assets/images/logo.png";
 import "../../assets/styles/nav.css";
@@ -14,7 +14,11 @@ const { Search } = Input;
 
 const Navbar: React.FC = () => {
   return (
-    <div className="navbar-wrapper">
+    // Sticky navbar: luôn hiển thị khi cuộn trang
+    <div
+      className="navbar-wrapper"
+      style={{ position: "sticky", top: 0, zIndex: 1000, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
+    >
       {/* Top bar */}
       <div
         style={{
@@ -108,24 +112,64 @@ const Navbar: React.FC = () => {
             </div>
           </div>
 
-          {/* Menu danh mục */}
-          <div
-            className="nav-menu"
+          {/* Menu danh mục (pill style với trạng thái active/hover) */}
+          <nav
             style={{
               marginTop: "12px",
               padding: "12px 0",
-              background: "#f9f9f9",
+              background: "#ffffff",
               borderTop: "1px solid #eee",
               display: "flex",
-              gap: "32px",
+              gap: "12px",
               justifyContent: "center",
-              fontSize: "16px",
-              fontWeight: 500,
+              fontSize: "15px",
+              fontWeight: 600,
+              flexWrap: "wrap",
             }}
           >
-            <Link to="/">Trang chủ</Link>
-            <Link to="/rooms">Danh sách phòng</Link>
-          </div>
+            <NavLink
+              to="/"
+              className={({ isActive }) => (isActive ? "active" : "")}
+              style={({ isActive }) => ({
+                color: isActive ? "#fff" : "#0D2A5C",
+                background: isActive ? "#1677ff" : "transparent",
+                padding: "8px 14px",
+                borderRadius: 999,
+                transition: "all .2s ease",
+              })}
+              onMouseEnter={(e) => {
+                const el = e.currentTarget as HTMLAnchorElement;
+                if (!el.classList.contains("active")) el.style.background = "#f0f5ff";
+              }}
+              onMouseLeave={(e) => {
+                const el = e.currentTarget as HTMLAnchorElement;
+                if (!el.classList.contains("active")) el.style.background = "transparent";
+              }}
+            >
+              Trang chủ
+            </NavLink>
+            <NavLink
+              to="/rooms"
+              className={({ isActive }) => (isActive ? "active" : "")}
+              style={({ isActive }) => ({
+                color: isActive ? "#fff" : "#0D2A5C",
+                background: isActive ? "#1677ff" : "transparent",
+                padding: "8px 14px",
+                borderRadius: 999,
+                transition: "all .2s ease",
+              })}
+              onMouseEnter={(e) => {
+                const el = e.currentTarget as HTMLAnchorElement;
+                if (!el.classList.contains("active")) el.style.background = "#f0f5ff";
+              }}
+              onMouseLeave={(e) => {
+                const el = e.currentTarget as HTMLAnchorElement;
+                if (!el.classList.contains("active")) el.style.background = "transparent";
+              }}
+            >
+              Danh sách phòng
+            </NavLink>
+          </nav>
         </div>
       </div>
     </div>
