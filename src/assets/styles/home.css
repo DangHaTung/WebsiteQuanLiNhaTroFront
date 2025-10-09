@@ -1,0 +1,358 @@
+.full-width-banner {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  padding: 0 20px;
+}
+
+.banner-slide {
+  height: 420px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 16px;
+  transition: transform 0.5s ease;
+}
+
+/* hiệu ứng phóng nhẹ ảnh khi hover */
+.banner-slide:hover {
+  transform: scale(1.03);
+}
+
+/* Overlay tối — mặc định ẩn */
+.banner-overlay {
+  background: rgba(0, 0, 0, 0.45);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.6s ease, visibility 0.6s ease;
+  border-radius: 16px;
+}
+
+/* Chữ mặc định ẩn */
+.banner-text {
+  color: #fff;
+  text-align: center;
+  max-width: 800px;
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.banner-text h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.banner-text p {
+  font-size: 1.1rem;
+  margin-bottom: 20px;
+}
+
+/* hiệu ứng chữ xuất hiện lần lượt */
+.banner-text h1,
+.banner-text p,
+.banner-text .banner-btn {
+  transition: all 0.6s ease;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.banner-slide:hover .banner-text h1 {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.2s;
+}
+
+.banner-slide:hover .banner-text p {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.4s;
+}
+
+.banner-slide:hover .banner-text .banner-btn {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.6s;
+}
+
+/* Khi hover vào banner: overlay & text hiện lên */
+.banner-slide:hover .banner-overlay {
+  opacity: 1;
+  visibility: visible;
+}
+
+.banner-slide:hover .banner-text {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.banner-btn {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1677ff, #69b1ff);
+  border: none;
+  padding: 12px 28px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+  border-radius: 50px;
+  box-shadow: 0 4px 12px rgba(22, 119, 255, 0.4);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+/* Khi hover nhẹ nhấc nút lên */
+.banner-btn:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 8px 18px rgba(22, 119, 255, 0.6);
+}
+
+/* Hiệu ứng ánh sáng */
+.banner-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -75px;
+  width: 50px;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255, 255, 255, 0.7),
+    transparent
+  );
+  transform: skewX(-25deg);
+  transition: all 0.5s ease;
+}
+
+/* Khi hover ánh sáng lướt ngang */
+.banner-btn:hover::before {
+  left: 120%;
+}
+
+
+/* Hiệu ứng hiện chữ mượt hơn khi load */
+.animate-fadeUp {
+  animation: fadeUp 0.8s ease-out;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 0.85;
+    transform: translateY(0);
+  }
+}
+
+
+/* Hiệu ứng fade */
+.animate-fadeUp {
+  opacity: 0;
+  transform: translateY(30px);
+  animation: fadeUp 0.8s ease forwards;
+}
+
+@keyframes fadeUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Section */
+.section {
+  padding: 60px 50px;
+}
+
+.section-bg {
+  background: #f9f9f9;
+}
+
+.section-title {
+  text-align: center;
+  font-weight: bold;
+  color: #1677ff;
+  margin-bottom: 40px;
+}
+
+/* Category card */
+.category-card {
+  text-align: center;
+  border-radius: 12px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.category-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+.category-icon {
+  font-size: 28px;
+  color: #1677ff;
+  background-color: #f0f5ff;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+  transition: all 0.3s ease;
+}
+
+.category-card:hover .category-icon {
+  background-color: #1677ff;
+  color: #fff;             
+  border-radius: 8px;      
+  transform: scale(1.1);   
+}
+
+
+/* Trend area */
+.trend-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.trend-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.trend-card img {
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.trend-card:hover img {
+  transform: scale(1.1);
+}
+
+.trend-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.45);
+}
+
+.trend-content {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  color: white;
+}
+
+.trend-content h2 {
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.trend-content p {
+  font-size: 14px;
+  opacity: 0.9;
+  margin-bottom: 10px;
+}
+
+/* Room card */
+.room-card {
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.room-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.room-image {
+  height: 200px;
+  object-fit: cover;
+}
+
+.room-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.room-header h3 {
+  margin: 0;
+  font-weight: bold;
+}
+
+.room-address {
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.room-price {
+  font-weight: bold;
+  color: #1677ff;
+}
+
+.room-info {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.btn-animated {
+  margin-top: 12px;
+  font-weight: 600;
+  position: relative;
+  overflow: hidden;
+  color: #fff !important;
+  background: linear-gradient(90deg, #2563eb, #3b82f6, #60a5fa);
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+/* Hiệu ứng nổi khi hover */
+.btn-animated:hover {
+  transform: translateY(-2px);
+}
+
+/* Ánh sáng quét ngang */
+.btn-animated::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 80%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255, 255, 255, 0.5),
+    transparent
+  );
+  transition: all 0.5s ease;
+}
+
+.btn-animated:hover::before {
+  left: 100%;
+}
+
