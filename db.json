@@ -1,5 +1,33 @@
 {
-  "rooms": [
+  "posts": [
+    {
+      "id": 1,
+      "title": "Cách chọn phòng trọ an toàn cho sinh viên",
+      "excerpt": "Tìm hiểu các mẹo chọn phòng trọ an toàn, giá hợp lý và tiện nghi phù hợp...",
+      "image": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+      "createdAt": "2025-10-01T10:00:00Z"
+    },
+    {
+      "id": 2,
+      "title": "Top 5 khu vực thuê phòng trọ được ưa chuộng",
+      "excerpt": "Khám phá các khu vực trung tâm, tiện nghi, an ninh tốt và gần trường học...",
+      "image": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+      "createdAt": "2025-10-05T14:30:00Z"
+    },
+    {
+      "id": 3,
+      "title": "Ưu đãi đặc biệt khi thuê phòng tháng đầu",
+      "excerpt": "Nhận ngay giảm giá, miễn phí dịch vụ tiện ích khi thuê phòng trong tháng đầu tiên...",
+      "image": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+      "createdAt": "2025-10-07T09:00:00Z"
+    },
+    {
+      "id": 4,
+      "title": "Ưu đãi đặc biệt khi thuê phòng tháng đầu",
+      "excerpt": "Nhận ngay giảm giá, miễn phí dịch vụ tiện ích khi thuê phòng trong tháng đầu tiên...",
+      "image": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+      "createdAt": "2025-10-07T09:00:00Z"
+    }
     {
       "id": 1,
       "title": "Phòng trọ cao cấp",
