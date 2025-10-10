@@ -1,0 +1,13 @@
+.navbar-container {
+  transition: transform 0.4s ease, opacity 0.4s ease;
+}
+
+.navbar-container.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.navbar-container.hide {
+  transform: translateY(-100%);
+  opacity: 0;
+}
