@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { Input, Badge, Drawer, Button } from "antd";
@@ -14,14 +15,15 @@ import {
 } from "@ant-design/icons";
 import Logo from "../../assets/images/logo.png";
 import "../../assets/styles/nav.css";
-
 const { Search } = Input;
-
 const Navbar: React.FC = () => {
   const [openDrawer, setOpenDrawer] = useState(false);
-
   return (
-    <div className="navbar-wrapper">
+    // Sticky navbar: luôn hiển thị khi cuộn trang
+    <div
+      className="navbar-wrapper"
+      style={{ position: "sticky", top: 0, zIndex: 1000, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
+    >
       {/* Top bar */}
       <div className="nav-top">
         <div className="nav-container nav-top-inner">
@@ -85,7 +87,6 @@ const Navbar: React.FC = () => {
             />
           </div>
         </div>
-
         {/* Menu danh mục */}
         <div className="nav-menu">
           <Link className="nav-link" to="/">

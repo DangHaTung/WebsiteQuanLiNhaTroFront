@@ -1,7 +1,150 @@
 {
-  "rooms": [
-    { "id": 1, "name": "Phòng trọ 1", "price": 1500000, "address": "123 Nguyễn Trãi, Q.1" },
-    { "id": 2, "name": "Phòng trọ 2", "price": 2000000, "address": "456 Lê Lợi, Q.3" },
-    { "id": 3, "name": "Phòng trọ 3", "price": 1800000, "address": "789 Cách Mạng Tháng 8, Q.10" }
+  "posts": [
+    {
+      "id": 1,
+      "title": "Cách chọn phòng trọ an toàn cho sinh viên",
+      "excerpt": "Tìm hiểu các mẹo chọn phòng trọ an toàn, giá hợp lý và tiện nghi phù hợp...",
+      "image": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+      "createdAt": "2025-10-01T10:00:00Z"
+    },
+    {
+      "id": 2,
+      "title": "Top 5 khu vực thuê phòng trọ được ưa chuộng",
+      "excerpt": "Khám phá các khu vực trung tâm, tiện nghi, an ninh tốt và gần trường học...",
+      "image": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+      "createdAt": "2025-10-05T14:30:00Z"
+    },
+    {
+      "id": 3,
+      "title": "Ưu đãi đặc biệt khi thuê phòng tháng đầu",
+      "excerpt": "Nhận ngay giảm giá, miễn phí dịch vụ tiện ích khi thuê phòng trong tháng đầu tiên...",
+      "image": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+      "createdAt": "2025-10-07T09:00:00Z"
+    },
+    {
+      "id": 4,
+      "title": "Ưu đãi đặc biệt khi thuê phòng tháng đầu",
+      "excerpt": "Nhận ngay giảm giá, miễn phí dịch vụ tiện ích khi thuê phòng trong tháng đầu tiên...",
+      "image": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+      "createdAt": "2025-10-07T09:00:00Z"
+    }
+    {
+      "id": 1,
+      "title": "Phòng trọ cao cấp",
+      "price": 2500000,
+      "address": "HÀ Nội",
+      "image": "https://tse1.mm.bing.net/th/id/OIP.PjLbb9MJwZxukEg2tbOKYAHaFj?pid=Api&P=0&h=180",
+      "images": [
+        "https://tse1.mm.bing.net/th/id/OIP.PjLbb9MJwZxukEg2tbOKYAHaFj?pid=Api&P=0&h=180",
+        "https://tse4.mm.bing.net/th/id/OIP.iFtkuF0tXTjKb2aFRoXWpAHaFj?pid=Api&P=0&h=180",
+        "https://picsum.photos/id/1035/1200/800",
+        "https://picsum.photos/id/1044/1200/800"
+      ],
+      "bedrooms": 2,
+      "bathrooms": 1,
+      "area": 30,
+      "isNew": true
+    },
+    {
+      "id": 2,
+      "title": "Phòng mini",
+      "price": 1800000,
+      "address": "HÀ Nội",
+      "image": "https://picsum.photos/id/1021/800/400",
+      "images": [
+        "https://picsum.photos/id/1021/1200/800",
+        "https://picsum.photos/id/1022/1200/800",
+        "https://picsum.photos/id/1023/1200/800",
+        "https://picsum.photos/id/1024/1200/800"
+      ],
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "area": 25,
+      "isHot": true
+    },
+    {
+      "id": 3,
+      "title": "Căn hộ dịch vụ",
+      "price": 3200000,
+      "address": "HÀ Nội",
+      "image": "https://picsum.photos/id/1032/800/400",
+      "images": [
+        "https://picsum.photos/id/1032/1200/800",
+        "https://picsum.photos/id/1033/1200/800",
+        "https://picsum.photos/id/1034/1200/800",
+        "https://picsum.photos/id/1036/1200/800"
+      ],
+      "bedrooms": 2,
+      "bathrooms": 2,
+      "area": 40
+    },
+    {
+      "id": 4,
+      "title": "Phòng trọ tiện nghi",
+      "price": 2000000,
+      "address": "HÀ Nội",
+      "image": "https://picsum.photos/id/1045/800/400",
+      "images": [
+        "https://picsum.photos/id/1045/1200/800",
+        "https://picsum.photos/id/1046/1200/800",
+        "https://picsum.photos/id/1047/1200/800",
+        "https://picsum.photos/id/1048/1200/800"
+      ],
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "area": 28,
+      "isNew": true
+    },
+    {
+      "id": 5,
+      "title": "Phòng trọ tiện nghi",
+      "price": 2000000,
+      "address": "HÀ Nội",
+      "image": "https://picsum.photos/id/1045/800/400",
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "area": 28,
+      "isNew": true
+    },
+    {
+      "id": 6,
+      "title": "Phòng trọ tiện nghi",
+      "price": 2000000,
+      "address": "HÀ Nội",
+      "image": "https://picsum.photos/id/1045/800/400",
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "area": 28,
+      "isNew": true
+    },
+    {
+      "id": 7,
+      "title": "Phòng trọ tiện nghi",
+      "price": 2000000,
+      "address": "HÀ Nội",
+      "image": "https://picsum.photos/id/1045/800/400",
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "area": 28,
+      "isNew": true
+    },
+    {
+      "id": 8,
+      "title": "Phòng trọ tiện nghi",
+      "price": 2000000,
+      "address": "HÀ Nội",
+      "image": "https://picsum.photos/id/1045/800/400",
+      "images": [
+        "https://picsum.photos/id/1080/1200/800",
+        "https://picsum.photos/id/1081/1200/800",
+        "https://picsum.photos/id/1082/1200/800",
+        "https://picsum.photos/id/1083/1200/800"
+      ],
+      "bedrooms": 1,
+      "bathrooms": 1,
+      "area": 28,
+      "isNew": true
+    }
+    
   ]
 }
