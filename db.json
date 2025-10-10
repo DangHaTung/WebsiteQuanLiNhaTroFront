@@ -20,19 +20,15 @@
       "excerpt": "Nhận ngay giảm giá, miễn phí dịch vụ tiện ích khi thuê phòng trong tháng đầu tiên...",
       "image": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
       "createdAt": "2025-10-07T09:00:00Z"
-    },
-    {
-      "id": 4,
-      "title": "Ưu đãi đặc biệt khi thuê phòng tháng đầu",
-      "excerpt": "Nhận ngay giảm giá, miễn phí dịch vụ tiện ích khi thuê phòng trong tháng đầu tiên...",
-      "image": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
-      "createdAt": "2025-10-07T09:00:00Z"
     }
+  ],
+
+  "rooms": [
     {
       "id": 1,
       "title": "Phòng trọ cao cấp",
       "price": 2500000,
-      "address": "HÀ Nội",
+      "address": "Hà Nội",
       "image": "https://tse1.mm.bing.net/th/id/OIP.PjLbb9MJwZxukEg2tbOKYAHaFj?pid=Api&P=0&h=180",
       "images": [
         "https://tse1.mm.bing.net/th/id/OIP.PjLbb9MJwZxukEg2tbOKYAHaFj?pid=Api&P=0&h=180",
@@ -49,7 +45,7 @@
       "id": 2,
       "title": "Phòng mini",
       "price": 1800000,
-      "address": "HÀ Nội",
+      "address": "Hà Nội",
       "image": "https://picsum.photos/id/1021/800/400",
       "images": [
         "https://picsum.photos/id/1021/1200/800",
@@ -66,7 +62,7 @@
       "id": 3,
       "title": "Căn hộ dịch vụ",
       "price": 3200000,
-      "address": "HÀ Nội",
+      "address": "Hà Nội",
       "image": "https://picsum.photos/id/1032/800/400",
       "images": [
         "https://picsum.photos/id/1032/1200/800",
@@ -82,7 +78,7 @@
       "id": 4,
       "title": "Phòng trọ tiện nghi",
       "price": 2000000,
-      "address": "HÀ Nội",
+      "address": "Hà Nội",
       "image": "https://picsum.photos/id/1045/800/400",
       "images": [
         "https://picsum.photos/id/1045/1200/800",
@@ -94,57 +90,87 @@
       "bathrooms": 1,
       "area": 28,
       "isNew": true
-    },
-    {
-      "id": 5,
-      "title": "Phòng trọ tiện nghi",
-      "price": 2000000,
-      "address": "HÀ Nội",
-      "image": "https://picsum.photos/id/1045/800/400",
-      "bedrooms": 1,
-      "bathrooms": 1,
-      "area": 28,
-      "isNew": true
-    },
-    {
-      "id": 6,
-      "title": "Phòng trọ tiện nghi",
-      "price": 2000000,
-      "address": "HÀ Nội",
-      "image": "https://picsum.photos/id/1045/800/400",
-      "bedrooms": 1,
-      "bathrooms": 1,
-      "area": 28,
-      "isNew": true
-    },
-    {
-      "id": 7,
-      "title": "Phòng trọ tiện nghi",
-      "price": 2000000,
-      "address": "HÀ Nội",
-      "image": "https://picsum.photos/id/1045/800/400",
-      "bedrooms": 1,
-      "bathrooms": 1,
-      "area": 28,
-      "isNew": true
-    },
-    {
-      "id": 8,
-      "title": "Phòng trọ tiện nghi",
-      "price": 2000000,
-      "address": "HÀ Nội",
-      "image": "https://picsum.photos/id/1045/800/400",
-      "images": [
-        "https://picsum.photos/id/1080/1200/800",
-        "https://picsum.photos/id/1081/1200/800",
-        "https://picsum.photos/id/1082/1200/800",
-        "https://picsum.photos/id/1083/1200/800"
-      ],
-      "bedrooms": 1,
-      "bathrooms": 1,
-      "area": 28,
-      "isNew": true
     }
-    
+  ],
+
+  "notifications": [
+    {
+      "id": 1,
+      "title": "Hợp đồng thuê phòng #01 sắp hết hạn",
+      "content": "Hợp đồng thuê phòng của bạn tại Phòng trọ cao cấp sẽ hết hạn vào ngày 15/10/2025.",
+      "createdAt": "2025-10-09T09:00:00Z",
+      "isRead": false
+    },
+    {
+      "id": 2,
+      "title": "Xác nhận thanh toán tiền phòng tháng 10",
+      "content": "Chúng tôi đã nhận được thanh toán tiền phòng tháng 10 của bạn.",
+      "createdAt": "2025-10-05T12:00:00Z",
+      "isRead": true
+    },
+    {
+      "id": 3,
+      "title": "Ưu đãi khách hàng thân thiết",
+      "content": "Giảm 10% khi gia hạn hợp đồng thuê phòng thêm 6 tháng.",
+      "createdAt": "2025-10-03T10:00:00Z",
+      "isRead": false
+    }
+  ],
+
+  "contracts": [
+    {
+      "id": 1,
+      "roomName": "Phòng trọ cao cấp",
+      "startDate": "2025-05-01",
+      "endDate": "2025-10-15",
+      "price": 2500000,
+      "status": "Còn hiệu lực"
+    },
+    {
+      "id": 2,
+      "roomName": "Phòng mini",
+      "startDate": "2025-04-10",
+      "endDate": "2025-09-10",
+      "price": 1800000,
+      "status": "Hết hạn"
+    },
+    {
+      "id": 3,
+      "roomName": "Căn hộ dịch vụ",
+      "startDate": "2025-06-01",
+      "endDate": "2026-06-01",
+      "price": 3200000,
+      "status": "Còn hiệu lực"
+    }
+  ],
+
+  "invoices": [
+    {
+      "id": 1,
+      "contractId": 1,
+      "roomName": "Phòng trọ cao cấp",
+      "month": "2025-10",
+      "amount": 2500000,
+      "status": "Đã thanh toán",
+      "paidDate": "2025-10-05"
+    },
+    {
+      "id": 2,
+      "contractId": 2,
+      "roomName": "Phòng mini",
+      "month": "2025-09",
+      "amount": 1800000,
+      "status": "Chưa thanh toán",
+      "paidDate": null
+    },
+    {
+      "id": 3,
+      "contractId": 3,
+      "roomName": "Căn hộ dịch vụ",
+      "month": "2025-10",
+      "amount": 3200000,
+      "status": "Đã thanh toán",
+      "paidDate": "2025-10-03"
+    }
   ]
 }
