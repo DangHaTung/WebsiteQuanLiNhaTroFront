@@ -1,203 +1,138 @@
-import React, { useEffect, useState } from "react";
-import { Link, NavLink } from "react-router-dom";
-import { Input, Badge } from "antd";
-import Logo from "../../assets/images/logo.png";
-import "../../assets/styles/nav.css";
+
+import React, { useState } from "react";
+import { Link } from "react-router-dom";
+import { Input, Badge, Drawer, Button } from "antd";
 import {
   PhoneOutlined,
   MailOutlined,
-  ShoppingCartOutlined,
+  HeartOutlined,
   SearchOutlined,
-  BellOutlined,
+  HomeOutlined,
+  UserOutlined,
+  MenuOutlined,
+  CloseOutlined,
+  CustomerServiceOutlined,
 } from "@ant-design/icons";
-import axios from "axios";
-
+import Logo from "../../assets/images/logo.png";
+import "../../assets/styles/nav.css";
 const { Search } = Input;
-
 const Navbar: React.FC = () => {
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  // ✅ Lấy số lượng thông báo chưa đọc từ JSON Server
-  useEffect(() => {
-    axios
-      .get("http://localhost:3000/notifications")
-      .then((res) => {
-        const unread = res.data.filter((n: any) => !n.isRead).length;
-        setUnreadCount(unread);
-      })
-      .catch((err) => console.error("Lỗi tải thông báo:", err));
-  }, []);
-
+  const [openDrawer, setOpenDrawer] = useState(false);
   return (
+    // Sticky navbar: luôn hiển thị khi cuộn trang
     <div
       className="navbar-wrapper"
-      style={{
-        position: "sticky",
-        top: 0,
-        zIndex: 1000,
-        boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-      }}
+      style={{ position: "sticky", top: 0, zIndex: 1000, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
     >
       {/* Top bar */}
-      <div
-        style={{
-          background: "#0D2A5C",
-          color: "#fff",
-          fontSize: "14px",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: "1200px",
-            margin: "0 auto",
-            padding: "4px 20px",
-            display: "flex",
-            justifyContent: "space-between",
-          }}
-        >
-          {/* Liên hệ */}
-          <div style={{ display: "flex", gap: "16px" }}>
+      <div className="nav-top">
+        <div className="nav-container nav-top-inner">
+          <div className="nav-top-contact">
             <span>
-              <PhoneOutlined /> 0123 456 789
+              <PhoneOutlined /> <strong>0123 456 789</strong>
             </span>
             <span>
               <MailOutlined /> support@tro360.com
             </span>
           </div>
 
-          {/* Menu nhỏ */}
-          <div style={{ display: "flex", gap: "16px" }}>
-            <Link to="/orders" style={{ color: "#fff" }}>
-              Theo dõi đơn hàng
+          <div className="nav-top-menu">
+            <Link to="/post-room" className="nav-top-link highlight">
+              <HomeOutlined /> Đăng tin cho thuê
             </Link>
-            <Link to="/store" style={{ color: "#fff" }}>
-              Cửa hàng
-            </Link>
-            <Link to="/contact" style={{ color: "#fff" }}>
-              Liên hệ
-            </Link>
-            <Link to="/contracts" style={{ color: "#fff" }}>
-              Hợp Đồng
-            </Link>
-            <Link to="/invoices" style={{ color: "#fff" }}>
-  Hóa đơn
-</Link>
-
-            {/* 🔔 Thông báo */}
-            <Link to="/notifications" style={{ color: "#fff", position: "relative" }}>
-              <Badge count={unreadCount} size="small" offset={[8, -2]}>
-                <BellOutlined style={{ fontSize: "16px", color: "#fff" }} />
-              </Badge>{" "}
-              Thông báo
+            <Link to="/contact" className="nav-top-link highlight">
+              <CustomerServiceOutlined className="icon" /> Hỗ trợ
             </Link>
           </div>
         </div>
       </div>
 
       {/* Main navbar */}
-      <div
-        style={{
-          background: "#fff",
-          borderBottom: "1px solid #eee",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: "1200px",
-            margin: "0 auto",
-            padding: "12px 20px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "20px",
-            }}
-          >
-            {/* Logo */}
-            <div style={{ fontSize: "22px", fontWeight: "bold" }}>
-              <Link to="/">
-                <img
-                  src={Logo}
-                  alt="Tro360 Logo"
-                  style={{
-                    height: "80px",
-                    width: "auto",
-                    objectFit: "contain",
-                  }}
-                />
-              </Link>
-            </div>
-
-            {/* Ô tìm kiếm */}
-            <div style={{ flex: 1, maxWidth: "500px" }}>
-              <Search
-                placeholder="Tìm kiếm sản phẩm thời trang nam..."
-                enterButton={<SearchOutlined />}
-                size="large"
-                onSearch={(value) => console.log("Search:", value)}
-              />
-            </div>
-
-            {/* Giỏ hàng + Đăng nhập */}
-            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              <Badge count={0} size="small">
-                <ShoppingCartOutlined style={{ fontSize: "22px" }} />
-              </Badge>
-              <div>
-                <Link to="/login">Đăng nhập</Link> /{" "}
-                <Link to="/register">Đăng ký</Link>
-              </div>
-            </div>
+      <div className="nav-main">
+        <div className="nav-container nav-main-inner">
+          {/* Logo */}
+          <div className="nav-logo">
+            <Link to="/">
+              <img src={Logo} alt="Tro360 Logo" className="logo-hover" />
+            </Link>
           </div>
 
-          {/* Menu danh mục */}
-          <nav
-            style={{
-              marginTop: "12px",
-              padding: "12px 0",
-              background: "#ffffff",
-              borderTop: "1px solid #eee",
-              display: "flex",
-              gap: "12px",
-              justifyContent: "center",
-              fontSize: "15px",
-              fontWeight: 600,
-              flexWrap: "wrap",
-            }}
-          >
-            <NavLink
-              to="/"
-              className={({ isActive }) => (isActive ? "active" : "")}
-              style={({ isActive }) => ({
-                color: isActive ? "#fff" : "#0D2A5C",
-                background: isActive ? "#1677ff" : "transparent",
-                padding: "8px 14px",
-                borderRadius: 999,
-                transition: "all .2s ease",
-              })}
-            >
-              Trang chủ
-            </NavLink>
+          {/* Ô tìm kiếm */}
+          <div className="nav-search">
+            <Search
+              placeholder="Tìm phòng trọ, căn hộ, nhà nguyên căn..."
+              enterButton={<SearchOutlined />}
+              size="large"
+              allowClear
+              onSearch={(value) => console.log("Search:", value)}
+            />
+          </div>
 
-            <NavLink
-              to="/rooms"
-              className={({ isActive }) => (isActive ? "active" : "")}
-              style={({ isActive }) => ({
-                color: isActive ? "#fff" : "#0D2A5C",
-                background: isActive ? "#1677ff" : "transparent",
-                padding: "8px 14px",
-                borderRadius: 999,
-                transition: "all .2s ease",
-              })}
-            >
-              Danh sách phòng
-            </NavLink>
-          </nav>
+          {/* Wishlist + User */}
+          <div className="nav-actions">
+            <Badge count={3} size="small">
+              <HeartOutlined className="nav-icon wishlist-icon" />
+            </Badge>
+            <div className="nav-user">
+              <UserOutlined />
+              <Link to="/login">Đăng nhập</Link>
+              <span>/</span>
+              <Link to="/register">Đăng ký</Link>
+            </div>
+            <Button
+              className="menu-btn"
+              type="text"
+              icon={<MenuOutlined />}
+              onClick={() => setOpenDrawer(true)}
+            />
+          </div>
+        </div>
+        {/* Menu danh mục */}
+        <div className="nav-menu">
+          <Link className="nav-link" to="/">
+            Trang chủ
+          </Link>
+          <Link className="nav-link" to="/rooms">
+            Danh sách phòng
+          </Link>
+          <Link className="nav-link" to="/news">
+            Tin tức & Mẹo thuê trọ
+          </Link>
+          <Link className="nav-link" to="/about">
+            Giới thiệu
+          </Link>
+          <Link className="nav-link" to="/contact">
+            Liên hệ
+          </Link>
         </div>
       </div>
+
+      {/* Drawer Mobile */}
+      <Drawer
+        placement="right"
+        onClose={() => setOpenDrawer(false)}
+        open={openDrawer}
+        closeIcon={<CloseOutlined />}
+        width={250}
+      >
+        <div className="drawer-menu">
+          <Link to="/" onClick={() => setOpenDrawer(false)}>
+            Trang chủ
+          </Link>
+          <Link to="/rooms" onClick={() => setOpenDrawer(false)}>
+            Danh sách phòng
+          </Link>
+          <Link to="/news" onClick={() => setOpenDrawer(false)}>
+            Tin tức & Mẹo thuê trọ
+          </Link>
+          <Link to="/about" onClick={() => setOpenDrawer(false)}>
+            Giới thiệu
+          </Link>
+          <Link to="/contact" onClick={() => setOpenDrawer(false)}>
+            Liên hệ
+          </Link>
+        </div>
+      </Drawer>
     </div>
   );
 };
