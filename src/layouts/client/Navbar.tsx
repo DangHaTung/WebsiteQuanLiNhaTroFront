@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { Input, Badge } from "antd";
 import Logo from "../../assets/images/logo.png";
@@ -8,16 +8,35 @@ import {
   MailOutlined,
   ShoppingCartOutlined,
   SearchOutlined,
+  BellOutlined,
 } from "@ant-design/icons";
+import axios from "axios";
 
 const { Search } = Input;
 
 const Navbar: React.FC = () => {
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  // ✅ Lấy số lượng thông báo chưa đọc từ JSON Server
+  useEffect(() => {
+    axios
+      .get("http://localhost:3000/notifications")
+      .then((res) => {
+        const unread = res.data.filter((n: any) => !n.isRead).length;
+        setUnreadCount(unread);
+      })
+      .catch((err) => console.error("Lỗi tải thông báo:", err));
+  }, []);
+
   return (
-    // Sticky navbar: luôn hiển thị khi cuộn trang
     <div
       className="navbar-wrapper"
-      style={{ position: "sticky", top: 0, zIndex: 1000, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
+      style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 1000,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+      }}
     >
       {/* Top bar */}
       <div
@@ -57,6 +76,20 @@ const Navbar: React.FC = () => {
             <Link to="/contact" style={{ color: "#fff" }}>
               Liên hệ
             </Link>
+            <Link to="/contracts" style={{ color: "#fff" }}>
+              Hợp Đồng
+            </Link>
+            <Link to="/invoices" style={{ color: "#fff" }}>
+  Hóa đơn
+</Link>
+
+            {/* 🔔 Thông báo */}
+            <Link to="/notifications" style={{ color: "#fff", position: "relative" }}>
+              <Badge count={unreadCount} size="small" offset={[8, -2]}>
+                <BellOutlined style={{ fontSize: "16px", color: "#fff" }} />
+              </Badge>{" "}
+              Thông báo
+            </Link>
           </div>
         </div>
       </div>
@@ -86,7 +119,15 @@ const Navbar: React.FC = () => {
             {/* Logo */}
             <div style={{ fontSize: "22px", fontWeight: "bold" }}>
               <Link to="/">
-                <img src={Logo} alt="Tro360 Logo" style={{ height: "80px", width: "auto", objectFit: "contain" }} />
+                <img
+                  src={Logo}
+                  alt="Tro360 Logo"
+                  style={{
+                    height: "80px",
+                    width: "auto",
+                    objectFit: "contain",
+                  }}
+                />
               </Link>
             </div>
 
@@ -112,7 +153,7 @@ const Navbar: React.FC = () => {
             </div>
           </div>
 
-          {/* Menu danh mục (pill style với trạng thái active/hover) */}
+          {/* Menu danh mục */}
           <nav
             style={{
               marginTop: "12px",
@@ -137,17 +178,10 @@ const Navbar: React.FC = () => {
                 borderRadius: 999,
                 transition: "all .2s ease",
               })}
-              onMouseEnter={(e) => {
-                const el = e.currentTarget as HTMLAnchorElement;
-                if (!el.classList.contains("active")) el.style.background = "#f0f5ff";
-              }}
-              onMouseLeave={(e) => {
-                const el = e.currentTarget as HTMLAnchorElement;
-                if (!el.classList.contains("active")) el.style.background = "transparent";
-              }}
             >
               Trang chủ
             </NavLink>
+
             <NavLink
               to="/rooms"
               className={({ isActive }) => (isActive ? "active" : "")}
@@ -158,14 +192,6 @@ const Navbar: React.FC = () => {
                 borderRadius: 999,
                 transition: "all .2s ease",
               })}
-              onMouseEnter={(e) => {
-                const el = e.currentTarget as HTMLAnchorElement;
-                if (!el.classList.contains("active")) el.style.background = "#f0f5ff";
-              }}
-              onMouseLeave={(e) => {
-                const el = e.currentTarget as HTMLAnchorElement;
-                if (!el.classList.contains("active")) el.style.background = "transparent";
-              }}
             >
               Danh sách phòng
             </NavLink>
