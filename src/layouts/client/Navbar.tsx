@@ -8,17 +8,19 @@ import {
   HeartOutlined,
   SearchOutlined,
   HomeOutlined,
-  UserOutlined,
   MenuOutlined,
   CloseOutlined,
   CustomerServiceOutlined,
 } from "@ant-design/icons";
 import Logo from "../../assets/images/logo.png";
 import "../../assets/styles/nav.css";
+import UserMenu from "../../modules/client/components/UserMenu";
+import { useAuth } from "../../modules/client/context/AuthContext";
 
 const { Search } = Input;
 const Navbar: React.FC = () => {
   const [openDrawer, setOpenDrawer] = useState(false);
+  const { isAuthenticated } = useAuth();
   return (
     // Sticky navbar: luôn hiển thị khi cuộn trang
     <div
@@ -71,14 +73,14 @@ const Navbar: React.FC = () => {
 
           {/* Wishlist + User */}
           <div className="nav-actions">
-            <Badge count={3} size="small">
-              <HeartOutlined className="nav-icon wishlist-icon" />
-            </Badge>
+            {/* Chỉ hiển thị icon trái tim khi đã đăng nhập */}
+            {isAuthenticated && (
+              <Badge count={3} size="small">
+                <HeartOutlined className="nav-icon wishlist-icon" />
+              </Badge>
+            )}
             <div className="nav-user">
-              <UserOutlined />
-              <Link to="/login">Đăng nhập</Link>
-              <span>/</span>
-              <Link to="/register">Đăng ký</Link>
+              <UserMenu />
             </div>
             <Button
               className="menu-btn"

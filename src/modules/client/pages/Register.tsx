@@ -1,19 +1,43 @@
 import React, { useState } from "react";
 import { Form, Input, Button, Card, Typography, message } from "antd";
 import { UserAddOutlined, MailOutlined, LockOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import "../../../assets/styles/register.css";
 
 const { Title, Text } = Typography;
 
 const Register: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const { register } = useAuth();
+  const navigate = useNavigate();
 
-  const onFinish = (values: any) => {
+  const onFinish = async (values: {
+    fullname: string;
+    email: string;
+    password: string;
+    phone?: string;
+    confirm?: string; // This field is only for validation
+  }) => {
     setLoading(true);
-    setTimeout(() => {
+    try {
+      // Exclude the confirm field from the registration data
+      const { confirm, ...registerData } = values;
+
+      await register({
+        fullName: registerData.fullname,
+        email: registerData.email,
+        password: registerData.password,
+        phone: registerData.phone,
+        role: "TENANT" as const, // Mặc định là TENANT
+      });
+      message.success("Đăng ký thành công! Vui lòng đăng nhập.");
+      navigate("/login"); // Chuyển hướng đến trang đăng nhập
+    } catch (error: any) {
+      message.error(error.message || "Đăng ký thất bại");
+    } finally {
       setLoading(false);
-      message.success(`Đăng ký thành công! Chào mừng, ${values.fullname}!`);
-    }, 1500);
+    }
   };
 
   return (
@@ -83,6 +107,23 @@ const Register: React.FC = () => {
               <Input
                 prefix={<MailOutlined style={{ color: "#3b82f6" }} />}
                 placeholder="example@email.com"
+                size="large"
+                className="custom-input"
+              />
+            </Form.Item>
+
+            <Form.Item
+              name="phone"
+              label="Số điện thoại"
+              rules={[
+                {
+                  pattern: /^[0-9]{9,11}$/,
+                  message: "Số điện thoại phải từ 9-11 chữ số",
+                },
+              ]}
+            >
+              <Input
+                placeholder="0123456789"
                 size="large"
                 className="custom-input"
               />

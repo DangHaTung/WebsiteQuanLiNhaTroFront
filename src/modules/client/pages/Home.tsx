@@ -1,52 +1,72 @@
 import React, { useEffect, useState } from "react";
-import { Carousel, Row, Col, Card, Button, Typography, Tag, Spin } from "antd";
-import {
-  HomeOutlined,
-  RestOutlined,
-  FullscreenOutlined,
-  ToolOutlined,
-  CalendarOutlined,
-  GiftOutlined,
-} from "@ant-design/icons";
+import { Carousel, Row, Col, Card, Button, Typography, Tag, Skeleton, Alert } from "antd";
+import { HomeOutlined, FullscreenOutlined, ToolOutlined, CalendarOutlined, GiftOutlined } from "@ant-design/icons";
 import banner1 from "../../../assets/images/banner1.png";
 import banner2 from "../../../assets/images/banner2.png";
 import banner3 from "../../../assets/images/banner3.png";
-
 import type { Room } from "../../../types/room";
 import type { Post } from "../../../types/post";
-import api from "../services/api";
+// import api from "../services/api";
 import "../../../assets/styles/home.css";
+import RoomCard from "../components/RoomCard";
 
 const { Title } = Typography;
 
 const Home: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [errorRooms, setErrorRooms] = useState<string | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loadingPosts, setLoadingPosts] = useState<boolean>(true);
+  const [errorPosts, setErrorPosts] = useState<string | null>(null);
+
+  const formatCurrency = (v: string | number | undefined) => {
+    if (v === undefined || v === null) return "0";
+    const num = typeof v === 'string' ? parseFloat(v) : v;
+    return isNaN(num) ? "0" : num.toLocaleString("vi-VN");
+  };
+
+  // useEffect(() => {
+  //   api
+  //     .get<Room[]>("/rooms")
+  //     .then((res) => setRooms(res.data))
+  //     .catch((err) => {
+  //       console.error(err);
+  //       setErrorRooms("Không tải được danh sách phòng. Vui lòng thử lại sau.");
+  //     })
+  //     .finally(() => setLoading(false));
+  // }, []);
+
+  // useEffect(() => {
+  //   api
+  //     .get<Post[]>("/posts")
+  //     .then((res) => setPosts(res.data))
+  //     .catch((err) => {
+  //       console.error(err);
+  //       setErrorPosts("Không tải được danh sách bài viết.");
+  //     })
+  //     .finally(() => setLoadingPosts(false));
+  // }, []);
 
   useEffect(() => {
-    api
-      .get<Room[]>("/rooms")
-      .then((res) => setRooms(res.data))
-      .catch((err) => console.error(err))
+    fetch("/db.json")
+      .then((res) => res.json())
+      .then((data) => {
+        setRooms(data.rooms || []);
+      })
+      .catch(() => setErrorRooms("Không tải được danh sách phòng."))
       .finally(() => setLoading(false));
   }, []);
-
+  
   useEffect(() => {
-    api
-      .get<Post[]>("/posts")
-      .then((res) => setPosts(res.data))
-      .catch((err) => console.error(err))
+    fetch("/db.json")
+      .then((res) => res.json())
+      .then((data) => {
+        setPosts(data.posts || []);
+      })
+      .catch(() => setErrorPosts("Không tải được danh sách bài viết."))
       .finally(() => setLoadingPosts(false));
   }, []);
-
-  if (loading)
-    return (
-      <div style={{ textAlign: "center", marginTop: "100px" }}>
-        <Spin size="large" />
-      </div>
-    );
 
   return (
     <div>
@@ -141,54 +161,28 @@ const Home: React.FC = () => {
         <Title level={2} className="section-title" style={{ textAlign: "center", marginBottom: 16 }}>
           DANH SÁCH PHÒNG TRỌ
         </Title>
+
         <p style={{ textAlign: "center", color: "#555", marginBottom: 24 }}>
           Khám phá các phòng trọ phù hợp với nhu cầu, vị trí và ngân sách của bạn
         </p>
+
         <Row gutter={[24, 24]} justify="center">
-          {rooms.map((room) => (
-            <Col xs={24} sm={12} md={8} lg={8} key={room.id}>
-              <Card
-                hoverable
-                className="room-card"
-                cover={
-                  <img
-                    alt={room.title}
-                    src={room.image}
-                    className="room-image"
-                  />
-                }
-              >
-                <div className="room-header">
-                  <h3>{room.title}</h3>
-                  <div>
-                    {room.isHot && <Tag color="red">HOT</Tag>}
-                    {room.isNew && <Tag color="green">NEW</Tag>}
-                  </div>
-                </div>
-                <p className="room-address">{room.address}</p>
-                <p className="room-price">
-                  {room.price.toLocaleString()} VNĐ / tháng
-                </p>
-                <div className="room-info">
-                  <span>
-                    <HomeOutlined /> {room.bedrooms} PN
-                  </span>
-                  <span>
-                    <RestOutlined /> {room.bathrooms} PT
-                  </span>
-                  <span>
-                    <FullscreenOutlined /> {room.area} m²
-                  </span>
-                </div>
-                <Button type="primary" block className="btn-animated">
-                  Chi tiết »
-                </Button>
-              </Card>
+          {loading
+            ? Array.from({ length: 6 }).map((_, i) => (
+                <Col xs={24} sm={12} md={8} lg={8} key={`sk-${i}`}>
+                  <Card className="room-card" hoverable>
+                    <Skeleton.Image style={{ width: "100%", height: 200 }} active />
+                    <Skeleton active paragraph={{ rows: 2 }} title style={{ marginTop: 16 }} />
+                  </Card>
+                </Col>
+              ))
+            : rooms.map((room) => (
+            <Col xs={24} sm={12} md={8} lg={8} key={room._id}>
+              <RoomCard room={room} />
             </Col>
-          ))}
+            ))}
         </Row>
       </section>
-
       {/* TIN ĐĂNG */}
       <section className="section page-container">
         <Title level={2} className="section-title" style={{ textAlign: "center", marginBottom: 16 }}>
@@ -197,10 +191,22 @@ const Home: React.FC = () => {
         <p style={{ textAlign: "center", color: "#555", marginBottom: 24 }}>
           Cập nhật những tin đăng phòng trọ mới nhất, chất lượng và đáng tin cậy
         </p>
+
+        {errorPosts && (
+          <Alert style={{ marginTop: 16 }} type="error" showIcon message={errorPosts} />
+        )}
+
         {loadingPosts ? (
-          <div style={{ textAlign: "center", marginTop: 50 }}>
-            <Spin size="large" />
-          </div>
+          <Row gutter={[24, 24]} style={{ marginTop: 16 }}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Col xs={24} sm={12} md={8} lg={6} key={`psk-${i}`}>
+                <Card hoverable className="post-card">
+                  <Skeleton.Image style={{ width: "100%", height: 160 }} active />
+                  <Skeleton active paragraph={{ rows: 2 }} title style={{ marginTop: 16 }} />
+                </Card>
+              </Col>
+            ))}
+          </Row>
         ) : (
           <Row gutter={[24, 24]}>
             {posts.map((post) => (

@@ -10,7 +10,7 @@ import {
   SettingOutlined,
   LogoutOutlined,
 } from "@ant-design/icons";
-import "../../assets/styles/lauoutAd.css";
+import "../../assets/styles/layoutAd.css";
 import SearchBar from "./SearchBar";
 
 const { Header, Sider, Content, Footer } = Layout;

@@ -1,12 +1,21 @@
 export interface Room {
-  id: number;
-  title: string;
-  price: number;
-  address: string;
+  _id: string;
+  roomNumber: string;
+  type: string;
+  pricePerMonth: string;
+  areaM2: number;
+  floor: number;
+  district: string;
+  status: 'AVAILABLE' | 'OCCUPIED' | 'MAINTENANCE';
+  currentContractSummary?: {
+    contractId: string;
+    tenantName: string;
+    startDate: string;
+    endDate: string;
+    monthlyRent: string;
+  };
   image: string;
-  bedrooms: number;
-  bathrooms: number;
-  area: number;
-  isNew?: boolean;
-  isHot?: boolean;
+  images: string[];
+  createdAt: string;
+  updatedAt: string;
 }

@@ -1,19 +1,28 @@
 import React, { useState } from "react";
 import { Form, Input, Button, Card, Typography, message } from "antd";
 import { UserOutlined, LockOutlined, LoginOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import "../../../assets/styles/login.css";
 
 const { Title, Text } = Typography;
 
 const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
-  const onFinish = (values: any) => {
+  const onFinish = async (values: { email: string; password: string }) => {
     setLoading(true);
-    setTimeout(() => {
+    try {
+      await login(values.email, values.password);
+      message.success("Đăng nhập thành công!");
+      navigate("/"); // Chuyển hướng về trang chủ sau khi đăng nhập thành công
+    } catch (error: any) {
+      message.error(error.message || "Đăng nhập thất bại");
+    } finally {
       setLoading(false);
-      message.success(`Xin chào, ${values.username}!`);
-    }, 1500);
+    }
   };
 
   return (
@@ -60,7 +69,7 @@ const Login: React.FC = () => {
             autoComplete="off"
           >
             <Form.Item
-              name="username"
+              name="email"
               rules={[{ required: true, message: "Vui lòng nhập email!" }]}
             >
               <Input
