@@ -3,6 +3,9 @@
   margin-left: calc(-50vw + 50%);
   padding: 0 20px;
 }
+.page-container {
+  background-color: white;
+}
 
 .banner-slide {
   height: 420px;
@@ -222,8 +225,8 @@
 /* Trend area */
 .trend-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
 }
 
 .trend-card {
@@ -356,3 +359,44 @@
   left: 100%;
 }
 
+/* Title */
+.section-title {
+  font-weight: 700;
+  font-size: 2.5rem;
+  background: linear-gradient(90deg, #80bfff, #4da6ff, #1677ff, #80bfff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-align: center;
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.section-title::after {
+  content: "";
+  display: block;
+  width: 80px;
+  height: 4px;
+  margin: 8px auto 0 auto;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #80bfff, #4da6ff, #1677ff, #80bfff);
+  background-size: 200% 100%;
+  animation: shine 1.5s linear infinite;
+}
+
+@keyframes shine {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+
+.section-title {
+  font-weight: 600;
+  font-size: 28px; 
+  text-transform: uppercase;
+  letter-spacing: 1px;      
+  margin-bottom: 16px;      
+}

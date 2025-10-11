@@ -1,0 +1,89 @@
+/* search.css */
+
+/* Input */
+.ant-input-search .ant-input {
+  border-radius: 12px;
+  border: 1px solid #d9d9d9;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), inset 0 -1px 3px rgba(0,0,0,0.05);
+}
+
+.ant-input-search .ant-input:focus {
+  border-color: #1677ff;
+  box-shadow: 0 8px 24px rgba(22, 119, 255, 0.2), inset 0 -1px 3px rgba(0,0,0,0.05);
+  outline: none;
+  transform: scale(1.02);
+}
+
+/* Placeholder */
+.ant-input::placeholder {
+  color: #999;
+  transition: all 0.3s ease, transform 0.3s ease;
+}
+
+.ant-input:focus::placeholder {
+  color: #bbb;
+  transform: translateX(2px);
+}
+
+/* Button */
+.ant-input-search-button {
+  border-radius: 0 12px 12px 0;
+  background: linear-gradient(135deg, #0d6efd, #0dcaf0);
+  color: #fff;
+  border: none;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+/* Gradient animation */
+@keyframes gradientHover {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Shine effect */
+.ant-input-search-button::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -75%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.5) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: skewX(-25deg);
+  pointer-events: none;
+  transition: all 0.3s ease;
+}
+
+/* Hover: shine tiến + gradient chạy */
+.ant-input-search-button:hover::after {
+  animation: shineForward 1s forwards;
+}
+.ant-input-search-button:hover {
+  animation: gradientHover 4s ease infinite;
+  box-shadow: 0 8px 28px rgba(22, 119, 255, 0.5);
+}
+
+/* Unhover: shine lùi */
+.ant-input-search-button:not(:hover)::after {
+  animation: shineBackward 1s forwards;
+}
+
+/* Keyframes */
+@keyframes shineForward {
+  0% { left: -75%; }
+  100% { left: 100%; }
+}
+
+@keyframes shineBackward {
+  0% { left: 100%; }
+  100% { left: -75%; }
+}

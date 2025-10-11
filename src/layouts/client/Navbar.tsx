@@ -15,6 +15,7 @@ import {
 } from "@ant-design/icons";
 import Logo from "../../assets/images/logo.png";
 import "../../assets/styles/nav.css";
+
 const { Search } = Input;
 const Navbar: React.FC = () => {
   const [openDrawer, setOpenDrawer] = useState(false);
@@ -40,7 +41,7 @@ const Navbar: React.FC = () => {
             <Link to="/post-room" className="nav-top-link highlight">
               <HomeOutlined /> Đăng tin cho thuê
             </Link>
-            <Link to="/contact" className="nav-top-link highlight">
+            <Link to="/support" className="nav-top-link highlight">
               <CustomerServiceOutlined className="icon" /> Hỗ trợ
             </Link>
           </div>
