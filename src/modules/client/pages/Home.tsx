@@ -84,10 +84,7 @@ const Home: React.FC = () => {
 
       {/* DANH MỤC */}
       <section className="section">
-        <Title level={2} className="section-title">
-          Danh mục nổi bật
-        </Title>
-        <Row gutter={[24, 24]} justify="center">
+        <Row gutter={[16, 16]} justify="center">
           {[
             { title: "Phòng trọ", icon: <HomeOutlined />, description: "Xem phòng trọ ngay" },
             { title: "Phòng đầy đủ tiện nghi", icon: <ToolOutlined />, description: "Thuê ngay, tiện nghi đầy đủ" },
@@ -105,10 +102,14 @@ const Home: React.FC = () => {
       </section>
 
       {/* KHU VỰC GỢI Ý */}
-      <section className="section">
-        <Title level={2} className="section-title">
+      <section className="section page-container">
+        <Title level={2} className="section-title" style={{ textAlign: "center", marginBottom: 16 }}>
           Khu vực nổi bật
         </Title>
+        <p style={{ textAlign: "center", color: "#555", marginBottom: 24 }}>
+          Tìm phòng trọ phù hợp với nhu cầu và vị trí lý tưởng
+        </p>
+
         <div className="trend-grid">
           {[
             {
@@ -137,9 +138,12 @@ const Home: React.FC = () => {
 
       {/* DANH SÁCH PHÒNG */}
       <section className="section section-bg">
-        <Title level={2} className="section-title">
+        <Title level={2} className="section-title" style={{ textAlign: "center", marginBottom: 16 }}>
           DANH SÁCH PHÒNG TRỌ
         </Title>
+        <p style={{ textAlign: "center", color: "#555", marginBottom: 24 }}>
+          Khám phá các phòng trọ phù hợp với nhu cầu, vị trí và ngân sách của bạn
+        </p>
         <Row gutter={[24, 24]} justify="center">
           {rooms.map((room) => (
             <Col xs={24} sm={12} md={8} lg={8} key={room.id}>
@@ -186,11 +190,13 @@ const Home: React.FC = () => {
       </section>
 
       {/* TIN ĐĂNG */}
-      <section className="section">
-        <Title level={2} className="section-title">
+      <section className="section page-container">
+        <Title level={2} className="section-title" style={{ textAlign: "center", marginBottom: 16 }}>
           Tin đăng nổi bật
         </Title>
-
+        <p style={{ textAlign: "center", color: "#555", marginBottom: 24 }}>
+          Cập nhật những tin đăng phòng trọ mới nhất, chất lượng và đáng tin cậy
+        </p>
         {loadingPosts ? (
           <div style={{ textAlign: "center", marginTop: 50 }}>
             <Spin size="large" />
