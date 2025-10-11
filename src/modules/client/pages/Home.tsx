@@ -2,20 +2,21 @@ import React, { useEffect, useState } from "react";
 import { Carousel, Row, Col, Card, Button, Typography, Tag, Spin } from "antd";
 import {
   HomeOutlined,
-  RestOutlined,
   FullscreenOutlined,
   ToolOutlined,
   CalendarOutlined,
   GiftOutlined,
 } from "@ant-design/icons";
-import banner1 from "../../../assets/images/banner1.png";
-import banner2 from "../../../assets/images/banner2.png";
-import banner3 from "../../../assets/images/banner3.png";
 
 import type { Room } from "../../../types/room";
 import type { Post } from "../../../types/post";
-import api from "../services/api";
+import RoomCard from "../components/RoomCard";
 import "../../../assets/styles/home.css";
+
+import dbData from "../../../../db.json";
+import banner1 from "../../../assets/images/banner1.png";
+import banner2 from "../../../assets/images/banner2.png";
+import banner3 from "../../../assets/images/banner3.png";
 
 const { Title } = Typography;
 
@@ -26,19 +27,30 @@ const Home: React.FC = () => {
   const [loadingPosts, setLoadingPosts] = useState<boolean>(true);
 
   useEffect(() => {
-    api
-      .get<Room[]>("/rooms")
-      .then((res) => setRooms(res.data))
-      .catch((err) => console.error(err))
-      .finally(() => setLoading(false));
+    // Load rooms from db.json
+    const roomsData: Room[] = dbData.rooms.map((room) => ({
+      _id: room._id,
+      roomNumber: room.roomNumber,
+      type: room.type as "SINGLE" | "DOUBLE" | "STUDIO" | "VIP",
+      pricePerMonth: Number(room.pricePerMonth),
+      areaM2: room.areaM2,
+      floor: room.floor,
+      district: room.district,
+      status: room.status as "OCCUPIED" | "AVAILABLE" | "MAINTENANCE",
+      image: room.image,
+      images: room.images,
+      createdAt: room.createdAt,
+      updatedAt: room.updatedAt,
+    }));
+
+    setRooms(roomsData);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
-    api
-      .get<Post[]>("/posts")
-      .then((res) => setPosts(res.data))
-      .catch((err) => console.error(err))
-      .finally(() => setLoadingPosts(false));
+    // For now, db.json chưa có posts nên tạo tạm mảng rỗng
+    setPosts([]);
+    setLoadingPosts(false);
   }, []);
 
   if (loading)
@@ -49,7 +61,7 @@ const Home: React.FC = () => {
     );
 
   return (
-    <div>
+    <div className="home-page">
       {/* BANNER */}
       <div className="full-width-banner">
         <Carousel autoplay dots effect="fade">
@@ -94,7 +106,7 @@ const Home: React.FC = () => {
             <Col xs={12} md={6} key={index}>
               <Card className="category-card" hoverable>
                 <div className="category-icon">{item.icon}</div>
-                <Card.Meta title={item.title} description="Khám phá ngay" />
+                <Card.Meta title={item.title} description={item.description} />
               </Card>
             </Col>
           ))}
@@ -103,7 +115,7 @@ const Home: React.FC = () => {
 
       {/* KHU VỰC GỢI Ý */}
       <section className="section page-container">
-        <Title level={2} className="section-title" style={{ textAlign: "center", marginBottom: 16 }}>
+        <Title level={2} className="section-title" style={{ textAlign: "center" }}>
           Khu vực nổi bật
         </Title>
         <p style={{ textAlign: "center", color: "#555", marginBottom: 24 }}>
@@ -129,7 +141,9 @@ const Home: React.FC = () => {
               <div className="trend-content">
                 <h2>{area.title}</h2>
                 <p>{area.desc}</p>
-                <Button type="primary" className="btn-animated">Xem phòng</Button>
+                <Button type="primary" className="btn-animated">
+                  Xem phòng
+                </Button>
               </div>
             </div>
           ))}
@@ -138,52 +152,17 @@ const Home: React.FC = () => {
 
       {/* DANH SÁCH PHÒNG */}
       <section className="section section-bg">
-        <Title level={2} className="section-title" style={{ textAlign: "center", marginBottom: 16 }}>
+        <Title level={2} className="section-title" style={{ textAlign: "center" }}>
           DANH SÁCH PHÒNG TRỌ
         </Title>
         <p style={{ textAlign: "center", color: "#555", marginBottom: 24 }}>
           Khám phá các phòng trọ phù hợp với nhu cầu, vị trí và ngân sách của bạn
         </p>
+
         <Row gutter={[24, 24]} justify="center">
-          {rooms.map((room) => (
-            <Col xs={24} sm={12} md={8} lg={8} key={room.id}>
-              <Card
-                hoverable
-                className="room-card"
-                cover={
-                  <img
-                    alt={room.title}
-                    src={room.image}
-                    className="room-image"
-                  />
-                }
-              >
-                <div className="room-header">
-                  <h3>{room.title}</h3>
-                  <div>
-                    {room.isHot && <Tag color="red">HOT</Tag>}
-                    {room.isNew && <Tag color="green">NEW</Tag>}
-                  </div>
-                </div>
-                <p className="room-address">{room.address}</p>
-                <p className="room-price">
-                  {room.price.toLocaleString()} VNĐ / tháng
-                </p>
-                <div className="room-info">
-                  <span>
-                    <HomeOutlined /> {room.bedrooms} PN
-                  </span>
-                  <span>
-                    <RestOutlined /> {room.bathrooms} PT
-                  </span>
-                  <span>
-                    <FullscreenOutlined /> {room.area} m²
-                  </span>
-                </div>
-                <Button type="primary" block className="btn-animated">
-                  Chi tiết »
-                </Button>
-              </Card>
+          {rooms.slice(0, 6).map((room) => (
+            <Col xs={24} sm={12} md={8} lg={6} xl={6} key={room._id}>
+              <RoomCard room={room} />
             </Col>
           ))}
         </Row>
@@ -191,17 +170,14 @@ const Home: React.FC = () => {
 
       {/* TIN ĐĂNG */}
       <section className="section page-container">
-        <Title level={2} className="section-title" style={{ textAlign: "center", marginBottom: 16 }}>
+        <Title level={2} className="section-title" style={{ textAlign: "center" }}>
           Tin đăng nổi bật
         </Title>
-        <p style={{ textAlign: "center", color: "#555", marginBottom: 24 }}>
-          Cập nhật những tin đăng phòng trọ mới nhất, chất lượng và đáng tin cậy
-        </p>
         {loadingPosts ? (
           <div style={{ textAlign: "center", marginTop: 50 }}>
             <Spin size="large" />
           </div>
-        ) : (
+        ) : posts.length > 0 ? (
           <Row gutter={[24, 24]}>
             {posts.map((post) => (
               <Col xs={24} sm={12} md={8} lg={6} key={post.id}>
@@ -215,20 +191,30 @@ const Home: React.FC = () => {
                     description={
                       <>
                         <p>{post.excerpt}</p>
-                        <small>{new Date(post.createdAt).toLocaleDateString()}</small>
+                        <small>
+                          {new Date(post.createdAt).toLocaleDateString()}
+                        </small>
                       </>
                     }
                   />
-                  <Button type="link" block className="btn-animated" style={{ marginTop: "16px", fontWeight: 500 }}>
+                  <Button
+                    type="primary"
+                    block
+                    className="btn-animated"
+                    style={{ marginTop: 16 }}
+                  >
                     Xem chi tiết »
                   </Button>
                 </Card>
               </Col>
             ))}
           </Row>
+        ) : (
+          <div style={{ textAlign: "center", color: "#999", padding: "50px 0" }}>
+            Chưa có tin đăng nào để hiển thị
+          </div>
         )}
       </section>
-
     </div>
   );
 };

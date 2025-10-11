@@ -8,7 +8,7 @@ const { Title, Text } = Typography;
 const Register: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
-  const onFinish = (values: any) => {
+  const onFinish = (values: { fullname: string; email: string; password: string; confirm: string }) => {
     setLoading(true);
     setTimeout(() => {
       setLoading(false);

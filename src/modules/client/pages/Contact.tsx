@@ -24,7 +24,7 @@ const { Title, Paragraph, Text } = Typography;
 const Contact: React.FC = () => {
   const [form] = Form.useForm();
 
-  const onFinish = async (values: any) => {
+  const onFinish = async (values: { name: string; email: string; phone: string; message: string }) => {
     console.log('Contact form submit:', values);
     message.success('🎉 Gửi liên hệ thành công! Chúng tôi sẽ phản hồi sớm nhất.');
     form.resetFields();

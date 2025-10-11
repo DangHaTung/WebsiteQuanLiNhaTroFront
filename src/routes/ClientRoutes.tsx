@@ -5,6 +5,8 @@ import Register from "../modules/client/pages/Register";
 import Rooms from "../modules/client/pages/Rooms";
 import RoomsDetail from "../modules/client/pages/RoomsDetail";
 import Support from "../modules/client/pages/Support";
+import Profile from "../modules/client/pages/Profile";
+import Settings from "../modules/client/pages/Settings";
 
 const clientRoutes = [
   { path: "/", element: <Home /> },
@@ -14,6 +16,8 @@ const clientRoutes = [
   { path: "register", element: <Register /> },
   { path: "contact", element: <Contact /> },
   { path: "support", element: <Support /> },
+  { path: "profile", element: <Profile /> },
+  { path: "settings", element: <Settings /> },
 ];
 
 export default clientRoutes;

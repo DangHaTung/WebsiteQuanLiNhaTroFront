@@ -18,15 +18,16 @@ import {
 } from "antd";
 import {
   EnvironmentOutlined,
-  HomeOutlined,
-  RestOutlined,
   FullscreenOutlined,
   CheckCircleOutlined,
   PhoneOutlined,
+  AppstoreOutlined,
 } from "@ant-design/icons";
-import api from "../services/api";
+// import api from "../services/api"; // Commented out unused import
 import type { Room } from "../../../types/room";
 import RoomCard from "../components/RoomCard";
+// Import dữ liệu từ db.json trực tiếp
+import dbData from "../../../../db.json";
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -52,61 +53,62 @@ const RoomsDetail: React.FC = () => {
 
   // Tải chi tiết phòng theo id
   useEffect(() => {
-    const fetchRoom = async () => {
+    const fetchRoom = () => {
       if (!id) {
         setLoading(false);
         return;
       }
-      try {
-        const res = await api.get<Room>(`/rooms/${id}`);
-        setRoom(res.data);
-      } catch (err) {
-        try {
-          // fallback khi server không hỗ trợ /rooms/:id
-          const resList = await api.get<Room[]>(`/rooms`, { params: { id } });
-          if (Array.isArray(resList.data) && resList.data.length) setRoom(resList.data[0]);
-          else {
-            message.error("Không tìm thấy phòng");
-            setRoom(null);
-          }
-        } catch {
-          message.error("Không tìm thấy phòng");
-          setRoom(null);
-        }
-      } finally {
-        setLoading(false);
+      // Tìm phòng theo ID từ db.json
+      const roomData = dbData.rooms.find(room => room._id === id);
+      if (roomData) {
+        const formattedRoom: Room = {
+          ...roomData,
+          pricePerMonth: Number(roomData.pricePerMonth),
+          type: roomData.type as 'SINGLE' | 'DOUBLE' | 'STUDIO' | 'VIP',
+          status: roomData.status as 'OCCUPIED' | 'AVAILABLE' | 'MAINTENANCE'
+        };
+        setRoom(formattedRoom);
+      } else {
+        message.error("Không tìm thấy phòng");
+        setRoom(null);
       }
+      setLoading(false);
     };
     fetchRoom();
   }, [id]);
 
-  // Sau khi có room, tải danh sách phòng liên quan (ưu tiên cùng địa chỉ)
+  // Sau khi có room, tải danh sách phòng liên quan từ db.json
   useEffect(() => {
-    const fetchRelated = async () => {
+    const fetchRelated = () => {
       if (!room) return;
-      try {
-        const res = await api.get<Room[]>(`/rooms`);
-        const items = (res.data || []).filter((r) => r.id !== room.id);
-        // ưu tiên cùng khu vực nếu địa chỉ giống nhau
-        const sameArea = items.filter((r) => r.address === room.address);
-        const finalList = (sameArea.length ? sameArea : items).slice(0, 4);
-        setRelated(finalList);
-      } catch {
-        setRelated([]);
-      } finally {
-        setLoadingRelated(false);
-      }
+
+      // Lấy danh sách phòng liên quan từ db.json
+      const allRooms: Room[] = dbData.rooms
+        .filter(r => r._id !== room._id)
+        .map(r => ({
+          ...r,
+          pricePerMonth: Number(r.pricePerMonth),
+          type: r.type as 'SINGLE' | 'DOUBLE' | 'STUDIO' | 'VIP',
+          status: r.status as 'OCCUPIED' | 'AVAILABLE' | 'MAINTENANCE'
+        }));
+
+      // ưu tiên cùng khu vực nếu địa chỉ giống nhau
+      const sameArea = allRooms.filter((r) => r.district === room.district);
+      const finalList = (sameArea.length ? sameArea : allRooms).slice(0, 4);
+
+      setRelated(finalList);
+      setLoadingRelated(false);
     };
     setLoadingRelated(true);
     fetchRelated();
   }, [room]);
 
   // Định dạng giá theo VN
-  const price = room ? new Intl.NumberFormat("vi-VN").format(room.price) : "";
+  const price = room ? new Intl.NumberFormat("vi-VN").format(room.pricePerMonth) : "";
   // Gallery ảnh: nếu db có mảng images thì dùng, không thì nhân bản ảnh chính để demo
   const gallery: string[] = room
-    ? (Array.isArray((room as any).images) && (room as any).images.length
-        ? ((room as any).images as string[])
+    ? (room.images && room.images.length
+        ? room.images
         : [room.image, room.image, room.image, room.image])
     : [];
 
@@ -184,9 +186,9 @@ const RoomsDetail: React.FC = () => {
             padding: 16,
           }}
         >
-          <Title level={1} style={{ color: "#e6f7ff", marginBottom: 8 }}>{room.title}</Title>
+          <Title level={1} style={{ color: "#e6f7ff", marginBottom: 8 }}>Phòng {room.roomNumber}</Title>
           <Space wrap align="center" size={12}>
-            <Text style={{ color: "#f0f0f0" }}><EnvironmentOutlined /> {room.address}</Text>
+            <Text style={{ color: "#f0f0f0" }}><EnvironmentOutlined /> {room.district}</Text>
             <span style={{ color: "#ffd666" }}>
               <Rate allowHalf disabled value={userRating} /> <Text style={{ color: "#ffd666" }}>{userRating.toFixed(1)}</Text>
             </span>
@@ -202,7 +204,7 @@ const RoomsDetail: React.FC = () => {
             <div style={{ position: "relative" }}>
               <img
                 src={gallery[currentImage]}
-                alt={room.title}
+                alt={`Phòng ${room.roomNumber}`}
                 style={{ width: "100%", height: 420, objectFit: "cover" }}
               />
               {gallery.length > 1 && (
@@ -251,9 +253,10 @@ const RoomsDetail: React.FC = () => {
             {/* Header nhỏ: tiêu đề + tag + đánh giá */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <Space size={12} align="baseline">
-                <Title level={3} style={{ margin: 0 }}>{room.title}</Title>
-                {room.isHot && <Tag color="red">HOT</Tag>}
-                {room.isNew && <Tag color="green">NEW</Tag>}
+                <Title level={3} style={{ margin: 0 }}>Phòng {room.roomNumber}</Title>
+                <Tag color={room.status === 'AVAILABLE' ? 'green' : room.status === 'OCCUPIED' ? 'red' : 'orange'}>
+                  {room.status === 'AVAILABLE' ? 'Có sẵn' : room.status === 'OCCUPIED' ? 'Đã thuê' : 'Bảo trì'}
+                </Tag>
               </Space>
               <Space>
                 <Rate allowHalf value={userRating} onChange={(v) => { setUserRating(v); message.success("Cảm ơn bạn đã đánh giá!"); }} />
@@ -263,24 +266,24 @@ const RoomsDetail: React.FC = () => {
 
             {/* Địa chỉ phòng */}
             <Paragraph type="secondary" style={{ marginTop: 8 }}>
-              <EnvironmentOutlined /> {room.address}
+              <EnvironmentOutlined /> {room.district}
             </Paragraph>
 
             {/* Thông số chính của phòng */}
             <Divider style={{ margin: "12px 0" }} />
 
             <Descriptions bordered column={2} size="middle">
-              <Descriptions.Item label={<span><HomeOutlined /> Phòng ngủ</span>}>
-                {room.bedrooms}
-              </Descriptions.Item>
-              <Descriptions.Item label={<span><RestOutlined /> Phòng tắm</span>}>
-                {room.bathrooms}
-              </Descriptions.Item>
               <Descriptions.Item label={<span><FullscreenOutlined /> Diện tích</span>}>
-                {room.area} m²
+                {room.areaM2} m²
               </Descriptions.Item>
-              <Descriptions.Item label={<span><CheckCircleOutlined /> Tình trạng</span>}>
-                Sẵn sàng thuê
+              <Descriptions.Item label={<span><EnvironmentOutlined /> Tầng</span>}>
+                {room.floor}
+              </Descriptions.Item>
+              <Descriptions.Item label={<span><CheckCircleOutlined /> Trạng thái</span>}>
+                {room.status === 'AVAILABLE' ? 'Có sẵn' : room.status === 'OCCUPIED' ? 'Đã thuê' : 'Bảo trì'}
+              </Descriptions.Item>
+              <Descriptions.Item label={<span><AppstoreOutlined /> Loại phòng</span>}>
+                {room.type === 'SINGLE' ? 'Phòng đơn' : room.type === 'DOUBLE' ? 'Phòng đôi' : room.type === 'STUDIO' ? 'Studio' : 'VIP'}
               </Descriptions.Item>
             </Descriptions>
 
@@ -345,12 +348,8 @@ const RoomsDetail: React.FC = () => {
                   <Form.Item name="content" label="Nội dung" rules={[{ required: true, message: "Vui lòng nhập nội dung" }]}>
                     <Input.TextArea placeholder="Tôi muốn xem phòng vào cuối tuần..." rows={4} allowClear />
                   </Form.Item>
-                  <Button htmlType="submit" type="primary" size="large" block style={{
-                    background: "linear-gradient(90deg, #fadb14, #fa8c16)",
-                    border: "none",
-                    fontWeight: 600,
-                  }}>
-                    Gửi yêu cầu đặt phòng
+                  <Button htmlType="submit" type="primary" size="large" block className="btn-animated">
+                    Đặt phòng
                   </Button>
                 </Form>
               </div>
@@ -395,7 +394,7 @@ const RoomsDetail: React.FC = () => {
         ) : (
           <Row gutter={[24, 24]}>
             {related.map((r) => (
-              <Col xs={24} sm={12} md={12} lg={6} key={r.id}>
+              <Col xs={24} sm={12} md={12} lg={6} key={r._id}>
                 <RoomCard room={r} />
               </Col>
             ))}

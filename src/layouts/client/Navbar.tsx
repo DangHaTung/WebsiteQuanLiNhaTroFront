@@ -1,7 +1,6 @@
-
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import { Input, Badge, Drawer, Button } from "antd";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Input, Badge, Drawer, Button, Dropdown, Avatar, Typography } from "antd";
 import {
   PhoneOutlined,
   MailOutlined,
@@ -12,13 +11,82 @@ import {
   MenuOutlined,
   CloseOutlined,
   CustomerServiceOutlined,
+  SettingOutlined,
+  LogoutOutlined,
+  UserSwitchOutlined,
 } from "@ant-design/icons";
 import Logo from "../../assets/images/logo.png";
 import "../../assets/styles/nav.css";
 
 const { Search } = Input;
+const { Text } = Typography;
+
 const Navbar: React.FC = () => {
   const [openDrawer, setOpenDrawer] = useState(false);
+  const navigate = useNavigate();
+  // Mock trạng thái đăng nhập - trong thực tế sẽ lấy từ context/auth
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userName, setUserName] = useState("");
+
+  // Lắng nghe sự kiện đăng nhập từ các component khác
+useEffect(() => {
+  const handleLoginEvent = (event: any) => {
+    const { username } = event.detail;
+    handleLoginSuccess(username); // gọi hàm đã có sẵn
+  };
+
+  window.addEventListener("login-success", handleLoginEvent);
+
+  return () => {
+    window.removeEventListener("login-success", handleLoginEvent);
+  };
+}, []);
+
+
+
+  // Hàm xử lý đăng nhập thành công
+  const handleLoginSuccess = (username: string) => {
+    setIsLoggedIn(true);
+    setUserName(username);
+    // Chuyển hướng về trang chủ sau khi đăng nhập thành công
+    navigate("/");
+  };
+
+  // Menu dropdown cho tài khoản
+  const userMenuItems = [
+    {
+      key: "profile",
+      icon: <UserOutlined />,
+      label: "Thông tin cá nhân",
+    },
+    {
+      key: "settings",
+      icon: <SettingOutlined />,
+      label: "Cài đặt",
+    },
+    {
+      key: "logout",
+      icon: <LogoutOutlined />,
+      label: "Đăng xuất",
+      danger: true,
+    },
+  ];
+
+  const handleUserMenuClick = (e: any) => {
+    switch (e.key) {
+      case "profile":
+        navigate("/profile");
+        break;
+      case "settings":
+        navigate("/settings");
+        break;
+      case "logout":
+        setIsLoggedIn(false);
+        setUserName("");
+        break;
+    }
+  };
+
   return (
     // Sticky navbar: luôn hiển thị khi cuộn trang
     <div
@@ -71,15 +139,39 @@ const Navbar: React.FC = () => {
 
           {/* Wishlist + User */}
           <div className="nav-actions">
-            <Badge count={3} size="small">
-              <HeartOutlined className="nav-icon wishlist-icon" />
-            </Badge>
-            <div className="nav-user">
-              <UserOutlined />
-              <Link to="/login">Đăng nhập</Link>
-              <span>/</span>
-              <Link to="/register">Đăng ký</Link>
-            </div>
+            {/* Chỉ hiển thị wishlist khi đã đăng nhập */}
+            {isLoggedIn && (
+              <Badge count={3} size="small">
+                <HeartOutlined className="nav-icon wishlist-icon" />
+              </Badge>
+            )}
+
+            {/* User account section */}
+            {isLoggedIn ? (
+              <Dropdown
+                menu={{
+                  items: userMenuItems,
+                  onClick: handleUserMenuClick,
+                }}
+                placement="bottomRight"
+                trigger={["click"]}
+              >
+                <div className="nav-user-logged">
+                  <Avatar size="small" icon={<UserOutlined />} style={{ marginRight: 8 }} />
+                  <Text strong style={{ color: "#1677ff", cursor: "pointer" }}>
+                    {userName}
+                  </Text>
+                </div>
+              </Dropdown>
+            ) : (
+              <div className="nav-user">
+                <UserOutlined />
+                <Link to="/login">Đăng nhập</Link>
+                <span>/</span>
+                <Link to="/register">Đăng ký</Link>
+              </div>
+            )}
+
             <Button
               className="menu-btn"
               type="text"
@@ -132,6 +224,47 @@ const Navbar: React.FC = () => {
           <Link to="/contact" onClick={() => setOpenDrawer(false)}>
             Liên hệ
           </Link>
+
+          {/* User menu in drawer */}
+          {isLoggedIn ? (
+            <div className="drawer-user-section">
+              <div className="drawer-user-info">
+                <Avatar size="small" icon={<UserOutlined />} />
+                <Text strong>{userName}</Text>
+              </div>
+              <Link to="/wishlist" onClick={() => setOpenDrawer(false)}>
+                <HeartOutlined /> Danh sách yêu thích (3)
+              </Link>
+              <Link to="/profile" onClick={() => setOpenDrawer(false)}>
+                <UserSwitchOutlined /> Thông tin cá nhân
+              </Link>
+              <Link to="/settings" onClick={() => setOpenDrawer(false)}>
+                <SettingOutlined /> Cài đặt
+              </Link>
+              <Button
+                type="link"
+                danger
+                icon={<LogoutOutlined />}
+                onClick={() => {
+                  setIsLoggedIn(false);
+                  setUserName("");
+                  setOpenDrawer(false);
+                }}
+                style={{ padding: 0, marginTop: 8 }}
+              >
+                Đăng xuất
+              </Button>
+            </div>
+          ) : (
+            <>
+              <Link to="/login" onClick={() => setOpenDrawer(false)}>
+                Đăng nhập
+              </Link>
+              <Link to="/register" onClick={() => setOpenDrawer(false)}>
+                Đăng ký
+              </Link>
+            </>
+          )}
         </div>
       </Drawer>
     </div>

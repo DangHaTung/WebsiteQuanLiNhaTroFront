@@ -141,6 +141,53 @@
   color: #00b4d8;
 }
 
+/* User account section khi đã đăng nhập */
+.nav-user-logged {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background-color 0.3s ease;
+}
+
+.nav-user-logged:hover {
+  background-color: #f0f8ff;
+}
+
+/* Drawer user section */
+.drawer-user-section {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.drawer-user-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+}
+
+.drawer-user-section a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  border-radius: 6px;
+  transition: background-color 0.3s ease;
+}
+
+.drawer-user-section a:hover {
+  background-color: #f0f8ff;
+  color: #00b4d8;
+}
+
 .menu-btn {
   display: none;
 }

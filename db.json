@@ -1,176 +1,202 @@
 {
-  "posts": [
+  "users": [
     {
-      "id": 1,
-      "title": "Cách chọn phòng trọ an toàn cho sinh viên",
-      "excerpt": "Tìm hiểu các mẹo chọn phòng trọ an toàn, giá hợp lý và tiện nghi phù hợp...",
-      "image": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
+      "_id": "652f1c4a6b0c4f001f1e0a01",
+      "fullName": "Admin User",
+      "email": "admin@example.com",
+      "phone": "0123456789",
+      "passwordHash": "hashedpassword123",
+      "role": "ADMIN",
       "createdAt": "2025-10-01T10:00:00Z"
-    },
-    {
-      "id": 2,
-      "title": "Top 5 khu vực thuê phòng trọ được ưa chuộng",
-      "excerpt": "Khám phá các khu vực trung tâm, tiện nghi, an ninh tốt và gần trường học...",
-      "image": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
-      "createdAt": "2025-10-05T14:30:00Z"
-    },
-    {
-      "id": 3,
-      "title": "Ưu đãi đặc biệt khi thuê phòng tháng đầu",
-      "excerpt": "Nhận ngay giảm giá, miễn phí dịch vụ tiện ích khi thuê phòng trong tháng đầu tiên...",
-      "image": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
-      "createdAt": "2025-10-07T09:00:00Z"
     }
   ],
-
+  "tenants": [
+    {
+      "_id": "652f1c4a6b0c4f001f1e0a11",
+      "fullName": "Nguyen Van A",
+      "phone": "0987654321",
+      "email": "vana@example.com",
+      "identityNo": "123456789",
+      "note": "Tenant prefers quiet rooms",
+      "createdAt": "2025-09-20T08:00:00Z"
+    },
+    {
+      "_id": "652f1c4a6b0c4f001f1e0a12",
+      "fullName": "Tran Thi B",
+      "phone": "0901234567",
+      "email": "thib@example.com",
+      "identityNo": "987654321",
+      "note": "Tenant works night shifts",
+      "createdAt": "2025-09-25T09:00:00Z"
+    }
+  ],
   "rooms": [
     {
-      "id": 1,
-      "title": "Phòng trọ cao cấp",
-      "price": 2500000,
-      "address": "Hà Nội",
-      "image": "https://tse1.mm.bing.net/th/id/OIP.PjLbb9MJwZxukEg2tbOKYAHaFj?pid=Api&P=0&h=180",
+      "_id": "652f1c4a6b0c4f001f1e0a21",
+      "roomNumber": "101",
+      "type": "SINGLE",
+      "pricePerMonth": "350.00",
+      "areaM2": 20,
+      "floor": 1,
+      "district": "District 1",
+      "status": "OCCUPIED",
+      "currentContractSummary": {
+        "contractId": "652f1c4a6b0c4f001f1e0a31",
+        "tenantName": "Nguyen Van A",
+        "startDate": "2025-09-21T00:00:00Z",
+        "endDate": "2026-09-21T00:00:00Z",
+        "monthlyRent": "350.00"
+      },
+      "image": "https://tse1.mm.bing.net/th/id/OIP.PjLbb9MJwZxukEg2tbOKYAHaFj",
       "images": [
-        "https://tse1.mm.bing.net/th/id/OIP.PjLbb9MJwZxukEg2tbOKYAHaFj?pid=Api&P=0&h=180",
-        "https://tse4.mm.bing.net/th/id/OIP.iFtkuF0tXTjKb2aFRoXWpAHaFj?pid=Api&P=0&h=180",
+        "https://tse1.mm.bing.net/th/id/OIP.PjLbb9MJwZxukEg2tbOKYAHaFj",
+        "https://tse4.mm.bing.net/th/id/OIP.iFtkuF0tXTjKb2aFRoXWpAHaFj",
         "https://picsum.photos/id/1035/1200/800",
         "https://picsum.photos/id/1044/1200/800"
       ],
-      "bedrooms": 2,
-      "bathrooms": 1,
-      "area": 30,
-      "isNew": true
+      "createdAt": "2025-09-01T08:00:00Z",
+      "updatedAt": "2025-10-01T08:00:00Z"
     },
     {
-      "id": 2,
-      "title": "Phòng mini",
-      "price": 1800000,
-      "address": "Hà Nội",
-      "image": "https://picsum.photos/id/1021/800/400",
+      "_id": "652f1c4a6b0c4f001f1e0a22",
+      "roomNumber": "102",
+      "type": "DOUBLE",
+      "pricePerMonth": "500.00",
+      "areaM2": 30,
+      "floor": 2,
+      "district": "District 3",
+      "status": "AVAILABLE",
+      "image": "https://picsum.photos/id/1027/1200/800",
       "images": [
-        "https://picsum.photos/id/1021/1200/800",
-        "https://picsum.photos/id/1022/1200/800",
-        "https://picsum.photos/id/1023/1200/800",
-        "https://picsum.photos/id/1024/1200/800"
-      ],
-      "bedrooms": 1,
-      "bathrooms": 1,
-      "area": 25,
-      "isHot": true
-    },
-    {
-      "id": 3,
-      "title": "Căn hộ dịch vụ",
-      "price": 3200000,
-      "address": "Hà Nội",
-      "image": "https://picsum.photos/id/1032/800/400",
-      "images": [
-        "https://picsum.photos/id/1032/1200/800",
+        "https://picsum.photos/id/1027/1200/800",
         "https://picsum.photos/id/1033/1200/800",
-        "https://picsum.photos/id/1034/1200/800",
-        "https://picsum.photos/id/1036/1200/800"
+        "https://picsum.photos/id/1040/1200/800"
       ],
-      "bedrooms": 2,
-      "bathrooms": 2,
-      "area": 40
+      "createdAt": "2025-09-05T08:00:00Z",
+      "updatedAt": "2025-10-05T08:00:00Z"
     },
     {
-      "id": 4,
-      "title": "Phòng trọ tiện nghi",
-      "price": 2000000,
-      "address": "Hà Nội",
-      "image": "https://picsum.photos/id/1045/800/400",
+      "_id": "652f1c4a6b0c4f001f1e0a23",
+      "roomNumber": "103",
+      "type": "STUDIO",
+      "pricePerMonth": "650.00",
+      "areaM2": 35,
+      "floor": 3,
+      "district": "Binh Thanh",
+      "status": "AVAILABLE",
+      "image": "https://picsum.photos/id/1056/1200/800",
       "images": [
-        "https://picsum.photos/id/1045/1200/800",
-        "https://picsum.photos/id/1046/1200/800",
-        "https://picsum.photos/id/1047/1200/800",
-        "https://picsum.photos/id/1048/1200/800"
+        "https://picsum.photos/id/1056/1200/800",
+        "https://picsum.photos/id/1062/1200/800",
+        "https://picsum.photos/id/1074/1200/800"
       ],
-      "bedrooms": 1,
-      "bathrooms": 1,
-      "area": 28,
-      "isNew": true
-    }
-  ],
-
-  "notifications": [
-    {
-      "id": 1,
-      "title": "Hợp đồng thuê phòng #01 sắp hết hạn",
-      "content": "Hợp đồng thuê phòng của bạn tại Phòng trọ cao cấp sẽ hết hạn vào ngày 15/10/2025.",
-      "createdAt": "2025-10-09T09:00:00Z",
-      "isRead": false
+      "createdAt": "2025-09-07T08:00:00Z",
+      "updatedAt": "2025-10-02T08:00:00Z"
     },
     {
-      "id": 2,
-      "title": "Xác nhận thanh toán tiền phòng tháng 10",
-      "content": "Chúng tôi đã nhận được thanh toán tiền phòng tháng 10 của bạn.",
-      "createdAt": "2025-10-05T12:00:00Z",
-      "isRead": true
+      "_id": "652f1c4a6b0c4f001f1e0a24",
+      "roomNumber": "201",
+      "type": "VIP",
+      "pricePerMonth": "900.00",
+      "areaM2": 45,
+      "floor": 2,
+      "district": "District 7",
+      "status": "MAINTENANCE",
+      "image": "https://picsum.photos/id/1084/1200/800",
+      "images": [
+        "https://picsum.photos/id/1084/1200/800",
+        "https://picsum.photos/id/1085/1200/800",
+        "https://picsum.photos/id/1086/1200/800"
+      ],
+      "createdAt": "2025-09-10T08:00:00Z",
+      "updatedAt": "2025-10-03T08:00:00Z"
     },
     {
-      "id": 3,
-      "title": "Ưu đãi khách hàng thân thiết",
-      "content": "Giảm 10% khi gia hạn hợp đồng thuê phòng thêm 6 tháng.",
-      "createdAt": "2025-10-03T10:00:00Z",
-      "isRead": false
+      "_id": "652f1c4a6b0c4f001f1e0a25",
+      "roomNumber": "301",
+      "type": "SINGLE",
+      "pricePerMonth": "400.00",
+      "areaM2": 22,
+      "floor": 3,
+      "district": "Go Vap",
+      "status": "AVAILABLE",
+      "image": "https://picsum.photos/id/1097/1200/800",
+      "images": [
+        "https://picsum.photos/id/1097/1200/800",
+        "https://picsum.photos/id/1098/1200/800",
+        "https://picsum.photos/id/1099/1200/800"
+      ],
+      "createdAt": "2025-09-12T08:00:00Z",
+      "updatedAt": "2025-10-04T08:00:00Z"
     }
   ],
-
   "contracts": [
     {
-      "id": 1,
-      "roomName": "Phòng trọ cao cấp",
-      "startDate": "2025-05-01",
-      "endDate": "2025-10-15",
-      "price": 2500000,
-      "status": "Còn hiệu lực"
-    },
-    {
-      "id": 2,
-      "roomName": "Phòng mini",
-      "startDate": "2025-04-10",
-      "endDate": "2025-09-10",
-      "price": 1800000,
-      "status": "Hết hạn"
-    },
-    {
-      "id": 3,
-      "roomName": "Căn hộ dịch vụ",
-      "startDate": "2025-06-01",
-      "endDate": "2026-06-01",
-      "price": 3200000,
-      "status": "Còn hiệu lực"
+      "_id": "652f1c4a6b0c4f001f1e0a31",
+      "tenantId": "652f1c4a6b0c4f001f1e0a11",
+      "roomId": "652f1c4a6b0c4f001f1e0a21",
+      "startDate": "2025-09-21T00:00:00Z",
+      "endDate": "2026-09-21T00:00:00Z",
+      "deposit": "700.00",
+      "monthlyRent": "350.00",
+      "status": "ACTIVE",
+      "pricingSnapshot": {
+        "roomNumber": "101",
+        "monthlyRent": "350.00",
+        "deposit": "700.00"
+      },
+      "createdAt": "2025-09-20T08:00:00Z",
+      "updatedAt": "2025-10-01T08:00:00Z"
     }
   ],
-
-  "invoices": [
+  "bills": [
     {
-      "id": 1,
-      "contractId": 1,
-      "roomName": "Phòng trọ cao cấp",
-      "month": "2025-10",
-      "amount": 2500000,
-      "status": "Đã thanh toán",
-      "paidDate": "2025-10-05"
-    },
+      "_id": "652f1c4a6b0c4f001f1e0a41",
+      "contractId": "652f1c4a6b0c4f001f1e0a31",
+      "billingDate": "2025-10-01T00:00:00Z",
+      "status": "PARTIALLY_PAID",
+      "lineItems": [
+        {
+          "item": "Monthly Rent",
+          "quantity": 1,
+          "unitPrice": "350.00",
+          "lineTotal": "350.00"
+        },
+        {
+          "item": "Electricity",
+          "quantity": 100,
+          "unitPrice": "0.25",
+          "lineTotal": "25.00"
+        }
+      ],
+      "amountDue": "375.00",
+      "amountPaid": "200.00",
+      "payments": [
+        {
+          "paidAt": "2025-10-02T12:00:00Z",
+          "amount": "200.00",
+          "method": "BANK",
+          "note": "Partial payment"
+        }
+      ],
+      "createdAt": "2025-10-01T08:00:00Z",
+      "updatedAt": "2025-10-02T12:00:00Z"
+    }
+  ],
+  "logs": [
     {
-      "id": 2,
-      "contractId": 2,
-      "roomName": "Phòng mini",
-      "month": "2025-09",
-      "amount": 1800000,
-      "status": "Chưa thanh toán",
-      "paidDate": null
-    },
-    {
-      "id": 3,
-      "contractId": 3,
-      "roomName": "Căn hộ dịch vụ",
-      "month": "2025-10",
-      "amount": 3200000,
-      "status": "Đã thanh toán",
-      "paidDate": "2025-10-03"
+      "_id": "652f1c4a6b0c4f001f1e0a51",
+      "createdAt": "2025-10-01T10:05:00Z",
+      "level": "INFO",
+      "message": "Created new contract",
+      "context": {
+        "entity": "CONTRACT",
+        "entityId": "652f1c4a6b0c4f001f1e0a31",
+        "actorId": "652f1c4a6b0c4f001f1e0a01",
+        "diff": {
+          "status": "ACTIVE"
+        }
+      }
     }
   ]
 }
