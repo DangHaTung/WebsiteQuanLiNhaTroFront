@@ -1,6 +1,10 @@
 import React from "react";
-import { Card, Tag, Button } from "antd";
-import { HomeOutlined, RestOutlined, FullscreenOutlined } from "@ant-design/icons";
+import { Card, Tag, Button, Space } from "antd";
+import {
+  FullscreenOutlined,
+  EnvironmentOutlined,
+  HomeOutlined,
+} from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import type { Room } from "../../../types/room";
 
@@ -11,21 +15,42 @@ interface Props {
 const RoomCard: React.FC<Props> = ({ room }) => {
   const navigate = useNavigate();
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "AVAILABLE":
+        return "green";
+      case "OCCUPIED":
+        return "red";
+      case "MAINTENANCE":
+        return "orange";
+      default:
+        return "default";
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case "AVAILABLE":
+        return "Còn trống";
+      case "OCCUPIED":
+        return "Đã thuê";
+      case "MAINTENANCE":
+        return "Bảo trì";
+      default:
+        return status;
+    }
+  };
+
   return (
     <Card
       hoverable
-      style={{
-        borderRadius: 12,
-        overflow: "hidden",
-        boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-        transition: "all 0.3s",
-      }}
+      className="room-card"
       cover={
         <img
-          alt={room.title}
+          alt={`Phòng ${room.roomNumber}`}
           src={room.image}
           style={{
-            height: 220,
+            height: 180,
             objectFit: "cover",
             transition: "transform 0.3s ease",
           }}
@@ -34,61 +59,81 @@ const RoomCard: React.FC<Props> = ({ room }) => {
         />
       }
     >
+      {/* Tiêu đề + trạng thái */}
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
-          marginBottom: 8,
           alignItems: "center",
+          marginBottom: 6,
         }}
       >
-        <h3 style={{ margin: 0, fontWeight: "bold", fontSize: 18 }}>
-          {room.title}
+        <h3 style={{ margin: 0, fontWeight: 600, fontSize: 17 }}>
+          Phòng {room.roomNumber}
         </h3>
-        <div>
-          {room.isHot && <Tag color="red">HOT</Tag>}
-          {room.isNew && <Tag color="green">NEW</Tag>}
-        </div>
+        <Tag color={getStatusColor(room.status)}>
+          {getStatusText(room.status)}
+        </Tag>
       </div>
 
-      <p style={{ color: "#888", marginBottom: 8 }}>{room.address}</p>
+      {/* Loại & vị trí */}
+      <div style={{ fontSize: 14, color: "#555", marginBottom: 4 }}>
+        {room.type} • {room.district}
+      </div>
 
-      <p style={{ fontWeight: "bold", color: "#1677ff", fontSize: 16 }}>
-        {room.price.toLocaleString()} VNĐ / tháng
-      </p>
+      {/* Diện tích & tầng */}
+      <Space
+        style={{
+          fontSize: 14,
+          color: "#666",
+          marginBottom: 8,
+        }}
+      >
+        <span>
+          <FullscreenOutlined /> {room.areaM2}m²
+        </span>
+        <span>
+          <HomeOutlined /> Tầng {room.floor}
+        </span>
+      </Space>
 
+      {/* Giá */}
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          marginTop: 8,
-          fontSize: 14,
-          color: "#555",
+          fontWeight: 700,
+          color: "#16a34a",
+          fontSize: 18,
+          marginBottom: 10,
         }}
       >
-        <span>
-          <HomeOutlined /> {room.bedrooms} PN
-        </span>
-        <span>
-          <RestOutlined /> {room.bathrooms} PT
-        </span>
-        <span>
-          <FullscreenOutlined /> {room.area} m²
-        </span>
+        {Number(room.pricePerMonth).toLocaleString()}đ
       </div>
 
-      <Button
-        type="primary"
-        block
-        style={{
-          marginTop: 14,
-          borderRadius: 8,
-          fontWeight: "bold",
-        }}
-        onClick={() => navigate(`/rooms/${room.id}`)}
-      >
-        Xem chi tiết »
-      </Button>
+      {/* Nút hành động - phòng bảo trì không thể xem chi tiết */}
+      {room.status === "MAINTENANCE" ? (
+        <Button
+          block
+          disabled
+          style={{
+            backgroundColor: "#faad14",
+            color: "#fff",
+            borderRadius: 8,
+            fontWeight: 600,
+            cursor: "not-allowed",
+          }}
+        >
+          Đang bảo trì
+        </Button>
+      ) : (
+        <Button
+          type="primary"
+          block
+          className="btn-animated"
+          onClick={() => navigate(`/rooms/${room._id}`)}
+        >
+          Xem chi tiết
+        </Button>
+      )}
     </Card>
   );
 };
