@@ -1,0 +1,118 @@
+/* Icon glow animation liên tục */
+.stat-icon {
+  font-size: 32px;
+  color: #fff;
+  background: inherit; /* kế thừa gradient card */
+  padding: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(255,255,255,0.4);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.3s, box-shadow 0.3s;
+  animation: iconPulse 2s ease-in-out infinite;
+}
+
+/* Hiệu ứng vệt sáng chạy liên tục */
+.stat-icon::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.6) 50%,
+    rgba(255,255,255,0) 100%
+  );
+  transform: skewX(-25deg);
+  animation: iconLightSweep 2s linear infinite;
+}
+
+/* Pulse nhẹ để icon nhấp nháy */
+@keyframes iconPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 4px 12px rgba(255,255,255,0.4); }
+  50% { transform: scale(1.1); box-shadow: 0 8px 24px rgba(255,255,255,0.6); }
+}
+
+/* Vệt sáng chạy ngang */
+@keyframes iconLightSweep {
+  0% { left: -100%; }
+  50% { left: 150%; }
+  100% { left: -100%; }
+}
+
+.table-row-highlight {
+  background-color: #fff7e6 !important;
+}
+
+/* Khi hover vào thẻ Card */
+.hover-glow-card:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
+  transition: all 0.35s ease;
+}
+
+/* Icon khi hover — phát sáng mạnh và xoay nhẹ */
+.stat-icon:hover {
+  transform: scale(1.2) rotate(10deg);
+  box-shadow: 0 12px 28px rgba(255, 255, 255, 0.8);
+  animation-play-state: paused;
+}
+
+/* Vệt sáng icon chạy nhanh hơn khi hover */
+.stat-icon:hover::after {
+  animation-duration: 1s;
+}
+.ant-tag:hover {
+  transform: scale(1.1);
+  filter: brightness(1.2);
+  transition: all 0.25s ease;
+  cursor: pointer;
+}
+
+/* Hover vào hàng bảng */
+.ant-table-tbody > tr:hover > td {
+  background-color: #e6f7ff !important;
+  transition: background-color 0.3s;
+}
+/* Khi hover vào 1 dòng trong bảng */
+.ant-table-tbody > tr:hover {
+  transform: translate(8px, -6px) rotate(0deg); /* dịch nhẹ sang phải + nổi lên */
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  background-color: #f0faff !important;
+  animation: rowFloating 3s ease-in-out infinite;
+  cursor: pointer;
+}
+
+/* Dòng mặc định */
+.ant-table-tbody > tr {
+  transition: transform 0.4s ease, box-shadow 0.4s ease, background-color 0.3s ease;
+}
+
+/* Keyframes floating */
+@keyframes rowFloating {
+  0%   { transform: translate(8px, -6px) rotate(0deg); }
+  50%  { transform: translate(12px, -10px) rotate(0.5deg); }
+  100% { transform: translate(8px, -6px) rotate(0deg); }
+}
+
+/* Card danh sach thue phong gan day */
+.rental-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.2s ease, border-left 0.2s ease;
+}
+
+.rental-item:hover {
+  background: #f0f7ff;
+  border-left: 4px solid #1677ff;
+}
+
