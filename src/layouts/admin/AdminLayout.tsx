@@ -1,15 +1,7 @@
 import React, { useState } from "react";
-import { Avatar, Badge, Dropdown, Layout, Menu } from "antd";
+import { Avatar, Badge, Dropdown, Layout, Menu, type MenuProps } from "antd";
 import { Outlet, useNavigate } from "react-router-dom";
-import {
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
-  DashboardOutlined,
-  UserOutlined,
-  BellOutlined,
-  SettingOutlined,
-  LogoutOutlined,
-} from "@ant-design/icons";
+import { MenuFoldOutlined, MenuUnfoldOutlined, DashboardOutlined, UserOutlined, BellOutlined, SettingOutlined, LogoutOutlined } from "@ant-design/icons";
 import "../../assets/styles/layoutAd.css";
 import SearchBar from "./SearchBar";
 
@@ -20,6 +12,14 @@ const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
 
   const toggleCollapsed = () => setCollapsed(!collapsed);
+
+  const handleMenuClick: MenuProps['onClick'] = (e) => {
+    if (e.key === "profile") {
+      navigate("/admin/profile");
+    } else if (e.key === "logout") {
+      console.log("Logout clicked");
+    }
+  };
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -114,6 +114,7 @@ const AdminLayout: React.FC = () => {
             <Dropdown
               overlay={
                 <Menu
+                  onClick={handleMenuClick}
                   items={[
                     { key: "profile", icon: <SettingOutlined />, label: "Profile" },
                     { key: "logout", icon: <LogoutOutlined />, label: "Logout" },
