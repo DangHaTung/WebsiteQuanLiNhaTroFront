@@ -1,0 +1,197 @@
+/* Checkin Page Styles */
+.checkin-container {
+  min-height: 100vh;
+  background: #ffffff;
+  padding: 20px 0;
+}
+
+.checkin-card {
+  transition: all 0.3s ease;
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+}
+
+.checkin-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12) !important;
+}
+
+.room-info-card .ant-descriptions-item-label {
+  width: 120px;
+  font-weight: 600;
+  color: #666;
+}
+
+.room-info-card .ant-descriptions-item-content {
+  color: #333;
+}
+
+/* Form enhancements */
+.ant-form-item-label > label {
+  font-weight: 600;
+  color: #333;
+}
+
+.ant-input-affix-wrapper,
+.ant-picker,
+.ant-select-selector {
+  border-radius: 8px !important;
+  border: 1px solid #d9d9d9;
+  transition: all 0.3s ease;
+}
+
+.ant-input-affix-wrapper:focus,
+.ant-input-affix-wrapper-focused,
+.ant-picker-focused,
+.ant-select-focused .ant-select-selector {
+  border-color: #1890ff !important;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2) !important;
+}
+
+/* Room info card styling */
+.room-info-card {
+  position: sticky;
+  top: 24px;
+}
+
+.room-info-card .ant-card-head {
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.room-info-card .ant-card-head-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+/* Cost breakdown styling */
+.cost-breakdown {
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.cost-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.cost-total {
+  border-top: 1px solid #d9d9d9;
+  padding-top: 12px;
+  margin-top: 12px;
+  font-size: 18px;
+  font-weight: bold;
+  color: #1890ff;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .checkin-container {
+    padding: 16px;
+    background: #ffffff;
+  }
+
+  .room-info-card {
+    position: static;
+    margin-top: 24px;
+  }
+
+  .cost-breakdown {
+    margin: 16px 0;
+  }
+}
+
+/* Animation for form submission */
+.checkin-card.submitting {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Success state styling */
+.success-message {
+  text-align: center;
+  padding: 40px 20px;
+  background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+  border-radius: 12px;
+  color: white;
+}
+
+.success-message .anticon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.success-message h3 {
+  color: white;
+  margin-bottom: 8px;
+}
+
+/* Error state styling */
+.error-message {
+  text-align: center;
+  padding: 40px 20px;
+  background: linear-gradient(135deg, #ff4d4f 0%, #ff7875 100%);
+  border-radius: 12px;
+  color: white;
+}
+
+.error-message .anticon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+/* Button styling đồng bộ với trang home */
+.btn-animated {
+  margin-top: 12px;
+  font-weight: 600;
+  position: relative;
+  overflow: hidden;
+  color: #fff !important;
+  background: linear-gradient(90deg, #2563eb, #3b82f6, #60a5fa);
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+/* Hiệu ứng nổi khi hover */
+.btn-animated:hover {
+  transform: translateY(-2px);
+}
+
+/* Ánh sáng quét ngang */
+.btn-animated::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 80%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255, 255, 255, 0.5),
+    transparent
+  );
+  transition: all 0.5s ease;
+}
+
+.btn-animated:hover::before {
+  left: 100%;
+}

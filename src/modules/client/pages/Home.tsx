@@ -83,7 +83,7 @@ const Home: React.FC = () => {
                     <p>
                       Chỉ vài bước đơn giản để tìm phòng phù hợp với nhu cầu của bạn.
                     </p>
-                    <Button type="primary" size="large" className="banner-btn">
+                    <Button type="primary" size="large" className="banner-btn btn-animated">
                       Khám phá ngay
                     </Button>
                   </div>

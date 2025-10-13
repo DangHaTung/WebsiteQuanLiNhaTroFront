@@ -41,7 +41,7 @@
       "_id": "652f1c4a6b0c4f001f1e0a21",
       "roomNumber": "101",
       "type": "SINGLE",
-      "pricePerMonth": "350.00",
+      "pricePerMonth": "8750000",
       "areaM2": 20,
       "floor": 1,
       "district": "District 1",
@@ -51,7 +51,7 @@
         "tenantName": "Nguyen Van A",
         "startDate": "2025-09-21T00:00:00Z",
         "endDate": "2026-09-21T00:00:00Z",
-        "monthlyRent": "350.00"
+        "monthlyRent": "8750000"
       },
       "image": "https://tse1.mm.bing.net/th/id/OIP.PjLbb9MJwZxukEg2tbOKYAHaFj",
       "images": [
@@ -67,7 +67,7 @@
       "_id": "652f1c4a6b0c4f001f1e0a22",
       "roomNumber": "102",
       "type": "DOUBLE",
-      "pricePerMonth": "500.00",
+      "pricePerMonth": "12500000",
       "areaM2": 30,
       "floor": 2,
       "district": "District 3",
@@ -85,7 +85,7 @@
       "_id": "652f1c4a6b0c4f001f1e0a23",
       "roomNumber": "103",
       "type": "STUDIO",
-      "pricePerMonth": "650.00",
+      "pricePerMonth": "16250000",
       "areaM2": 35,
       "floor": 3,
       "district": "Binh Thanh",
@@ -103,7 +103,7 @@
       "_id": "652f1c4a6b0c4f001f1e0a24",
       "roomNumber": "201",
       "type": "VIP",
-      "pricePerMonth": "900.00",
+      "pricePerMonth": "22500000",
       "areaM2": 45,
       "floor": 2,
       "district": "District 7",
@@ -121,7 +121,7 @@
       "_id": "652f1c4a6b0c4f001f1e0a25",
       "roomNumber": "301",
       "type": "SINGLE",
-      "pricePerMonth": "400.00",
+      "pricePerMonth": "10000000",
       "areaM2": 22,
       "floor": 3,
       "district": "Go Vap",
@@ -143,13 +143,13 @@
       "roomId": "652f1c4a6b0c4f001f1e0a21",
       "startDate": "2025-09-21T00:00:00Z",
       "endDate": "2026-09-21T00:00:00Z",
-      "deposit": "700.00",
-      "monthlyRent": "350.00",
+      "deposit": "17500000",
+      "monthlyRent": "8750000",
       "status": "ACTIVE",
       "pricingSnapshot": {
         "roomNumber": "101",
-        "monthlyRent": "350.00",
-        "deposit": "700.00"
+        "monthlyRent": "8750000",
+        "deposit": "17500000"
       },
       "createdAt": "2025-09-20T08:00:00Z",
       "updatedAt": "2025-10-01T08:00:00Z"
@@ -165,22 +165,22 @@
         {
           "item": "Monthly Rent",
           "quantity": 1,
-          "unitPrice": "350.00",
-          "lineTotal": "350.00"
+          "unitPrice": "8750000",
+          "lineTotal": "8750000"
         },
         {
           "item": "Electricity",
           "quantity": 100,
-          "unitPrice": "0.25",
-          "lineTotal": "25.00"
+          "unitPrice": "6250",
+          "lineTotal": "625000"
         }
       ],
-      "amountDue": "375.00",
-      "amountPaid": "200.00",
+      "amountDue": "9375000",
+      "amountPaid": "5000000",
       "payments": [
         {
           "paidAt": "2025-10-02T12:00:00Z",
-          "amount": "200.00",
+          "amount": "5000000",
           "method": "BANK",
           "note": "Partial payment"
         }
