@@ -28,21 +28,29 @@ const Navbar: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userName, setUserName] = useState("");
 
+  // Kiểm tra trạng thái đăng nhập khi component mount
+  useEffect(() => {
+    const currentUser = localStorage.getItem("currentUser");
+    if (currentUser) {
+      const user = JSON.parse(currentUser);
+      setIsLoggedIn(true);
+      setUserName(user.fullName);
+    }
+  }, []);
+
   // Lắng nghe sự kiện đăng nhập từ các component khác
-useEffect(() => {
-  const handleLoginEvent = (event: any) => {
-    const { username } = event.detail;
-    handleLoginSuccess(username); // gọi hàm đã có sẵn
-  };
+  useEffect(() => {
+    const handleLoginEvent = (event: any) => {
+      const { username } = event.detail;
+      handleLoginSuccess(username); // gọi hàm đã có sẵn
+    };
 
-  window.addEventListener("login-success", handleLoginEvent);
+    window.addEventListener("login-success", handleLoginEvent);
 
-  return () => {
-    window.removeEventListener("login-success", handleLoginEvent);
-  };
-}, []);
-
-
+    return () => {
+      window.removeEventListener("login-success", handleLoginEvent);
+    };
+  }, []);
 
   // Hàm xử lý đăng nhập thành công
   const handleLoginSuccess = (username: string) => {
@@ -83,6 +91,7 @@ useEffect(() => {
       case "logout":
         setIsLoggedIn(false);
         setUserName("");
+        localStorage.removeItem("currentUser"); // Xóa thông tin người dùng khỏi localStorage
         break;
     }
   };
@@ -248,6 +257,7 @@ useEffect(() => {
                 onClick={() => {
                   setIsLoggedIn(false);
                   setUserName("");
+                  localStorage.removeItem("currentUser"); // Xóa thông tin người dùng khỏi localStorage
                   setOpenDrawer(false);
                 }}
                 style={{ padding: 0, marginTop: 8 }}

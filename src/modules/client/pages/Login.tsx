@@ -1,18 +1,43 @@
 import React, { useState } from "react";
 import { Form, Input, Button, Card, Typography, message } from "antd";
 import { UserOutlined, LockOutlined, LoginOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
 import "../../../assets/styles/login.css";
 
 const { Title, Text } = Typography;
 
 const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const onFinish = (values: { username: string; password: string }) => {
     setLoading(true);
+
+    // Kiểm tra thông tin đăng nhập từ localStorage (mô phỏng db.json)
     setTimeout(() => {
-      setLoading(false);
-      message.success(`Xin chào, ${values.username}!`);
+      const users = JSON.parse(localStorage.getItem("users") || "[]");
+      const user = users.find((u: any) => u.email === values.username && u.passwordHash === values.password);
+
+      if (user) {
+        // Đăng nhập thành công
+        localStorage.setItem("currentUser", JSON.stringify(user));
+        setLoading(false);
+        message.success(`Đăng nhập thành công! Chào mừng, ${user.fullName}!`);
+
+        // Gửi sự kiện đăng nhập thành công để các component khác cập nhật
+        window.dispatchEvent(new CustomEvent("login-success", {
+          detail: { username: user.fullName }
+        }));
+
+        // Chuyển về trang chủ sau 1 giây
+        setTimeout(() => {
+          navigate("/");
+        }, 1000);
+      } else {
+        // Đăng nhập thất bại
+        setLoading(false);
+        message.error("Email hoặc mật khẩu không đúng!");
+      }
     }, 1500);
   };
 
@@ -107,14 +132,17 @@ const Login: React.FC = () => {
           <div style={{ textAlign: "center", marginTop: 10 }}>
             <Text>
               Chưa có tài khoản?{" "}
-              <a href="/register" className="register-link">
+              <Button
+                type="link"
+                onClick={() => navigate("/register")}
+                style={{ padding: 0, fontWeight: 600 }}
+              >
                 Đăng ký
-              </a>
+              </Button>
             </Text>
           </div>
         </Card>
       </div>
-
     </div>
   );
 };

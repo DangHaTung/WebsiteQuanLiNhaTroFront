@@ -41,6 +41,21 @@ const RoomCard: React.FC<Props> = ({ room }) => {
     }
   };
 
+  const getTypeText = (type: string) => {
+    switch (type) {
+      case "SINGLE":
+        return "Phòng đơn";
+      case "DOUBLE":
+        return "Phòng đôi";
+      case "STUDIO":
+        return "Studio";
+      case "VIP":
+        return "Phòng VIP";
+      default:
+        return type;
+    }
+  };
+
   return (
     <Card
       hoverable
@@ -78,7 +93,7 @@ const RoomCard: React.FC<Props> = ({ room }) => {
 
       {/* Loại & vị trí */}
       <div style={{ fontSize: 14, color: "#555", marginBottom: 4 }}>
-        {room.type} • {room.district}
+        {getTypeText(room.type)} • {room.district}
       </div>
 
       {/* Diện tích & tầng */}
