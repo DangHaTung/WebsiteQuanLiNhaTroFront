@@ -12,7 +12,7 @@ const Profile = () => {
     const [activeTab, setActiveTab] = useState("1");
 
     useEffect(() => {
-        fetch("http://localhost:3000/users")
+        fetch("http://localhost:3001/users")
             .then((res) => res.json())
             .then((data) => {
                 const foundUser = data.find(
@@ -222,7 +222,7 @@ const Profile = () => {
                         <Divider />
 
                         <Space direction="vertical" style={{ width: "100%" }}>
-                            <Button icon={<EditOutlined />} type="primary" block onClick={() => setIsModalVisible(true)}>
+                            <Button icon={<EditOutlined />} type="primary" className="btn-hover" block onClick={() => setIsModalVisible(true)}>
                                 Chỉnh sửa hồ sơ
                             </Button>
                             <Modal
@@ -232,6 +232,8 @@ const Profile = () => {
                                 onCancel={handleCancel}
                                 okText="Lưu thay đổi"
                                 cancelText="Hủy"
+                                okButtonProps={{ className: "btn-hover" }}
+                                cancelButtonProps={{ className: "btn-hover cancel-btn" }}
                             >
                                 <Form layout="vertical">
                                     <Form.Item label="Họ và tên" name="fullName" initialValue={user.fullName}>
@@ -248,7 +250,7 @@ const Profile = () => {
                                             fileList={fileList}
                                             onChange={({ fileList }) => setFileList(fileList)}
                                         >
-                                            <Button icon={<UploadOutlined />}>Tải ảnh lên</Button>
+                                            <Button icon={<UploadOutlined />} className="btn-hover">Tải ảnh lên</Button>
                                         </Upload>
                                     </Form.Item>
                                 </Form>

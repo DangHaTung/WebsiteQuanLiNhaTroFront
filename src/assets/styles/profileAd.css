@@ -24,7 +24,7 @@
 }
 
 /* BUTTON GRADIENT & HOVER */
-.ant-btn {
+.btn-hover {
   position: relative;
   overflow: hidden;
   background: linear-gradient(135deg, #1677ff, #69c0ff);
@@ -34,14 +34,14 @@
   transition: all 0.4s ease;
 }
 
-.ant-btn:hover {
+.btn-hover:hover {
   background: linear-gradient(135deg, #69c0ff, #1677ff);
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(22, 119, 255, 0.35);
 }
 
 /* ánh sáng lướt ngang */
-.ant-btn::before {
+.btn-hover::before {
   content: "";
   position: absolute;
   top: 0;
@@ -57,7 +57,7 @@
   transform: skewX(-20deg);
 }
 
-.ant-btn:hover::before {
+.btn-hover:hover::before {
   animation: lightSweep 0.8s ease;
 }
 
@@ -169,7 +169,7 @@ body {
   color: #1677ff;
 }
 
-/* RESPONSIVE */
+/* RESPONSIVE TINH TẾ */
 @media (max-width: 768px) {
   .ant-avatar {
     width: 100px !important;
@@ -181,7 +181,7 @@ body {
     font-size: 14px;
   }
 
-  .ant-btn {
+  .btn-hover {
     font-size: 14px;
     padding: 6px 12px;
   }
