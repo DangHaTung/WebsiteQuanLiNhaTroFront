@@ -121,7 +121,7 @@ const RoomCard: React.FC<Props> = ({ room }) => {
           marginBottom: 10,
         }}
       >
-        {Number(room.pricePerMonth).toLocaleString()}đ
+        {new Intl.NumberFormat('vi-VN').format(room.pricePerMonth)}₫
       </div>
 
       {/* Nút hành động - phòng bảo trì không thể xem chi tiết */}

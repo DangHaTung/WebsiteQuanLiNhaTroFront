@@ -51,6 +51,11 @@ const RoomsDetail: React.FC = () => {
   // currentImage: index ảnh đang xem trong gallery
   const [currentImage, setCurrentImage] = useState<number>(0);
 
+  // Cuộn lên đầu trang khi component được mount
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   // Tải chi tiết phòng theo id
   useEffect(() => {
     const fetchRoom = () => {
@@ -103,7 +108,7 @@ const RoomsDetail: React.FC = () => {
     fetchRelated();
   }, [room]);
 
-  // Định dạng giá theo VN
+  // Định dạng giá theo VNĐ (dữ liệu gốc đã là VNĐ)
   const price = room ? new Intl.NumberFormat("vi-VN").format(room.pricePerMonth) : "";
   // Gallery ảnh: nếu db có mảng images thì dùng, không thì nhân bản ảnh chính để demo
   const gallery: string[] = room
@@ -116,7 +121,12 @@ const RoomsDetail: React.FC = () => {
   const goPrev = () => setCurrentImage((i) => (i - 1 + gallery.length) % gallery.length);
   const goNext = () => setCurrentImage((i) => (i + 1) % gallery.length);
 
-  const handleBook = () => message.success("Đã gửi yêu cầu đặt phòng!");
+  const handleBook = () => {
+    // Điều hướng đến trang checkin với room ID để tự động chọn phòng
+    if (room) {
+      navigate(`/checkin/${room._id}`);
+    }
+  };
 
   if (loading) {
     return (
@@ -144,7 +154,7 @@ const RoomsDetail: React.FC = () => {
     return (
       <div style={{ padding: 24, maxWidth: 900, margin: "0 auto", textAlign: "center" }}>
         <Title level={3}>Không tìm thấy phòng</Title>
-        <Button type="primary" onClick={() => navigate("/rooms")}>Quay về danh sách</Button>
+        <Button type="primary" onClick={() => navigate("/rooms")} className="btn-animated">Quay về danh sách</Button>
       </div>
     );
   }
@@ -280,7 +290,11 @@ const RoomsDetail: React.FC = () => {
                 {room.floor}
               </Descriptions.Item>
               <Descriptions.Item label={<span><CheckCircleOutlined /> Trạng thái</span>}>
-                {room.status === 'AVAILABLE' ? 'Có sẵn' : room.status === 'OCCUPIED' ? 'Đã thuê' : 'Bảo trì'}
+                <div>
+                  <Tag color={room.status === 'AVAILABLE' ? 'green' : room.status === 'OCCUPIED' ? 'red' : 'orange'}>
+                    {room.status === 'AVAILABLE' ? 'Có sẵn' : room.status === 'OCCUPIED' ? 'Đã thuê' : 'Bảo trì'}
+                  </Tag>
+                </div>
               </Descriptions.Item>
               <Descriptions.Item label={<span><AppstoreOutlined /> Loại phòng</span>}>
                 {room.type === 'SINGLE' ? 'Phòng đơn' : room.type === 'DOUBLE' ? 'Phòng đôi' : room.type === 'STUDIO' ? 'Studio' : 'VIP'}
@@ -332,27 +346,31 @@ const RoomsDetail: React.FC = () => {
 
               <Divider style={{ margin: "0" }} />
 
-              {/* Form thông tin người thuê */}
-              <div>
-                <Text strong>Thông tin người thuê</Text>
-                <Form layout="vertical" onFinish={handleBook} style={{ marginTop: 12 }}>
-                  <Form.Item name="fullName" label="Họ và tên" rules={[{ required: true, message: "Vui lòng nhập họ tên" }]}>
-                    <Input placeholder="Nguyễn Văn A" allowClear />
-                  </Form.Item>
-                  <Form.Item name="email" label="Email" rules={[{ required: true, type: "email", message: "Email không hợp lệ" }]}>
-                    <Input placeholder="email@example.com" allowClear />
-                  </Form.Item>
-                  <Form.Item name="phone" label="Số điện thoại" rules={[{ required: true, message: "Vui lòng nhập số điện thoại" }]}>
-                    <Input placeholder="0901xxxxxx" allowClear />
-                  </Form.Item>
-                  <Form.Item name="content" label="Nội dung" rules={[{ required: true, message: "Vui lòng nhập nội dung" }]}>
-                    <Input.TextArea placeholder="Tôi muốn xem phòng vào cuối tuần..." rows={4} allowClear />
-                  </Form.Item>
-                  <Button htmlType="submit" type="primary" size="large" block className="btn-animated">
+              {/* Form thông tin người thuê - chỉ hiển thị nếu phòng còn trống */}
+              {room.status === "AVAILABLE" ? (
+                <div>
+                  <Button htmlType="submit" type="primary" size="large" block className="btn-animated" onClick={handleBook}>
                     Đặt phòng
                   </Button>
-                </Form>
-              </div>
+                </div>
+              ) : (
+                <div>
+                  <Button
+                    type="default"
+                    size="large"
+                    block
+                    disabled
+                    style={{
+                      backgroundColor: "#f5f5f5",
+                      color: "#999",
+                      border: "1px solid #d9d9d9",
+                      cursor: "not-allowed"
+                    }}
+                  >
+                    {room.status === "OCCUPIED" ? "Đã được thuê" : "Không khả dụng"}
+                  </Button>
+                </div>
+              )}
 
               <Divider style={{ margin: "16px 0" }} />
 

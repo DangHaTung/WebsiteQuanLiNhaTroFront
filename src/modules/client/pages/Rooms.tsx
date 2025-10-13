@@ -7,7 +7,7 @@ import banner1 from "../../../assets/images/banner1.png";
 import banner2 from "../../../assets/images/banner2.png";
 import banner3 from "../../../assets/images/banner3.png";
 
-const { Title } = Typography;
+const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
 const Rooms: React.FC = () => {
@@ -16,7 +16,7 @@ const Rooms: React.FC = () => {
 
   // Filter states
   const [selectedDistrict, setSelectedDistrict] = useState<string>("");
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 1000]);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 25000000]);
   const [selectedRoomType, setSelectedRoomType] = useState<string>("");
   const [areaRange, setAreaRange] = useState<[number, number]>([0, 50]);
 
@@ -84,7 +84,7 @@ const Rooms: React.FC = () => {
   // Reset filters function
   const resetFilters = () => {
     setSelectedDistrict("");
-    setPriceRange([0, 1000]);
+    setPriceRange([0, 25000000]);
     setSelectedRoomType("");
     setAreaRange([0, 50]);
   };
@@ -138,6 +138,17 @@ const Rooms: React.FC = () => {
         <p style={{ textAlign: "center", color: "#555", marginBottom: 24 }}>
           Khám phá các phòng trọ phù hợp với nhu cầu, vị trí và ngân sách của bạn
         </p>
+
+        {/* Hiển thị số phòng tìm được */}
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <Text type="secondary">
+            {filteredRooms.length > 0 ? (
+              <>Tìm thấy <strong>{filteredRooms.length}</strong> phòng phù hợp</>
+            ) : (
+              <>Không tìm thấy phòng nào phù hợp với bộ lọc hiện tại</>
+            )}
+          </Text>
+        </div>
 
      {/*Lọc phòng trọ*/}
         <Card
@@ -238,13 +249,14 @@ const Rooms: React.FC = () => {
                 allowClear
                 size="middle"
               >
-                <Option value="0-400">Dưới 400k</Option>
-                <Option value="400-500">400k - 500k</Option>
-                <Option value="500-600">500k - 600k</Option>
-                <Option value="600-700">600k - 700k</Option>
-                <Option value="700-800">700k - 800k</Option>
-                <Option value="800-1000">800k - 1 triệu</Option>
-                <Option value="0-1000">Tất cả</Option>
+                <Option value="0-5000000">Dưới 5 triệu</Option>
+                <Option value="5000000-7500000">5 - 7.5 triệu</Option>
+                <Option value="7500000-10000000">7.5 - 10 triệu</Option>
+                <Option value="10000000-12500000">10 - 12.5 triệu</Option>
+                <Option value="12500000-15000000">12.5 - 15 triệu</Option>
+                <Option value="15000000-20000000">15 - 20 triệu</Option>
+                <Option value="20000000-25000000">20 - 25 triệu</Option>
+                <Option value="0-25000000">Tất cả</Option>
               </Select>
             </div>
 
@@ -349,11 +361,24 @@ const Rooms: React.FC = () => {
       {/* DANH SÁCH PHÒNG */}
 
         <Row gutter={[24, 24]} justify="center">
-          {filteredRooms.slice(0, 6).map((room) => (
-            <Col xs={24} sm={12} md={8} lg={6} xl={6} key={room._id}>
-              <RoomCard room={room} />
+          {filteredRooms.length > 0 ? (
+            filteredRooms.slice(0, 6).map((room) => (
+              <Col xs={24} sm={12} md={8} lg={6} xl={6} key={room._id}>
+                <RoomCard room={room} />
+              </Col>
+            ))
+          ) : (
+            <Col span={24}>
+              <div style={{ textAlign: "center", padding: "60px 0", color: "#999" }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>🏠</div>
+                <h3>Không tìm thấy phòng phù hợp</h3>
+                <p>Thử điều chỉnh bộ lọc hoặc xem tất cả phòng trọ</p>
+                <Button type="primary" onClick={resetFilters} className="btn-animated">
+                  Xem tất cả phòng
+                </Button>
+              </div>
             </Col>
-          ))}
+          )}
         </Row>
       </section>
     </div>
