@@ -10,11 +10,25 @@ export interface IUser {
 }
 
 export interface IRoom {
-  id: number;
-  title: string;
-  price: number;
-  address: string;
-  image?: string;
+  _id: string;
+  roomNumber: string;
+  type: string;
+  pricePerMonth: string;
+  areaM2: number;
+  floor: number;
+  district: string;
+  status: string;
+  image: string;
+  images: string[];
+  currentContractSummary?: {
+    contractId: string;
+    tenantName: string;
+    startDate: string;
+    endDate: string;
+    monthlyRent: string;
+  };
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface IContract {
