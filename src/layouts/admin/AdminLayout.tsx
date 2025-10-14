@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Avatar, Badge, Dropdown, Layout, Menu, type MenuProps } from "antd";
 import { Outlet, useNavigate } from "react-router-dom";
-import { MenuFoldOutlined, MenuUnfoldOutlined, DashboardOutlined, UserOutlined, BellOutlined, SettingOutlined, LogoutOutlined } from "@ant-design/icons";
+import { MenuFoldOutlined, MenuUnfoldOutlined, DashboardOutlined, UserOutlined, BellOutlined, SettingOutlined, LogoutOutlined, HomeOutlined } from "@ant-design/icons";
 import "../../assets/styles/layoutAd.css";
 import SearchBar from "./SearchBar";
 
@@ -55,12 +55,17 @@ const AdminLayout: React.FC = () => {
           theme="dark"
           mode="inline"
           selectedKeys={[window.location.pathname]}
-          onClick={({ key }) => navigate(key)}
+          onClick={({ key }: { key: string }) => navigate(key)}
           items={[
             {
               key: "/admin/dashboard",
               icon: <DashboardOutlined style={{ fontSize: 20 }} />,
               label: "Dashboard",
+            },
+            {
+              key: "/admin/roomsad",
+              icon: <HomeOutlined style={{ fontSize: 20 }} />,
+              label: "Quản lý phòng",
             },
             {
               key: "/admin/users",
