@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Card,
@@ -13,7 +13,8 @@ import {
   Button,
   Timeline,
   List,
-  message
+  message,
+  Descriptions
 } from "antd";
 import {
   FileTextOutlined,
@@ -32,6 +33,7 @@ import {
   ArrowRightOutlined
 } from "@ant-design/icons";
 import "../../../assets/styles/contracts.css";
+import dbData from "../../../../db.json";
 
 const { Title, Text, Paragraph } = Typography;
 const { Panel } = Collapse;
@@ -39,6 +41,20 @@ const { Panel } = Collapse;
 const Contracts: React.FC = () => {
   const navigate = useNavigate();
   const { roomId } = useParams<{ roomId: string }>();
+  const [roomInfo, setRoomInfo] = useState<any>(null);
+
+  useEffect(() => {
+    if (roomId) {
+      // Tìm thông tin phòng từ db.json nếu có roomId
+      const room = dbData.rooms.find(r => {
+        const rId = typeof r._id === 'object' ? r._id.$oid : r._id;
+        return rId === roomId;
+      });
+      if (room) {
+        setRoomInfo(room);
+      }
+    }
+  }, [roomId]);
 
   const handleAcceptTerms = () => {
     // Hiển thị thông báo thành công
@@ -154,17 +170,93 @@ const Contracts: React.FC = () => {
 
         {/* Introduction Alert */}
         <Alert
-          message="Quan trọng!"
+          message={roomInfo ? `Xem hợp đồng cho Phòng ${roomInfo.roomNumber}` : "Quan trọng!"}
           description={
             <div>
-              <p>Việc đọc và đồng ý với các điều khoản này là bắt buộc trước khi ký hợp đồng thuê phòng.</p>
-              <p>Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ bộ phận chăm sóc khách hàng.</p>
+              {roomInfo ? (
+                <div>
+                  <p>Bạn đang xem điều khoản cho <strong>Phòng {roomInfo.roomNumber}</strong> tại <strong>{roomInfo.district}</strong></p>
+                  <p>Giá thuê: <strong>{new Intl.NumberFormat('vi-VN').format(roomInfo.pricePerMonth)}₫/tháng</strong></p>
+                </div>
+              ) : (
+                <div>
+                  <p>Việc đọc và đồng ý với các điều khoản này là bắt buộc trước khi ký hợp đồng thuê phòng.</p>
+                  <p>Nếu bạn có bất kỳ câu hỏi nào, vui lòng liên hệ bộ phận chăm sóc khách hàng.</p>
+                </div>
+              )}
             </div>
           }
           type="warning"
           showIcon
           style={{ marginBottom: 24, borderRadius: 8 }}
         />
+
+        {/* Room Information Section - chỉ hiển thị nếu có roomId */}
+        {roomInfo && (
+          <Card
+            title={
+              <Space>
+                <HomeOutlined />
+                Thông Tin Phòng Thuê
+              </Space>
+            }
+            className="room-info-card"
+            style={{ marginBottom: 24, borderRadius: 12 }}
+          >
+            <Row gutter={[24, 24]}>
+              <Col xs={24} md={8}>
+                <div style={{ textAlign: "center" }}>
+                  <img
+                    src={roomInfo.coverImageUrl || roomInfo.image}
+                    alt={`Phòng ${roomInfo.roomNumber}`}
+                    style={{
+                      width: "100%",
+                      maxWidth: 200,
+                      height: 150,
+                      objectFit: "cover",
+                      borderRadius: 8,
+                      marginBottom: 16
+                    }}
+                  />
+                  <Title level={4} style={{ margin: 0 }}>
+                    Phòng {roomInfo.roomNumber}
+                  </Title>
+                  <Tag color="green" style={{ marginTop: 4 }}>
+                    {roomInfo.status === 'AVAILABLE' ? 'Còn trống' : 'Đã thuê'}
+                  </Tag>
+                </div>
+              </Col>
+              <Col xs={24} md={16}>
+                <Descriptions column={{ xs: 1, sm: 2 }} bordered>
+                  <Descriptions.Item label="Loại phòng">
+                    {roomInfo.type === 'SINGLE' ? 'Phòng đơn' :
+                     roomInfo.type === 'DOUBLE' ? 'Phòng đôi' :
+                     roomInfo.type === 'STUDIO' ? 'Studio' : 'VIP'}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Diện tích">
+                    {roomInfo.areaM2}m²
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Giá thuê">
+                    <Text strong style={{ color: "#1890ff" }}>
+                      {new Intl.NumberFormat('vi-VN').format(roomInfo.pricePerMonth)}₫/tháng
+                    </Text>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Tầng">
+                    {roomInfo.floor}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Khu vực">
+                    {roomInfo.district}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Trạng thái">
+                    <Tag color={roomInfo.status === 'AVAILABLE' ? 'green' : 'red'}>
+                      {roomInfo.status === 'AVAILABLE' ? 'Có sẵn' : 'Đã thuê'}
+                    </Tag>
+                  </Descriptions.Item>
+                </Descriptions>
+              </Col>
+            </Row>
+          </Card>
+        )}
 
         {/* Contract Terms Accordion */}
         <Card

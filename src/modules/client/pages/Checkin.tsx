@@ -70,7 +70,10 @@ const Checkin: React.FC = () => {
 
     // Nếu có roomId từ URL, tự động chọn phòng đó
     if (urlRoomId) {
-      const roomFromUrl = dbData.rooms.find(room => room._id === urlRoomId);
+      const roomFromUrl = dbData.rooms.find(room => {
+        const roomId = typeof room._id === 'object' ? room._id.$oid : room._id;
+        return roomId === urlRoomId;
+      });
       if (roomFromUrl) {
         setSelectedRoom(roomFromUrl);
         form.setFieldsValue({
@@ -88,7 +91,10 @@ const Checkin: React.FC = () => {
   }, [form, urlRoomId]);
 
   const handleRoomChange = (roomId: string) => {
-    const room = availableRooms.find(r => r._id === roomId);
+    const room = availableRooms.find(r => {
+      const rId = typeof r._id === 'object' ? r._id.$oid : r._id;
+      return rId === roomId;
+    });
     setSelectedRoom(room);
     form.setFieldsValue({
       deposit: parseFloat(room.pricePerMonth) * 1
@@ -256,11 +262,14 @@ const Checkin: React.FC = () => {
                       size="large"
                       onChange={handleRoomChange}
                     >
-                      {availableRooms.map(room => (
-                        <Option key={room._id} value={room._id}>
-                          Phòng {room.roomNumber} - {room.type} - {new Intl.NumberFormat('vi-VN').format(room.pricePerMonth)}₫/tháng
-                        </Option>
-                      ))}
+                      {availableRooms.map(room => {
+                        const roomId = typeof room._id === 'object' ? room._id.$oid : room._id;
+                        return (
+                          <Option key={roomId} value={roomId}>
+                            Phòng {room.roomNumber} - {room.type} - {new Intl.NumberFormat('vi-VN').format(room.pricePerMonth)}₫/tháng
+                          </Option>
+                        );
+                      })}
                     </Select>
                   )}
                 </Form.Item>
