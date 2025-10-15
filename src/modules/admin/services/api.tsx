@@ -5,10 +5,9 @@ const api = axios.create({
   baseURL: "http://localhost:3000/api",
 });
 
-// Attach client token if present
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("admin_token");
     if (token) {
       if (config.headers instanceof AxiosHeaders) {
         config.headers.set("Authorization", `Bearer ${token}`);
@@ -24,14 +23,13 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Handle unauthorized
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("currentUser");
-      window.location.href = "/login";
+      localStorage.removeItem("admin_token");
+      localStorage.removeItem("admin_currentUser");
+      window.location.href = "/admin/login";
     }
     return Promise.reject(error);
   }

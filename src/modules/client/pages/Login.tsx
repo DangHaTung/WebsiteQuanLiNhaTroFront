@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Form, Input, Button, Card, Typography, message } from "antd";
 import { UserOutlined, LockOutlined, LoginOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
+import { clientAuthService } from "../../client/services/auth";
 import "../../../assets/styles/login.css";
 
 const { Title, Text } = Typography;
@@ -10,35 +11,39 @@ const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  const onFinish = (values: { username: string; password: string }) => {
+  const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
+    try {
+      const res = await clientAuthService.login({
+        email: values.username,
+        password: values.password,
+      });
 
-    // Kiểm tra thông tin đăng nhập từ localStorage (mô phỏng db.json)
-    setTimeout(() => {
-      const users = JSON.parse(localStorage.getItem("users") || "[]");
-      const user = users.find((u: any) => u.email === values.username && u.passwordHash === values.password);
+      // Save token and user
+      clientAuthService.saveAuthData(res.token, res.user);
 
-      if (user) {
-        // Đăng nhập thành công
-        localStorage.setItem("currentUser", JSON.stringify(user));
-        setLoading(false);
-        message.success(`Đăng nhập thành công! Chào mừng, ${user.fullName}!`);
+      const displayName = res.user.username || res.user.fullName || res.user.email;
+      message.success(res.message || `Đăng nhập thành công! Chào mừng, ${displayName}!`);
 
-        // Gửi sự kiện đăng nhập thành công để các component khác cập nhật
-        window.dispatchEvent(new CustomEvent("login-success", {
-          detail: { username: user.fullName }
-        }));
+      // Notify navbar
+      window.dispatchEvent(new CustomEvent("login-success", {
+        detail: { username: displayName }
+      }));
 
-        // Chuyển về trang chủ sau 1 giây
-        setTimeout(() => {
-          navigate("/");
-        }, 1000);
+      // Role-based redirect
+      const role = res.user.role;
+      if (role === "ADMIN") {
+        navigate("/admin/dashboard");
       } else {
-        // Đăng nhập thất bại
-        setLoading(false);
-        message.error("Email hoặc mật khẩu không đúng!");
+        navigate("/");
       }
-    }, 1500);
+    } catch (err: any) {
+      message.error(
+        err?.response?.data?.message || err?.response?.data?.error || "Email hoặc mật khẩu không đúng!"
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
