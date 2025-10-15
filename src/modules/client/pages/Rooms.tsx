@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { Row, Col, Spin, Typography, Carousel, Button, Select, InputNumber, Card } from "antd";
+import { Row, Col, Spin, Typography, Carousel, Button, Select, Card } from "antd";
 import type { Room } from "../../../types/room";
 import RoomCard from "../components/RoomCard";
 import dbData from "../../../../db.json";
@@ -7,7 +7,7 @@ import banner1 from "../../../assets/images/banner1.png";
 import banner2 from "../../../assets/images/banner2.png";
 import banner3 from "../../../assets/images/banner3.png";
 
-const { Title, Text, Paragraph } = Typography;
+const { Title, Text } = Typography;
 const { Option } = Select;
 
 const Rooms: React.FC = () => {
@@ -15,26 +15,33 @@ const Rooms: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
 
   // Filter states
-  const [selectedDistrict, setSelectedDistrict] = useState<string>("");
-  const [priceRange, setPriceRange] = useState<[number, number]>([0, 25000000]);
+  const [priceRange, setPriceRange] = useState<[number, number]>([1000000, 25000000]);
   const [selectedRoomType, setSelectedRoomType] = useState<string>("");
-  const [areaRange, setAreaRange] = useState<[number, number]>([0, 50]);
 
   useEffect(() => {
     if (dbData && dbData.rooms) {
       const roomsData: Room[] = dbData.rooms.map((room: any) => ({
-        _id: room._id,
+        _id: typeof room._id === 'object' ? room._id.$oid : room._id || `room_${Math.random().toString(36).substr(2, 9)}`,
         roomNumber: room.roomNumber,
-        type: room.type as "SINGLE" | "DOUBLE" | "STUDIO" | "VIP",
+        type: room.type as "SINGLE" | "DOUBLE" | "DORM",
         pricePerMonth: Number(room.pricePerMonth),
         areaM2: room.areaM2,
         floor: room.floor,
         district: room.district,
-        status: room.status as "OCCUPIED" | "AVAILABLE" | "MAINTENANCE",
-        image: room.image,
-        images: room.images,
-        createdAt: room.createdAt,
-        updatedAt: room.updatedAt,
+        status: room.status as "AVAILABLE" | "OCCUPIED" | "MAINTENANCE",
+        image: room.coverImageUrl || room.image || "",
+        images: room.images?.map((img: any) => img.url || img) || [],
+        createdAt: typeof room.createdAt === 'object' ? room.createdAt.$date : room.createdAt || new Date().toISOString(),
+        updatedAt: room.updatedAt || new Date().toISOString(),
+        currentContractSummary: room.currentContractSummary ? {
+          contractId: room.currentContractSummary.contractId || "",
+          tenantName: room.currentContractSummary.tenantName || "",
+          startDate: room.currentContractSummary.startDate || "",
+          endDate: room.currentContractSummary.endDate || "",
+          monthlyRent: typeof room.currentContractSummary.monthlyRent === 'object'
+            ? String(room.currentContractSummary.monthlyRent.$numberDecimal || 0)
+            : String(room.currentContractSummary.monthlyRent || 0)
+        } : undefined
       }));
 
       setRooms(roomsData);
@@ -47,11 +54,6 @@ const Rooms: React.FC = () => {
   // Filter logic
   const filteredRooms = useMemo(() => {
     return rooms.filter(room => {
-      // Filter by district
-      if (selectedDistrict && room.district !== selectedDistrict) {
-        return false;
-      }
-
       // Filter by price range
       if (room.pricePerMonth < priceRange[0] || room.pricePerMonth > priceRange[1]) {
         return false;
@@ -62,19 +64,9 @@ const Rooms: React.FC = () => {
         return false;
       }
 
-      // Filter by area range
-      if (room.areaM2 < areaRange[0] || room.areaM2 > areaRange[1]) {
-        return false;
-      }
-
       return true;
     });
-  }, [rooms, selectedDistrict, priceRange, selectedRoomType, areaRange]);
-
-  // Get unique districts for filter options
-  const districts = useMemo(() => {
-    return [...new Set(rooms.map(room => room.district))].filter(Boolean);
-  }, [rooms]);
+  }, [rooms, priceRange, selectedRoomType]);
 
   // Get unique room types for filter options
   const roomTypes = useMemo(() => {
@@ -83,10 +75,8 @@ const Rooms: React.FC = () => {
 
   // Reset filters function
   const resetFilters = () => {
-    setSelectedDistrict("");
-    setPriceRange([0, 25000000]);
+    setPriceRange([1000000, 25000000]);
     setSelectedRoomType("");
-    setAreaRange([0, 50]);
   };
 
   if (loading) {
@@ -131,26 +121,14 @@ const Rooms: React.FC = () => {
         </Carousel>
       </div>
 
-<section className="section section-bg">
+      <section className="section section-bg">
         <Title level={2} className="section-title" style={{ textAlign: "center" }}>
           DANH SÁCH PHÒNG TRỌ
         </Title>
         <p style={{ textAlign: "center", color: "#555", marginBottom: 24 }}>
-          Khám phá các phòng trọ phù hợp với nhu cầu, vị trí và ngân sách của bạn
+          Khám phá tất cả các phòng trọ phù hợp với nhu cầu, vị trí và ngân sách của bạn
         </p>
-
-        {/* Hiển thị số phòng tìm được */}
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <Text type="secondary">
-            {filteredRooms.length > 0 ? (
-              <>Tìm thấy <strong>{filteredRooms.length}</strong> phòng phù hợp</>
-            ) : (
-              <>Không tìm thấy phòng nào phù hợp với bộ lọc hiện tại</>
-            )}
-          </Text>
-        </div>
-
-     {/*Lọc phòng trọ*/}
+        {/* Lọc phòng trọ */}
         <Card
           title={
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -175,194 +153,112 @@ const Rooms: React.FC = () => {
               alignItems: "center",
               justifyContent: "space-between",
               gap: 16,
-              flexWrap: "nowrap",
-              overflowX: "auto",
-              paddingBottom: 12,
+              flexWrap: "wrap",
+              padding: "16px 0",
             }}
           >
-            {/* Khu vực */}
-            <div
-              style={{
-                padding: 16,
-                background: "#fafafa",
-                borderRadius: 8,
-                minWidth: 200,
-                flexShrink: 0,
-              }}
-            >
-              <label
-                style={{
-                  fontWeight: 500,
-                  color: "#333",
-                  marginBottom: 8,
-                  display: "block",
-                }}
-              >
-                📍 Khu vực
-              </label>
-              <Select
-                style={{ width: "100%" }}
-                placeholder="Chọn khu vực"
-                value={selectedDistrict}
-                onChange={setSelectedDistrict}
-                allowClear
-                size="middle"
-              >
-                {districts.map((district) => (
-                  <Option key={district} value={district}>
-                    {district}
-                  </Option>
-                ))}
-              </Select>
+            {/* Bộ lọc chính - nằm ngang */}
+            <div style={{ display: "flex", gap: 16, flex: 1, alignItems: "flex-end" }}>
+              {/* Khoảng giá */}
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <label
+                  style={{
+                    fontWeight: 500,
+                    color: "#333",
+                    marginBottom: 8,
+                    display: "block",
+                    fontSize: "14px",
+                  }}
+                >
+                  💰 Khoảng giá
+                </label>
+                <Select
+                  style={{ width: "100%" }}
+                  placeholder="Chọn khoảng giá"
+                  value={`${priceRange[0]}-${priceRange[1]}`}
+                  onChange={(value) => {
+                    if (value) {
+                      const [min, max] = value.split("-").map(Number);
+                      setPriceRange([min, max]);
+                    }
+                  }}
+                  allowClear
+                  size="large"
+                  dropdownStyle={{ minWidth: 200 }}
+                >
+                  <Option value="1000000-5000000">1 - 5 triệu</Option>
+                  <Option value="5000000-7500000">5 - 7.5 triệu</Option>
+                  <Option value="7500000-10000000">7.5 - 10 triệu</Option>
+                  <Option value="10000000-12500000">10 - 12.5 triệu</Option>
+                  <Option value="12500000-15000000">12.5 - 15 triệu</Option>
+                  <Option value="15000000-20000000">15 - 20 triệu</Option>
+                  <Option value="20000000-25000000">20 - 25 triệu</Option>
+                  <Option value="1000000-25000000">Tất cả</Option>
+                </Select>
+              </div>
+
+              {/* Loại phòng */}
+              <div style={{ flex: 1, minWidth: 150 }}>
+                <label
+                  style={{
+                    fontWeight: 500,
+                    color: "#333",
+                    marginBottom: 8,
+                    display: "block",
+                    fontSize: "14px",
+                  }}
+                >
+                  🏠 Loại phòng
+                </label>
+                <Select
+                  style={{ width: "100%" }}
+                  placeholder="Chọn loại phòng"
+                  value={selectedRoomType}
+                  onChange={setSelectedRoomType}
+                  allowClear
+                  size="large"
+                  dropdownStyle={{ minWidth: 150 }}
+                >
+                  {roomTypes.map((type) => (
+                    <Option key={type} value={type}>
+                      {type === 'SINGLE' ? 'Phòng đơn' :
+                       type === 'DOUBLE' ? 'Phòng đôi' :
+                       type === 'DORM' ? 'Phòng dorm' : 'Phòng khác'}
+                    </Option>
+                  ))}
+                </Select>
+              </div>
             </div>
 
-            {/* Khoảng giá */}
-            <div
-              style={{
-                padding: 16,
-                background: "#fafafa",
-                borderRadius: 8,
-                minWidth: 220,
-                flexShrink: 0,
-              }}
-            >
-              <label
-                style={{
-                  fontWeight: 500,
-                  color: "#333",
-                  marginBottom: 8,
-                  display: "block",
-                }}
-              >
-                💰 Khoảng giá (VNĐ/tháng)
-              </label>
-              <Select
-                style={{ width: "100%" }}
-                placeholder="Chọn khoảng giá"
-                value={`${priceRange[0]}-${priceRange[1]}`}
-                onChange={(value) => {
-                  if (value) {
-                    const [min, max] = value.split("-").map(Number);
-                    setPriceRange([min, max]);
-                  }
-                }}
-                allowClear
-                size="middle"
-              >
-                <Option value="0-5000000">Dưới 5 triệu</Option>
-                <Option value="5000000-7500000">5 - 7.5 triệu</Option>
-                <Option value="7500000-10000000">7.5 - 10 triệu</Option>
-                <Option value="10000000-12500000">10 - 12.5 triệu</Option>
-                <Option value="12500000-15000000">12.5 - 15 triệu</Option>
-                <Option value="15000000-20000000">15 - 20 triệu</Option>
-                <Option value="20000000-25000000">20 - 25 triệu</Option>
-                <Option value="0-25000000">Tất cả</Option>
-              </Select>
-            </div>
-
-            {/* Loại phòng */}
-            <div
-              style={{
-                padding: 16,
-                background: "#fafafa",
-                borderRadius: 8,
-                minWidth: 180,
-                flexShrink: 0,
-              }}
-            >
-              <label
-                style={{
-                  fontWeight: 500,
-                  color: "#333",
-                  marginBottom: 8,
-                  display: "block",
-                }}
-              >
-                🏠 Loại phòng
-              </label>
-              <Select
-                style={{ width: "100%" }}
-                placeholder="Chọn loại phòng"
-                value={selectedRoomType}
-                onChange={setSelectedRoomType}
-                allowClear
-                size="middle"
-              >
-                {roomTypes.map((type) => (
-                  <Option key={type} value={type}>
-                    {type}
-                  </Option>
-                ))}
-              </Select>
-            </div>
-
-            {/* Diện tích */}
-            <div
-              style={{
-                padding: 16,
-                background: "#fafafa",
-                borderRadius: 8,
-                minWidth: 200,
-                flexShrink: 0,
-              }}
-            >
-              <label
-                style={{
-                  fontWeight: 500,
-                  color: "#333",
-                  marginBottom: 8,
-                  display: "block",
-                }}
-              >
-                📐 Diện tích (m²)
-              </label>
-              <Select
-                style={{ width: "100%" }}
-                placeholder="Chọn khoảng diện tích"
-                value={`${areaRange[0]}-${areaRange[1]}`}
-                onChange={(value) => {
-                  if (value) {
-                    const [min, max] = value.split("-").map(Number);
-                    setAreaRange([min, max]);
-                  }
-                }}
-                allowClear
-                size="middle"
-              >
-                <Option value="0-20">Dưới 20m²</Option>
-                <Option value="20-25">20 - 25m²</Option>
-                <Option value="25-30">25 - 30m²</Option>
-                <Option value="30-35">30 - 35m²</Option>
-                <Option value="35-40">35 - 40m²</Option>
-                <Option value="40-50">40 - 50m²</Option>
-                <Option value="0-50">Tất cả</Option>
-              </Select>
-            </div>
-
-            {/* Nút reset */}
+            {/* Nút reset - nằm bên phải */}
             <div style={{ flexShrink: 0 }}>
               <Button
                 onClick={resetFilters}
                 type="default"
-                size="middle"
+                size="large"
                 style={{
-                  borderRadius: 6,
-                  padding: "8px 24px",
+                  borderRadius: 8,
+                  padding: "0 24px",
                   background: "#fff",
                   fontWeight: 500,
+                  height: "40px",
+                  border: "1px solid #d9d9d9",
                 }}
               >
                 🔄 Xóa bộ lọc
               </Button>
             </div>
           </div>
+
+          {/* Hiển thị số phòng tìm được */}
+          
         </Card>
 
-      {/* DANH SÁCH PHÒNG */}
+        {/* DANH SÁCH PHÒNG */}
 
         <Row gutter={[24, 24]} justify="center">
           {filteredRooms.length > 0 ? (
-            filteredRooms.slice(0, 6).map((room) => (
+            filteredRooms.map((room) => (
               <Col xs={24} sm={12} md={8} lg={6} xl={6} key={room._id}>
                 <RoomCard room={room} />
               </Col>

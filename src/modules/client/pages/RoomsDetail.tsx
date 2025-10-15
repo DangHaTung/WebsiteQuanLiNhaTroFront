@@ -63,14 +63,35 @@ const RoomsDetail: React.FC = () => {
         setLoading(false);
         return;
       }
-      // Tìm phòng theo ID từ db.json
-      const roomData = dbData.rooms.find(room => room._id === id);
+      // Tìm phòng theo ID từ db.json - xử lý cả dạng string và object ID
+      const roomData = dbData.rooms.find(room => {
+        const roomId = typeof room._id === 'object' ? room._id.$oid : room._id;
+        return roomId === id;
+      });
+
       if (roomData) {
         const formattedRoom: Room = {
-          ...roomData,
+          _id: typeof roomData._id === 'object' ? roomData._id.$oid : roomData._id || `room_${Math.random().toString(36).substr(2, 9)}`,
+          roomNumber: roomData.roomNumber,
+          type: roomData.type as "SINGLE" | "DOUBLE" | "DORM",
           pricePerMonth: Number(roomData.pricePerMonth),
-          type: roomData.type as 'SINGLE' | 'DOUBLE' | 'STUDIO' | 'VIP',
-          status: roomData.status as 'OCCUPIED' | 'AVAILABLE' | 'MAINTENANCE'
+          areaM2: roomData.areaM2,
+          floor: roomData.floor,
+          district: roomData.district,
+          status: roomData.status as "AVAILABLE" | "OCCUPIED" | "MAINTENANCE",
+          image: roomData.coverImageUrl || roomData.image || "",
+          images: roomData.images?.map((img: any) => img.url || img) || [],
+          createdAt: typeof roomData.createdAt === 'object' ? roomData.createdAt.$date : roomData.createdAt || new Date().toISOString(),
+          updatedAt: roomData.updatedAt || new Date().toISOString(),
+          currentContractSummary: roomData.currentContractSummary ? {
+            contractId: roomData.currentContractSummary.contractId || "",
+            tenantName: roomData.currentContractSummary.tenantName || "",
+            startDate: roomData.currentContractSummary.startDate || "",
+            endDate: roomData.currentContractSummary.endDate || "",
+            monthlyRent: typeof roomData.currentContractSummary.monthlyRent === 'object'
+              ? String(roomData.currentContractSummary.monthlyRent.$numberDecimal || 0)
+              : String(roomData.currentContractSummary.monthlyRent || 0)
+          } : undefined
         };
         setRoom(formattedRoom);
       } else {
@@ -87,19 +108,42 @@ const RoomsDetail: React.FC = () => {
     const fetchRelated = () => {
       if (!room) return;
 
-      // Lấy danh sách phòng liên quan từ db.json
-      const allRooms: Room[] = dbData.rooms
-        .filter(r => r._id !== room._id)
+      // Lấy danh sách phòng liên quan từ db.json - chỉ phòng cùng loại và còn trống
+      const relatedRooms: Room[] = dbData.rooms
+        .filter(r => {
+          const roomId = typeof r._id === 'object' ? r._id.$oid : r._id;
+          const currentRoomId = typeof room._id === 'object' ? room._id.$oid : room._id;
+          return roomId !== currentRoomId && r.type === room.type && r.status === 'AVAILABLE';
+        })
         .map(r => ({
-          ...r,
+          _id: typeof r._id === 'object' ? r._id.$oid : r._id || `room_${Math.random().toString(36).substr(2, 9)}`,
+          roomNumber: r.roomNumber,
+          type: r.type as "SINGLE" | "DOUBLE" | "DORM",
           pricePerMonth: Number(r.pricePerMonth),
-          type: r.type as 'SINGLE' | 'DOUBLE' | 'STUDIO' | 'VIP',
-          status: r.status as 'OCCUPIED' | 'AVAILABLE' | 'MAINTENANCE'
+          areaM2: r.areaM2,
+          floor: r.floor,
+          district: r.district,
+          status: r.status as "AVAILABLE" | "OCCUPIED" | "MAINTENANCE",
+          image: r.coverImageUrl || r.image || "",
+          images: r.images?.map((img: any) => img.url || img) || [],
+          createdAt: typeof r.createdAt === 'object' ? r.createdAt.$date : r.createdAt || new Date().toISOString(),
+          updatedAt: r.updatedAt || new Date().toISOString(),
+          currentContractSummary: r.currentContractSummary ? {
+            contractId: r.currentContractSummary.contractId || "",
+            tenantName: r.currentContractSummary.tenantName || "",
+            startDate: r.currentContractSummary.startDate || "",
+            endDate: r.currentContractSummary.endDate || "",
+            monthlyRent: typeof r.currentContractSummary.monthlyRent === 'object'
+              ? String(r.currentContractSummary.monthlyRent.$numberDecimal || 0)
+              : String(r.currentContractSummary.monthlyRent || 0)
+          } : undefined
         }));
 
-      // ưu tiên cùng khu vực nếu địa chỉ giống nhau
-      const sameArea = allRooms.filter((r) => r.district === room.district);
-      const finalList = (sameArea.length ? sameArea : allRooms).slice(0, 4);
+      // Sắp xếp theo giá tăng dần để dễ so sánh
+      const sortedRooms = relatedRooms.sort((a, b) => a.pricePerMonth - b.pricePerMonth);
+
+      // Giới hạn hiển thị tối đa 6 phòng
+      const finalList = sortedRooms.slice(0, 6);
 
       setRelated(finalList);
       setLoadingRelated(false);
@@ -297,7 +341,7 @@ const RoomsDetail: React.FC = () => {
                 </div>
               </Descriptions.Item>
               <Descriptions.Item label={<span><AppstoreOutlined /> Loại phòng</span>}>
-                {room.type === 'SINGLE' ? 'Phòng đơn' : room.type === 'DOUBLE' ? 'Phòng đôi' : room.type === 'STUDIO' ? 'Studio' : 'VIP'}
+                {room.type === 'SINGLE' ? 'Phòng đơn' : room.type === 'DOUBLE' ? 'Phòng đôi' : 'Phòng dorm'}
               </Descriptions.Item>
             </Descriptions>
 
@@ -397,7 +441,7 @@ const RoomsDetail: React.FC = () => {
       {/* Sản phẩm liên quan */}
       <Divider style={{ margin: "8px 24px" }} />
       <div style={{ padding: 24, paddingTop: 0 }}>
-        <Title level={3} style={{ marginBottom: 16 }}>Sản phẩm liên quan</Title>
+        <Title level={3} style={{ marginBottom: 16 }}>{room.type === 'SINGLE' ? 'Phòng đơn' : room.type === 'DOUBLE' ? 'Phòng đôi' : 'Phòng dorm'} khác còn trống</Title>
         {loadingRelated ? (
           <Row gutter={[24, 24]}>
             {Array.from({ length: 4 }).map((_, i) => (
@@ -418,7 +462,10 @@ const RoomsDetail: React.FC = () => {
             ))}
             {related.length === 0 && (
               <Col span={24}>
-                <Text type="secondary">Chưa có phòng tương tự để gợi ý.</Text>
+                <div style={{ textAlign: "center", padding: "40px 0", color: "#999" }}>
+                  <div style={{ fontSize: 48, marginBottom: 16 }}>🏠</div>
+                  <p>Không có {room.type === 'SINGLE' ? 'phòng đơn' : room.type === 'DOUBLE' ? 'phòng đôi' : 'phòng dorm'} nào khác còn trống</p>
+                </div>
               </Col>
             )}
           </Row>

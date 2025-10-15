@@ -1,12 +1,16 @@
 export interface Room {
-  _id: string;
+  _id?: string;
   roomNumber: string;
-  type: 'SINGLE' | 'DOUBLE' | 'STUDIO' | 'VIP';
+  type: "SINGLE" | "DOUBLE" | "DORM";
   pricePerMonth: number;
   areaM2: number;
   floor: number;
   district: string;
-  status: 'OCCUPIED' | 'AVAILABLE' | 'MAINTENANCE';
+  status: "AVAILABLE" | "OCCUPIED" | "MAINTENANCE";
+  image: string;
+  images?: string[];
+  createdAt: string;
+  updatedAt: string;
   currentContractSummary?: {
     contractId: string;
     tenantName: string;
@@ -14,8 +18,4 @@ export interface Room {
     endDate: string;
     monthlyRent: string;
   };
-  image: string;
-  images?: string[];
-  createdAt: string;
-  updatedAt: string;
 }
