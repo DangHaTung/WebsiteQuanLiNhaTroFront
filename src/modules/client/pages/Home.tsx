@@ -28,20 +28,45 @@ const Home: React.FC = () => {
 
   useEffect(() => {
     // Load rooms from db.json
-    const roomsData: Room[] = dbData.rooms.map((room) => ({
-      _id: room._id,
-      roomNumber: room.roomNumber,
-      type: room.type as "SINGLE" | "DOUBLE" | "STUDIO" | "VIP",
-      pricePerMonth: Number(room.pricePerMonth),
-      areaM2: room.areaM2,
-      floor: room.floor,
-      district: room.district,
-      status: room.status as "OCCUPIED" | "AVAILABLE" | "MAINTENANCE",
-      image: room.image,
-      images: room.images,
-      createdAt: room.createdAt,
-      updatedAt: room.updatedAt,
-    }));
+    const roomsData: Room[] = dbData.rooms.map((room: any) => {
+      const rawId: any = room._id;
+      const idStr =
+        typeof rawId === "string"
+          ? rawId
+          : typeof rawId === "number"
+          ? String(rawId)
+          : rawId && typeof rawId === "object" && typeof rawId.$oid === "string"
+          ? rawId.$oid
+          : String(rawId);
+
+      const createdAt =
+        typeof room.createdAt === "string"
+          ? room.createdAt
+          : room.createdAt && typeof room.createdAt.$date === "string"
+          ? room.createdAt.$date
+          : new Date().toISOString();
+      const updatedAt = typeof room.updatedAt === "string" ? room.updatedAt : new Date().toISOString();
+
+      const imagesArr: string[] = Array.isArray(room.images)
+        ? room.images.map((it: any) => (typeof it === "string" ? it : it?.url)).filter(Boolean)
+        : [];
+      const imageUrl: string = room.coverImageUrl || room.image || imagesArr[0] || "/no-image.jpg";
+
+      return {
+        _id: idStr,
+        roomNumber: room.roomNumber,
+        type: room.type as "SINGLE" | "DOUBLE" | "STUDIO" | "VIP" | "DORM",
+        pricePerMonth: Number(room.pricePerMonth),
+        areaM2: room.areaM2,
+        floor: room.floor,
+        district: room.district,
+        status: room.status as "OCCUPIED" | "AVAILABLE" | "MAINTENANCE",
+        image: imageUrl,
+        images: imagesArr,
+        createdAt,
+        updatedAt,
+      } as Room;
+    });
 
     setRooms(roomsData);
     setLoading(false);

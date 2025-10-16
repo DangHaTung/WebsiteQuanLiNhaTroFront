@@ -68,6 +68,16 @@ const AdminLayout: React.FC = () => {
               label: "Quản lý phòng",
             },
             {
+              key: "/admin/contracts",
+              icon: <SettingOutlined style={{ fontSize: 20 }} />,
+              label: "Hợp đồng",
+            },
+            {
+              key: "/admin/bills",
+              icon: <SettingOutlined style={{ fontSize: 20 }} />,
+              label: "Hóa đơn",
+            },
+            {
               key: "/admin/users",
               icon: <UserOutlined style={{ fontSize: 20 }} />,
               label: "Users",
