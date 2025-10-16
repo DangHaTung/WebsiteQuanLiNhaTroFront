@@ -1,37 +1,64 @@
 import api from "../services/api";
-import type { IUser, IRoom, IContract, IBill } from "../../../types/profile";
+import type { IRoom, IContract, IBill } from "../../../types/profile";
+import type { IUserProfile } from "../../../types/user";
 
-export const getUser = async (): Promise<IUser> => {
-  const res = await api.get("/users");
-  return res.data[0]; // lấy user đầu tiên
-};
-
-export const getUserById = async (id: string | number): Promise<IUser> => {
+export const getUserById = async (
+  id: string | number
+): Promise<IUserProfile> => {
   const res = await api.get(`/users/${id}`);
   return res.data;
 };
 
-export const getRooms = async (): Promise<IRoom[]> => {
-  const res = await api.get("/rooms");
+export const getRoomsByUserId = async (
+  userId: string | number
+): Promise<IRoom[]> => {
+  const res = await api.get(`/rooms`, {
+    params: { userId },
+  });
   return res.data;
 };
 
-export const getContracts = async (): Promise<IContract[]> => {
-  const res = await api.get("/contracts");
+export const getRoomById = async (id: string | number): Promise<IRoom> => {
+  const res = await api.get(`/rooms/${id}`);
   return res.data;
 };
 
-export const getBills = async (): Promise<IBill[]> => {
-  const res = await api.get("/bills");
+export const getContractsByUserId = async (
+  userId: string | number
+): Promise<IContract[]> => {
+  const res = await api.get(`/contracts`, {
+    params: { userId },
+  });
   return res.data;
 };
 
-export const getProfileData = async () => {
+export const getContractById = async (
+  id: string | number
+): Promise<IContract> => {
+  const res = await api.get(`/contracts/${id}`);
+  return res.data;
+};
+
+export const getBillsByUserId = async (
+  userId: string | number
+): Promise<IBill[]> => {
+  const res = await api.get(`/bills`, {
+    params: { userId },
+  });
+  return res.data;
+};
+
+export const getBillById = async (id: string | number): Promise<IBill> => {
+  const res = await api.get(`/bills/${id}`);
+  return res.data;
+};
+
+export const getProfileData = async (userId: string | number) => {
   const [user, rooms, contracts, bills] = await Promise.all([
-    getUser(),
-    getRooms(),
-    getContracts(),
-    getBills(),
+    getUserById(userId),
+    getRoomsByUserId(userId),
+    getContractsByUserId(userId),
+    getBillsByUserId(userId),
   ]);
 
   return { user, rooms, contracts, bills };
