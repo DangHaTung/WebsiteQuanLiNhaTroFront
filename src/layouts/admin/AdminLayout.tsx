@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { Avatar, Badge, Dropdown, Layout, Menu, type MenuProps } from "antd";
+import { Avatar, Badge, Dropdown, Layout, Menu, type MenuProps, Tooltip } from "antd";
 import { Outlet, useNavigate } from "react-router-dom";
-import { MenuFoldOutlined, MenuUnfoldOutlined, DashboardOutlined, UserOutlined, BellOutlined, SettingOutlined, LogoutOutlined, HomeOutlined } from "@ant-design/icons";
+import { MenuFoldOutlined, MenuUnfoldOutlined, DashboardOutlined, UserOutlined, BellOutlined, SettingOutlined, LogoutOutlined, HomeOutlined, LoginOutlined, UserAddOutlined } from "@ant-design/icons";
 import "../../assets/styles/layoutAd.css";
 import SearchBar from "./SearchBar";
+import { adminAuthService } from "../../modules/admin/services/auth";
 
 const { Header, Sider, Content, Footer } = Layout;
 
@@ -13,11 +14,18 @@ const AdminLayout: React.FC = () => {
 
   const toggleCollapsed = () => setCollapsed(!collapsed);
 
+  const isAuthenticated = adminAuthService.isAuthenticated();
+  const currentUser = adminAuthService.getCurrentUser();
+
   const handleMenuClick: MenuProps['onClick'] = (e) => {
-    if (e.key === "profile") {
+    if (e.key === "settings") {
       navigate("/admin/profile");
     } else if (e.key === "logout") {
-      console.log("Logout clicked");
+      adminAuthService.logout();
+    } else if (e.key === "login") {
+      navigate("/admin/login");
+    } else if (e.key === "register") {
+      navigate("/admin/register");
     }
   };
 
@@ -127,19 +135,24 @@ const AdminLayout: React.FC = () => {
 
             {/* User Dropdown */}
             <Dropdown
-              overlay={
-                <Menu
-                  onClick={handleMenuClick}
-                  items={[
-                    { key: "profile", icon: <SettingOutlined />, label: "Profile" },
-                    { key: "logout", icon: <LogoutOutlined />, label: "Logout" },
-                  ]}
-                />
-              }
+              menu={{
+                onClick: handleMenuClick,
+                items: isAuthenticated
+                  ? [
+                      { key: "settings", icon: <SettingOutlined />, label: "Cài đặt" },
+                      { key: "logout", icon: <LogoutOutlined />, label: "Đăng xuất" },
+                    ]
+                  : [
+                      { key: "login", icon: <LoginOutlined />, label: "Đăng nhập" },
+                      { key: "register", icon: <UserAddOutlined />, label: "Đăng ký" },
+                    ],
+              }}
               placement="bottomRight"
               trigger={["click"]}
             >
-              <Avatar size={40} className="avatar-light-sweep" icon={<UserOutlined />} />
+              <Tooltip title={currentUser?.fullName || currentUser?.username || "Tài khoản"}>
+                <Avatar size={40} className="avatar-light-sweep" icon={<UserOutlined />} />
+              </Tooltip>
             </Dropdown>
           </div>
         </Header>
