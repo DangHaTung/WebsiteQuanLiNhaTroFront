@@ -1,7 +1,7 @@
 export interface Room {
   _id?: string;
   roomNumber: string;
-  type: "SINGLE" | "DOUBLE" | "DORM";
+  type: "SINGLE" | "DOUBLE" | "DORM" | "STUDIO" | "VIP";
   pricePerMonth: number;
   areaM2: number;
   floor: number;
