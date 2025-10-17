@@ -1,14 +1,4 @@
 // Các interface dùng cho trang Profile
-export interface IUser {
-  _id: string;
-  fullName: string;
-  email: string;
-  phone: string;
-  role: string;
-  avatar: string;
-  createdAt: string;
-}
-
 export interface IRoom {
   _id: string;
   roomNumber: string;
@@ -41,7 +31,7 @@ export interface IContract {
 export type BillStatus = "PAID" | "UNPAID" | "PARTIALLY_PAID";
 
 export interface IBill {
-  id: number;
+  _id: number;
   billingDate: string;
   amountDue: number;
   amountPaid: number;
