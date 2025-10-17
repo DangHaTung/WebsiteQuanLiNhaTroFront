@@ -1,8 +1,7 @@
 export type UserRole = "ADMIN" | "USER";
 
 export interface User {
-  id?: string;
-  _id?: string;
+  id: string;
   avatar?: string;
   fullName: string;
   email: string;
@@ -11,3 +10,5 @@ export interface User {
   role: UserRole;
   createdAt?: string;
 }
+
+export type IUserToken = Omit<User, "passwordHash">;

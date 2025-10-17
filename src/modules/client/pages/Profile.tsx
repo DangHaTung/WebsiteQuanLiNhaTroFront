@@ -25,14 +25,15 @@ import {
     PlusOutlined,
 } from "@ant-design/icons";
 import type { IRoom, IContract, IBill } from "../../../types/profile";
-import type { IUserProfile } from "../../../types/user";
-import { getProfileData } from "../services/profile";
+import api from "../services/api";
+import { jwtDecode } from "jwt-decode";
 import "../../../assets/styles/profile.css";
+import type { IUserToken } from "../../../types/user";
 
 const { Title, Text } = Typography;
 
 const Profile: React.FC = () => {
-    const [user, setUser] = useState<IUserProfile | null>(null);
+    const [user, setUser] = useState<IUserToken | null>(null);
     const [rooms, setRooms] = useState<IRoom[]>([]);
     const [contracts, setContracts] = useState<IContract[]>([]);
     const [bills, setBills] = useState<IBill[]>([]);
@@ -40,16 +41,32 @@ const Profile: React.FC = () => {
 
     const fetchData = async () => {
         try {
-            const userId = localStorage.getItem("userId") ?? "";
-            const { user, rooms, contracts, bills } = await getProfileData(userId);
-            setUser(user);
-            setRooms(Array.isArray(rooms) ? rooms : []);
-            setContracts(Array.isArray(contracts) ? contracts : []);
-            setBills(Array.isArray(bills) ? bills : []);
-            setUser({
-                ...user,
-                createdAt: user.createdAt, 
-            });
+            const token = localStorage.getItem("token");
+            if (!token) throw new Error("Chưa đăng nhập");
+
+            const decoded = jwtDecode<IUserToken>(token);
+            setUser(decoded);
+
+            // Lấy userId đúng từ token
+            const userId = decoded.id;
+
+            if (!userId) {
+                console.error("User ID không tồn tại trong token");
+                return;
+            }
+
+            setLoading(true);
+
+            // Lấy rooms, contracts, bills song song
+            const [roomsRes, contractsRes, billsRes] = await Promise.all([
+                api.get(`/rooms?userId=${userId}`),
+                api.get(`/contracts?userId=${userId}`),
+                api.get(`/bills?userId=${userId}`),
+            ]);
+
+            setRooms(Array.isArray(roomsRes.data) ? roomsRes.data : []);
+            setContracts(Array.isArray(contractsRes.data) ? contractsRes.data : []);
+            setBills(Array.isArray(billsRes.data) ? billsRes.data : []);
         } catch (error) {
             console.error("Lỗi tải dữ liệu:", error);
         } finally {
@@ -57,16 +74,22 @@ const Profile: React.FC = () => {
         }
     };
 
+
     useEffect(() => {
         fetchData();
     }, []);
 
     if (loading)
-        return (
-            <Spin size="large" style={{ display: "block", margin: "100px auto" }} />
-        );
+        return <Spin size="large" style={{ display: "block", margin: "100px auto" }} />;
 
-    if (!user) return null;
+    if (!user) return <div>Không tìm thấy người dùng</div>;
+
+    const safeBills = Array.isArray(bills) ? bills : [];
+    const totalPaid = safeBills.reduce((acc, b) => acc + (b.amountPaid || 0), 0);
+    const totalDebt = safeBills.reduce(
+        (acc, b) => acc + ((b.amountDue || 0) - (b.amountPaid || 0)),
+        0
+    );
 
     return (
         <div className="profile-container">
@@ -78,7 +101,7 @@ const Profile: React.FC = () => {
                             <Avatar size={120} src={user.avatar} />
                         </div>
                         <Title level={3} style={{ marginBottom: 0 }}>
-                            {user.fullName}
+                            {user.fullName || user.email}
                         </Title>
                         <Text type="secondary">{user.role}</Text>
                         <div style={{ marginTop: 16 }}>
@@ -141,17 +164,21 @@ const Profile: React.FC = () => {
                                     children: (
                                         <div className="tab-content">
                                             <p>
-                                                <b>Họ tên:</b> {user.fullName}
+                                                <b>Họ tên:</b> {user.fullName || user.email}
                                             </p>
                                             <p>
                                                 <b>Email:</b> {user.email}
                                             </p>
                                             <p>
-                                                <b>Số điện thoại:</b> {user.phone}
+                                                <b>Số điện thoại:</b> {user.phone || "-"}
                                             </p>
                                             <p>
                                                 <b>Ngày tham gia:</b>{" "}
-                                                {user.createdAt && new Date(user.createdAt).toLocaleDateString("vi-VN")}
+                                                {user.createdAt
+                                                    ? new Date(user.createdAt).toLocaleDateString(
+                                                        "vi-VN"
+                                                    )
+                                                    : "-"}
                                             </p>
                                         </div>
                                     ),
@@ -163,13 +190,16 @@ const Profile: React.FC = () => {
                                         <List
                                             itemLayout="horizontal"
                                             dataSource={rooms}
-                                            renderItem={(item) => (
+                                            renderItem={(item, index) => (
                                                 <List.Item
-                                                    key={item._id}
+                                                    key={item._id || index}
                                                     className="list-item-hover"
                                                     actions={[
                                                         <Tooltip title="Chỉnh sửa tin" key="edit">
-                                                            <Button shape="circle" icon={<EditOutlined />} />
+                                                            <Button
+                                                                shape="circle"
+                                                                icon={<EditOutlined />}
+                                                            />
                                                         </Tooltip>,
                                                     ]}
                                                 >
@@ -206,11 +236,14 @@ const Profile: React.FC = () => {
                                             <h3>Hợp đồng</h3>
                                             <List
                                                 dataSource={contracts}
-                                                renderItem={(item) => (
-                                                    <List.Item key={item._id} className="list-item-hover">
+                                                renderItem={(item, index) => (
+                                                    <List.Item
+                                                        key={item._id || index}
+                                                        className="list-item-hover"
+                                                    >
                                                         <List.Item.Meta
                                                             avatar={<Avatar icon={<CalendarOutlined />} />}
-                                                            title={`Hợp đồng #${item._id}`}
+                                                            title={`Hợp đồng #${item._id || index}`}
                                                             description={
                                                                 <>
                                                                     <Text>
@@ -235,9 +268,12 @@ const Profile: React.FC = () => {
 
                                             <h3>Hóa đơn</h3>
                                             <List
-                                                dataSource={bills}
-                                                renderItem={(item) => (
-                                                    <List.Item key={item._id} className="list-item-hover">
+                                                dataSource={safeBills}
+                                                renderItem={(item, index) => (
+                                                    <List.Item
+                                                        key={item._id || index}
+                                                        className="list-item-hover"
+                                                    >
                                                         <List.Item.Meta
                                                             avatar={<Avatar icon={<MessageOutlined />} />}
                                                             title={`Hóa đơn ngày ${new Date(
@@ -247,12 +283,12 @@ const Profile: React.FC = () => {
                                                                 <>
                                                                     <Text>
                                                                         Tổng tiền:{" "}
-                                                                        {item.amountDue.toLocaleString()} đ
+                                                                        {(item.amountDue || 0).toLocaleString()} đ
                                                                     </Text>
                                                                     <br />
                                                                     <Text>
                                                                         Đã thanh toán:{" "}
-                                                                        {item.amountPaid.toLocaleString()} đ
+                                                                        {(item.amountPaid || 0).toLocaleString()} đ
                                                                     </Text>
                                                                     <br />
                                                                     <Tag
@@ -262,7 +298,7 @@ const Profile: React.FC = () => {
                                                                                 : "green"
                                                                         }
                                                                     >
-                                                                        {item.status}
+                                                                        {item.status || "-"}
                                                                     </Tag>
                                                                 </>
                                                             }
@@ -271,47 +307,6 @@ const Profile: React.FC = () => {
                                                 )}
                                             />
                                         </>
-                                    ),
-                                },
-                                {
-                                    key: "4",
-                                    label: "Thanh toán",
-                                    children: (
-                                        <div className="tab-content" style={{ maxHeight: "400px", overflowY: "auto" }}>
-                                            <List
-                                                itemLayout="horizontal"
-                                                dataSource={bills}
-                                                renderItem={(item) => (
-                                                    <List.Item key={item._id} className="list-item-hover">
-                                                        <List.Item.Meta
-                                                            avatar={<Avatar icon={<MessageOutlined />} />}
-                                                            title={`Hóa đơn ngày ${new Date(item.billingDate).toLocaleDateString()}`}
-                                                            description={
-                                                                <>
-                                                                    <Text>
-                                                                        Tổng tiền: {item.amountDue.toLocaleString()} đ
-                                                                    </Text>
-                                                                    <br />
-                                                                    <Text>
-                                                                        Đã thanh toán: {item.amountPaid.toLocaleString()} đ
-                                                                    </Text>
-                                                                    <br />
-                                                                    <Tag
-                                                                        color={
-                                                                            item.status === "PARTIALLY_PAID"
-                                                                                ? "orange"
-                                                                                : "green"
-                                                                        }
-                                                                    >
-                                                                        {item.status}
-                                                                    </Tag>
-                                                                </>
-                                                            }
-                                                        />
-                                                    </List.Item>
-                                                )}
-                                            />
-                                        </div>
                                     ),
                                 },
                                 {
@@ -340,7 +335,7 @@ const Profile: React.FC = () => {
                                                     <Card className="stat-card" bordered={false}>
                                                         <Title level={4}>Tổng hóa đơn</Title>
                                                         <Text strong style={{ fontSize: 24 }}>
-                                                            {bills.length}
+                                                            {safeBills.length}
                                                         </Text>
                                                     </Card>
                                                 </Col>
@@ -350,25 +345,19 @@ const Profile: React.FC = () => {
 
                                             <Row gutter={[16, 16]}>
                                                 <Col xs={24} md={12}>
-                                                    <Card title="Tổng tiền đã thanh toán" bordered={false}>
+                                                    <Card
+                                                        title="Tổng tiền đã thanh toán"
+                                                        bordered={false}
+                                                    >
                                                         <Title level={3} style={{ color: "green" }}>
-                                                            {bills
-                                                                .reduce((acc, b) => acc + b.amountPaid, 0)
-                                                                .toLocaleString()}{" "}
-                                                            đ
+                                                            {totalPaid.toLocaleString()} đ
                                                         </Title>
                                                     </Card>
                                                 </Col>
                                                 <Col xs={24} md={12}>
                                                     <Card title="Tổng tiền còn nợ" bordered={false}>
                                                         <Title level={3} style={{ color: "red" }}>
-                                                            {bills
-                                                                .reduce(
-                                                                    (acc, b) => acc + (b.amountDue - b.amountPaid),
-                                                                    0
-                                                                )
-                                                                .toLocaleString()}{" "}
-                                                            đ
+                                                            {totalDebt.toLocaleString()} đ
                                                         </Title>
                                                     </Card>
                                                 </Col>
