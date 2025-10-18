@@ -39,6 +39,15 @@ export const getBillsByUserId = async (userId: string): Promise<IBill[]> => {
   return res.data;
 };
 
+// Đổi mật khẩu (yêu cầu token qua interceptor)
+export const changePassword = async (
+  currentPassword: string,
+  newPassword: string
+) => {
+  const res = await api.put(`/reset-password`, { currentPassword, newPassword });
+  return res.data;
+};
+
 // Lấy profile kết hợp: decode token + gọi API các dữ liệu cần thiết
 export const getProfileDataFromToken = async (): Promise<{
   user: IUserToken;

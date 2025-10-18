@@ -13,6 +13,10 @@ import {
     Tooltip,
     Spin,
     Divider,
+    Modal,
+    Form,
+    Input,
+    message,
 } from "antd";
 import {
     EditOutlined,
@@ -26,9 +30,11 @@ import {
 } from "@ant-design/icons";
 import type { IRoom, IContract, IBill } from "../../../types/profile";
 import api from "../services/api";
+import { changePassword } from "../services/profile";
 import { jwtDecode } from "jwt-decode";
 import "../../../assets/styles/profile.css";
 import type { IUserToken } from "../../../types/user";
+import { clientAuthService } from "../services/auth";
 
 const { Title, Text } = Typography;
 
@@ -39,13 +45,30 @@ const Profile: React.FC = () => {
     const [bills, setBills] = useState<IBill[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
 
+    const [pwdForm] = Form.useForm<{ currentPassword: string; newPassword: string }>();
+    const [pwdModalOpen, setPwdModalOpen] = useState(false);
+
     const fetchData = async () => {
         try {
             const token = localStorage.getItem("token");
             if (!token) throw new Error("Chưa đăng nhập");
 
             const decoded = jwtDecode<IUserToken>(token);
-            setUser(decoded);
+            // Kết hợp thông tin từ token và user đã lưu khi đăng nhập (localStorage)
+            const stored = clientAuthService.getCurrentUser();
+            const issuedAt = (decoded as any)?.iat ? new Date((decoded as any).iat * 1000).toISOString() : undefined;
+            const mergedUser: IUserToken = {
+                ...(decoded as any),
+                ...(stored as any),
+                fullName:
+                    (stored as any)?.fullName ||
+                    (stored as any)?.username ||
+                    (decoded as any)?.fullName ||
+                    (decoded as any)?.email,
+                phone: (stored as any)?.phone || (decoded as any)?.phone || "",
+                createdAt: (stored as any)?.createdAt || issuedAt,
+            } as any;
+            setUser(mergedUser);
 
             // Lấy userId đúng từ token
             const userId = decoded.id;
@@ -126,7 +149,8 @@ const Profile: React.FC = () => {
                                 <Button
                                     className="glow-button"
                                     type="primary"
-                                    icon={<EditOutlined />}
+                                    icon={<LockOutlined />}
+
                                 >
                                     Sửa thông tin
                                 </Button>
@@ -135,18 +159,10 @@ const Profile: React.FC = () => {
                                         className="glow-icon-button"
                                         shape="circle"
                                         icon={<LockOutlined />}
+                                        onClick={() => setPwdModalOpen(true)}
                                     />
                                 </Tooltip>
                             </Space>
-
-                            <Button
-                                className="glow-button dashed-button"
-                                type="dashed"
-                                icon={<PlusOutlined />}
-                                style={{ width: "100%" }}
-                            >
-                                Đăng tin cho thuê
-                            </Button>
                         </Space>
                     </Card>
                 </Col>
@@ -370,6 +386,52 @@ const Profile: React.FC = () => {
                     </Card>
                 </Col>
             </Row>
+            <Modal
+                title="Đổi mật khẩu"
+                open={pwdModalOpen}
+                onCancel={() => setPwdModalOpen(false)}
+                onOk={async () => {
+                    try {
+                        const { currentPassword, newPassword } = await pwdForm.validateFields();
+                        await changePassword(currentPassword, newPassword);
+                        message.success("Đổi mật khẩu thành công");
+                        setPwdModalOpen(false);
+                        pwdForm.resetFields();
+                    } catch (_) {
+                        // antd will show field errors; API errors handled globally
+                    }
+                }}
+                okText="Cập nhật"
+                cancelText="Hủy"
+                centered
+            >
+                <Form form={pwdForm} layout="vertical">
+                    <Form.Item label="Mật khẩu hiện tại" name="currentPassword" rules={[{ required: true, message: "Nhập mật khẩu hiện tại" }]}>
+                        <Input.Password placeholder="••••••" />
+                    </Form.Item>
+                    <Form.Item label="Mật khẩu mới" name="newPassword" rules={[{ required: true, min: 6, message: "Mật khẩu tối thiểu 6 ký tự" }]}>
+                        <Input.Password placeholder="••••••" />
+                    </Form.Item>
+                    <Form.Item
+                        label="Nhập lại mật khẩu mới"
+                        name="confirmNewPassword"
+                        dependencies={["newPassword"]}
+                        rules={[
+                            { required: true, message: "Vui lòng nhập lại mật khẩu mới" },
+                            ({ getFieldValue }) => ({
+                                validator(_, value) {
+                                    if (!value || getFieldValue("newPassword") === value) {
+                                        return Promise.resolve();
+                                    }
+                                    return Promise.reject(new Error("Mật khẩu xác nhận không khớp"));
+                                },
+                            }),
+                        ]}
+                    >
+                        <Input.Password placeholder="••••••" />
+                    </Form.Item>
+                </Form>
+            </Modal>
         </div>
     );
 };
