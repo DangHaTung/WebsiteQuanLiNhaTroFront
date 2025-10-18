@@ -1,509 +1,420 @@
-import React, { useState, useEffect, useMemo } from "react";
-import {
-  Table,
-  Button,
-  Modal,
-  Form,
-  Input,
-  InputNumber,
-  Select,
-  message,
-  Popconfirm,
-  Typography,
-  Space,
-  Tag,
-  Tooltip,
-  Card,
-  Row,
-  Col,
-  Statistic,
-  Popover,
-  Divider,
-} from "antd";
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  HomeOutlined,
-} from "@ant-design/icons";
+import React, { useEffect, useMemo, useState } from "react";
+import { Table, Button, Space, Tag, Modal, Form, Input, InputNumber, Select, message, Row, Col, Typography, Avatar, Statistic } from "antd";
+import { PlusOutlined, EditOutlined, DeleteOutlined, ApartmentOutlined } from "@ant-design/icons";
+import { adminRoomService } from "../services/room";
 import type { Room } from "../../../types/room";
-import dbData from "../../../../db.json";
+import "../../../assets/styles/roomAd.css";
 
 const { Title } = Typography;
 const { Option } = Select;
 
 const RoomsAD: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [form] = Form.useForm();
-  const [keyword, setKeyword] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
-  const [typeFilter, setTypeFilter] = useState<string | undefined>(undefined);
-  const [priceRange, setPriceRange] = useState<[number, number] | null>(null);
-  const [priceOpen, setPriceOpen] = useState(false);
-  const [tempMin, setTempMin] = useState<number>(0);
-  const [tempMax, setTempMax] = useState<number>(10000000);
+
+  const [filterType, setFilterType] = useState<Room["type"] | "ALL">("ALL");
+  const [filterStatus, setFilterStatus] = useState<Room["status"] | "ALL">("ALL");
+
+  // --- Image upload & preview ---
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const filesArray = Array.from(e.target.files);
+    setSelectedFiles(filesArray);
+
+    const urls = filesArray.map((file) => URL.createObjectURL(file));
+    setPreviewUrls(urls);
+  };
+
+  const fetchRooms = async () => {
+    try {
+      setLoading(true);
+      const data = await adminRoomService.getAll();
+      setRooms(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error(error);
+      message.error("Không thể tải danh sách phòng!");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const roomsData: Room[] = (dbData as any).rooms.map((r: any) => ({
-      ...r,
-      pricePerMonth: Number(r.pricePerMonth),
-    }));
-    setRooms(roomsData);
-    setLoading(false);
+    fetchRooms();
   }, []);
 
-  const openModal = (room?: Room) => {
-    if (room) {
-      setEditingRoom(room);
-      form.setFieldsValue(room);
-    } else {
-      setEditingRoom(null);
-      form.resetFields();
-    }
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditingRoom(null);
-  };
-
-  const handleSave = async () => {
+  // Modal handlers
+  const handleOk = async () => {
     try {
       const values = await form.validateFields();
+      const formData = new FormData();
+
+      // Add form fields
+      Object.keys(values).forEach((key) => {
+        if (key !== "images") formData.append(key, values[key]);
+      });
+
+      // Add images
+      selectedFiles.forEach((file) => {
+        formData.append("images", file);
+      });
+
       if (editingRoom) {
-        const updated = rooms.map((r) =>
-          r._id === editingRoom._id ? { ...r, ...values } : r
-        );
-        setRooms(updated);
+        await adminRoomService.update(editingRoom._id!, formData);
         message.success("Cập nhật phòng thành công!");
       } else {
-        const newRoom = {
-          _id: Date.now().toString(),
-          ...values,
-          createdAt: new Date().toISOString(),
-        };
-        setRooms([...rooms, newRoom]);
-        message.success("Thêm phòng mới thành công!");
+        await adminRoomService.create(formData);
+        message.success("Thêm phòng thành công!");
       }
-      closeModal();
-    } catch (err) {
-      console.error(err);
+
+      setIsModalOpen(false);
+      form.resetFields();
+      setEditingRoom(null);
+      setSelectedFiles([]);
+      setPreviewUrls([]);
+      fetchRooms();
+    } catch (error) {
+      console.error(error);
+      message.error("Có lỗi xảy ra!");
     }
   };
 
-  const handleDelete = (id: string) => {
-    setRooms((prev) => prev.filter((r) => r._id !== id));
-    message.success("Đã xóa phòng!");
+  const handleCancel = () => {
+    setIsModalOpen(false);
+    setEditingRoom(null);
+    form.resetFields();
+    setSelectedFiles([]);
+    setPreviewUrls([]);
   };
+
+  const onEdit = (room: Room) => {
+    setEditingRoom(room);
+    form.setFieldsValue({ ...room }); // dùng trực tiếp coverImageUrl
+    setIsModalOpen(true);
+
+    // Show existing images
+    if (room.images?.length) {
+      setPreviewUrls(room.images.map((img) => img.url));
+    } else {
+      setPreviewUrls([]);
+    }
+  };
+
+  const onDelete = (room: Room) => {
+    Modal.confirm({
+      title: "Xác nhận xóa",
+      content: `Bạn có chắc chắn muốn xóa phòng ${room.roomNumber}?`,
+      okText: "Xóa",
+      cancelText: "Hủy",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        try {
+          await adminRoomService.remove(room._id!);
+          message.success("Xóa phòng thành công!");
+          fetchRooms();
+        } catch (error) {
+          message.error("Xóa phòng thất bại!");
+        }
+      },
+    });
+  };
+
+  // Thống kê
+  const availableCount = useMemo(() => rooms.filter((r) => r.status === "AVAILABLE").length, [rooms]);
 
   const filteredRooms = useMemo(() => {
-    let data = [...rooms];
-    if (keyword.trim()) {
-      const k = keyword.toLowerCase();
-      data = data.filter(
-        (r) =>
-          (r.roomNumber || "").toLowerCase().includes(k) ||
-          (r.district || "").toLowerCase().includes(k) ||
-          (r.type || "").toLowerCase().includes(k)
-      );
-    }
-    if (statusFilter) data = data.filter((r) => r.status === statusFilter);
-    if (typeFilter) data = data.filter((r) => r.type === typeFilter);
-    if (priceRange) {
-      const [min, max] = priceRange;
-      data = data.filter((r) => {
-        const p = Number(r.pricePerMonth || 0);
-        return p >= min && p <= max;
-      });
-    }
-    return data;
-  }, [rooms, keyword, statusFilter, typeFilter, priceRange]);
+    return rooms.filter((r) => {
+      const statusMatch = filterStatus === "ALL" || r.status === filterStatus;
+      const typeMatch = filterType === "ALL" || r.type === filterType;
+      return statusMatch && typeMatch;
+    });
+  }, [rooms, filterStatus, filterType]);
 
-  const total = filteredRooms.length;
-  const availableCount = useMemo(() => filteredRooms.filter((r) => r.status === "AVAILABLE").length, [filteredRooms]);
-
-  const formatVND = (n: number) => `${Number(n || 0).toLocaleString("vi-VN")}₫`;
-
+  // Table columns
   const columns = [
     {
       title: "Ảnh",
-      dataIndex: "image",
-      key: "image",
-      align: "center" as const,
-      render: (img: string) => (
-        <img
-          src={img || "/no-image.jpg"}
-          alt="room"
-          style={{
-            width: 80,
-            height: 60,
-            objectFit: "cover",
-            borderRadius: 8,
-            boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-          }}
-        />
-      ),
+      dataIndex: "coverImageUrl",
+      key: "coverImageUrl",
+      render: (url: string) =>
+        url ? (
+          <Avatar shape="square" size={64} src={url} className="avatar-hover" />
+        ) : (
+          <Avatar shape="square" size={64} style={{ backgroundColor: "#f0f0f0" }} />
+        ),
     },
     {
       title: "Số phòng",
       dataIndex: "roomNumber",
       key: "roomNumber",
-      sorter: (a: any, b: any) => a.roomNumber.localeCompare(b.roomNumber),
-      render: (num: string) => (
-        <Tag color="blue" style={{ fontWeight: 500, whiteSpace: "normal", wordBreak: "break-word" }}>
-          {num}
-        </Tag>
-      ),
+      render: (text: string) => <b>{text}</b>,
     },
     {
-      title: "Loại phòng",
+      title: "Loại",
       dataIndex: "type",
       key: "type",
-      render: (type: string) => {
-        const map: Record<string, string> = {
-          SINGLE: "Phòng đơn",
-          DOUBLE: "Phòng đôi",
-          STUDIO: "Studio",
-          VIP: "VIP",
+      render: (type: Room["type"]) => {
+        const colors: Record<string, string> = {
+          SINGLE: "linear-gradient(90deg,#95de64,#73d13d)",
+          DOUBLE: "linear-gradient(90deg,#69c0ff,#40a9ff)",
+          DORM: "linear-gradient(90deg,#ffd666,#ffa940)",
+          STUDIO: "linear-gradient(90deg,#9254de,#722ed1)",
+          VIP: "linear-gradient(90deg,#ff4d4f,#cf1322)",
         };
-        return map[type] || type;
+        return (
+          <Tag
+            style={{
+              fontWeight: 600,
+              borderRadius: 12,
+              backgroundImage: colors[type],
+              color: "#fff",
+              border: "none",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+              transition: "all 0.3s",
+            }}
+            className="tag-hover"
+          >
+            {type}
+          </Tag>
+        );
       },
     },
     {
-      title: "Giá thuê (VNĐ)",
+      title: "Giá (VNĐ)",
       dataIndex: "pricePerMonth",
       key: "pricePerMonth",
-      align: "right" as const,
-      render: (v: number) => (
-        <span style={{ fontWeight: 500 }}>
-          {v.toLocaleString("vi-VN")}₫
-        </span>
+      render: (price: number) => (
+        <span style={{ color: "#1890ff", fontWeight: 600 }}>{price?.toLocaleString()}</span>
       ),
     },
     {
       title: "Diện tích (m²)",
       dataIndex: "areaM2",
       key: "areaM2",
-      align: "center" as const,
-      render: (v: number) => (v ? `${v} m²` : "-"),
+      render: (area: number) => <span>{area} m²</span>,
     },
     {
-      title: "Tầng",
-      dataIndex: "floor",
-      key: "floor",
-      align: "center" as const,
-    },
-    {
-      title: "Khu vực",
-      dataIndex: "district",
-      key: "district",
-      render: (v: string) => (
-        <span style={{ whiteSpace: "normal", wordBreak: "break-word" }}>{v}</span>
-      ),
-    },
-    {
-      title: "Trạng thái",
+      title: "Tình trạng",
       dataIndex: "status",
       key: "status",
-      align: "center" as const,
-      render: (status: string) => {
-        const color =
-          status === "AVAILABLE"
-            ? "green"
-            : status === "OCCUPIED"
-            ? "red"
-            : "orange";
-        const text =
-          status === "AVAILABLE"
-            ? "Còn trống"
-            : status === "OCCUPIED"
-            ? "Đã thuê"
-            : "Bảo trì";
-        return <Tag color={color}>{text}</Tag>;
+      render: (status: Room["status"]) => {
+        const colors: Record<string, string> = {
+          AVAILABLE: "#52c41a",
+          OCCUPIED: "#fa8c16",
+          MAINTENANCE: "#8c8c8c",
+        };
+        const labels: Record<string, string> = {
+          AVAILABLE: "Còn trống",
+          OCCUPIED: "Đang thuê",
+          MAINTENANCE: "Bảo trì",
+        };
+        return (
+          <Tag
+            style={{
+              fontWeight: 600,
+              borderRadius: 12,
+              color: "#fff",
+              backgroundColor: colors[status],
+              boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+              transition: "all 0.3s",
+            }}
+            className="tag-hover"
+          >
+            {labels[status]}
+          </Tag>
+        );
       },
     },
     {
-      title: "",
-      key: "actions",
-      align: "center" as const,
-      width: 100,
+      title: "Hành động",
+      key: "action",
       render: (_: any, record: Room) => (
-        <Space size="middle">
-          <Tooltip title="Sửa">
-            <Button
-              icon={<EditOutlined />}
-              shape="circle"
-              type="primary"
-              onClick={() => openModal(record)}
-            />
-          </Tooltip>
-          <Tooltip title="Xóa">
-            <Popconfirm
-              title="Bạn có chắc muốn xóa phòng này?"
-              okText="Xóa"
-              cancelText="Hủy"
-              onConfirm={() => handleDelete(record._id)}
-            >
-              <Button
-                icon={<DeleteOutlined />}
-                shape="circle"
-                danger
-              />
-            </Popconfirm>
-          </Tooltip>
+        <Space>
+          <Button type="primary" icon={<EditOutlined />} shape="circle" onClick={() => onEdit(record)} className="btn-hover" />
+          <Button danger icon={<DeleteOutlined />} shape="circle" onClick={() => onDelete(record)} className="btn-hover" />
         </Space>
       ),
     },
   ];
 
   return (
-    <div style={{ padding: 24, background: "#f9fafc", minHeight: "100vh" }}>
-      <Card
-        bordered={false}
-        style={{
-          boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
-          borderRadius: 12,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 16,
-          }}
-        >
-          <Title
-            level={3}
-            style={{
-              margin: 0,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-          >
-            <HomeOutlined /> Quản lý phòng trọ
-          </Title>
-
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => openModal()}
-            style={{
-              borderRadius: 6,
-              boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-            }}
-          >
-            Thêm phòng
-          </Button>
-        </div>
-
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col xs={24} sm={12} md={8} lg={8}>
-            <Input.Search
-              placeholder="Tìm theo số phòng/khu vực/loại"
-              allowClear
-              onSearch={setKeyword}
-              onChange={(e) => setKeyword(e.target.value)}
-            />
+    <div style={{ padding: 24, background: "#f0f2f5", minHeight: "100vh" }}>
+      <div style={{ background: "#fff", padding: 24, borderRadius: 16, boxShadow: "0 8px 24px rgba(0,0,0,0.08)" }}>
+        {/* Header */}
+        <Row justify="space-between" align="middle" className="header-animate" style={{ marginBottom: 24 }}>
+          <Col>
+            <Title level={3} style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+              <ApartmentOutlined style={{ color: "#1890ff", fontSize: 28 }} /> Quản lý Phòng
+            </Title>
           </Col>
-          <Col xs={24} sm={12} md={6} lg={4}>
-            <Select
-              allowClear
-              placeholder="Trạng thái"
-              style={{ width: "100%" }}
-              value={statusFilter}
-              onChange={(v) => setStatusFilter(v)}
-              options={[
-                { label: "Còn trống", value: "AVAILABLE" },
-                { label: "Đã thuê", value: "OCCUPIED" },
-                { label: "Bảo trì", value: "MAINTENANCE" },
-              ]}
-            />
-          </Col>
-          <Col xs={24} sm={12} md={6} lg={4}>
-            <Select
-              allowClear
-              placeholder="Loại phòng"
-              style={{ width: "100%" }}
-              value={typeFilter}
-              onChange={(v) => setTypeFilter(v)}
-              options={[
-                { label: "Phòng đơn", value: "SINGLE" },
-                { label: "Phòng đôi", value: "DOUBLE" },
-                { label: "Studio", value: "STUDIO" },
-                { label: "VIP", value: "VIP" },
-                { label: "Dorm", value: "DORM" },
-              ]}
-            />
-          </Col>
-          <Col xs={24} sm={24} md={8} lg={8}>
-            <div>
-              <Popover
-                open={priceOpen}
-                onOpenChange={(v) => setPriceOpen(v)}
-                trigger="click"
-                content={
-                  <div style={{ width: 260 }}>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <InputNumber
-                        min={0}
-                        value={tempMin}
-                        onChange={(v) => setTempMin(Number(v))}
-                        style={{ width: "50%" }}
-                        placeholder="Từ"
-                      />
-                      <InputNumber
-                        min={0}
-                        value={tempMax}
-                        onChange={(v) => setTempMax(Number(v))}
-                        style={{ width: "50%" }}
-                        placeholder="Đến"
-                      />
-                    </div>
-                    <Divider style={{ margin: "8px 0" }} />
-                    <Space style={{ width: "100%", justifyContent: "space-between" }}>
-                      <Button
-                        onClick={() => {
-                          setPriceRange(null);
-                          setTempMin(0);
-                          setTempMax(10000000);
-                          setPriceOpen(false);
-                        }}
-                      >
-                        Xóa
-                      </Button>
-                      <Button
-                        type="primary"
-                        onClick={() => {
-                          setPriceRange([tempMin, tempMax]);
-                          setPriceOpen(false);
-                        }}
-                      >
-                        Áp dụng
-                      </Button>
-                    </Space>
-                  </div>
-                }
-              >
-                <Button style={{ width: "100%" }}>
-                  {priceRange ? `Giá: ${formatVND(priceRange[0])} - ${formatVND(priceRange[1])}` : "Chọn khoảng giá"}
-                </Button>
-              </Popover>
-            </div>
-          </Col>
-          <Col xs={24} sm={24} md={24} lg={4}>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Statistic title="Tổng phòng" value={total} />
-              </Col>
-              <Col span={12}>
-                <Statistic title="Còn trống" value={availableCount} valueStyle={{ color: "#52c41a" }} />
-              </Col>
-            </Row>
+          <Col>
+            <Button type="primary" icon={<PlusOutlined />} size="large" onClick={() => setIsModalOpen(true)} className="btn-hover-gradient">
+              Thêm phòng
+            </Button>
           </Col>
         </Row>
 
+        {/* Statistic */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24} sm={12} md={6}>
+            <div className="stat-card" onClick={() => setFilterStatus("AVAILABLE")}>
+              <ApartmentOutlined style={{ fontSize: 28, color: "#52c41a", marginBottom: 8 }} />
+              <Statistic title="Còn trống" value={availableCount} valueStyle={{ color: "#52c41a", fontWeight: 600 }} />
+            </div>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <div className="stat-card" onClick={() => setFilterStatus("OCCUPIED")}>
+              <ApartmentOutlined style={{ fontSize: 28, color: "#fa8c16", marginBottom: 8 }} />
+              <Statistic
+                title="Đang thuê"
+                value={rooms.filter((r) => r.status === "OCCUPIED").length}
+                valueStyle={{ color: "#fa8c16", fontWeight: 600 }}
+              />
+            </div>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <div className="stat-card" onClick={() => setFilterStatus("MAINTENANCE")}>
+              <ApartmentOutlined style={{ fontSize: 28, color: "#8c8c8c", marginBottom: 8 }} />
+              <Statistic
+                title="Bảo trì"
+                value={rooms.filter((r) => r.status === "MAINTENANCE").length}
+                valueStyle={{ color: "#8c8c8c", fontWeight: 600 }}
+              />
+            </div>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <div className="filter-card filter-card-column">
+              <span style={{ fontWeight: 600, marginBottom: 8 }}>Loại phòng:</span>
+              {["SINGLE", "DOUBLE", "DORM", "STUDIO", "VIP"].map((type) => (
+                <Tag
+                  key={type}
+                  color={filterType === type ? "blue" : "default"}
+                  onClick={() => setFilterType(type as Room["type"])}
+                  style={{ cursor: "pointer", marginBottom: 6 }}
+                >
+                  {type}
+                </Tag>
+              ))}
+              <Tag
+                color={filterType === "ALL" ? "blue" : "default"}
+                onClick={() => {
+                  setFilterType("ALL");
+                  setFilterStatus("ALL");
+                }}
+                style={{ cursor: "pointer", marginBottom: 6 }}
+              >
+                Tất cả
+              </Tag>
+            </div>
+          </Col>
+        </Row>
+
+        {/* Table */}
         <Table
           columns={columns}
           dataSource={filteredRooms}
-          rowKey="_id"
+          rowKey={(r) => r._id?.toString() || Math.random().toString()}
           loading={loading}
-          bordered={false}
-          pagination={{ pageSize: 6, showSizeChanger: true, pageSizeOptions: [6, 10, 20] }}
+          pagination={{ pageSize: 8, showSizeChanger: true, pageSizeOptions: [5, 8, 10, 20] }}
           size="middle"
-          style={{ background: "white", borderRadius: 8 }}
+          rowClassName={() => "hover-row"}
         />
-      </Card>
+      </div>
 
+      {/* Modal */}
       <Modal
-        title={editingRoom ? "Chỉnh sửa phòng" : "Thêm phòng mới"}
+        title={editingRoom ? "Chỉnh sửa phòng" : "Thêm phòng"}
         open={isModalOpen}
-        onCancel={closeModal}
-        onOk={handleSave}
+        onOk={handleOk}
+        onCancel={handleCancel}
         okText="Lưu"
         cancelText="Hủy"
         width={600}
         centered
-        style={{ borderRadius: 10 }}
+        okButtonProps={{ style: { background: "#1890ff", borderColor: "#1890ff" } }}
       >
         <Form form={form} layout="vertical">
           <Row gutter={16}>
             <Col xs={24} md={12}>
-              <Form.Item
-                label="Số phòng"
-                name="roomNumber"
-                rules={[{ required: true, message: "Vui lòng nhập số phòng" }]}
-              >
-                <Input placeholder="VD: A101" />
+              <Form.Item label="Số phòng" name="roomNumber" rules={[{ required: true, message: "Nhập số phòng!" }]}>
+                <Input placeholder="VD: 101" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item
-                label="Loại phòng"
-                name="type"
-                rules={[{ required: true, message: "Chọn loại phòng" }]}
-              >
-                <Select placeholder="Chọn loại phòng">
-                  <Option value="SINGLE">Phòng đơn</Option>
-                  <Option value="DOUBLE">Phòng đôi</Option>
-                  <Option value="STUDIO">Studio</Option>
+              <Form.Item label="Loại phòng" name="type" rules={[{ required: true, message: "Chọn loại phòng!" }]}>
+                <Select placeholder="Chọn loại">
+                  <Option value="SINGLE">SINGLE</Option>
+                  <Option value="DOUBLE">DOUBLE</Option>
+                  <Option value="DORM">DORM</Option>
+                  <Option value="STUDIO">STUDIO</Option>
                   <Option value="VIP">VIP</Option>
                 </Select>
               </Form.Item>
             </Col>
+          </Row>
+
+          <Row gutter={16}>
             <Col xs={24} md={12}>
-              <Form.Item
-                label="Giá thuê (VNĐ/tháng)"
-                name="pricePerMonth"
-                rules={[{ required: true, message: "Nhập giá thuê" }]}
-              >
+              <Form.Item label="Giá (VNĐ)" name="pricePerMonth" rules={[{ required: true, message: "Nhập giá phòng!" }]}>
                 <InputNumber
-                  min={0}
+                  placeholder="VD: 5.000.000"
                   style={{ width: "100%" }}
-                  placeholder="Nhập giá thuê"
+                  min={0}
+                  formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                  parser={(value: any) => value.replace(/\$\s?|(,*)/g, "")}
                 />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item label="Diện tích (m²)" name="areaM2">
-                <InputNumber style={{ width: "100%" }} min={0} />
+              <Form.Item label="Diện tích (m²)" name="areaM2" rules={[{ required: true, message: "Nhập diện tích!" }]}>
+                <InputNumber placeholder="VD: 20" style={{ width: "100%" }} min={0} />
               </Form.Item>
             </Col>
+          </Row>
+
+          <Row gutter={16}>
             <Col xs={24} md={12}>
-              <Form.Item label="Tầng" name="floor">
-                <InputNumber style={{ width: "100%" }} min={1} />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item label="Khu vực / Quận" name="district">
-                <Input placeholder="VD: Quận 1" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item label="Trạng thái" name="status" initialValue="AVAILABLE">
-                <Select>
+              <Form.Item label="Tình trạng" name="status" rules={[{ required: true, message: "Chọn tình trạng!" }]}>
+                <Select placeholder="Chọn tình trạng">
                   <Option value="AVAILABLE">Còn trống</Option>
-                  <Option value="OCCUPIED">Đã thuê</Option>
+                  <Option value="OCCUPIED">Đang thuê</Option>
                   <Option value="MAINTENANCE">Bảo trì</Option>
                 </Select>
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item label="Ảnh phòng (URL)" name="image">
-                <Input placeholder="Nhập đường dẫn ảnh" />
+              <Form.Item label="Tầng" name="floor">
+                <InputNumber placeholder="VD: 1" style={{ width: "100%" }} />
               </Form.Item>
             </Col>
           </Row>
+
+          <Form.Item label="Quận" name="district">
+            <Input placeholder="VD: Quận 1" />
+          </Form.Item>
+
+          <Form.Item label="Ảnh phòng" name="images">
+            <input type="file" accept="image/*" multiple onChange={handleFileChange} />
+            <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+              {previewUrls.map((url, idx) => (
+                <img
+                  key={idx}
+                  src={url}
+                  alt={`preview-${idx}`}
+                  style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8 }}
+                />
+              ))}
+            </div>
+          </Form.Item>
         </Form>
       </Modal>
     </div>
   );
-}
-;
+};
 
 export default RoomsAD;
