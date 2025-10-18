@@ -398,7 +398,7 @@ const RoomsAD: React.FC = () => {
             <Input placeholder="VD: Quận 1" />
           </Form.Item>
 
-          <Form.Item label="Ảnh phòng" name="images">
+          <Form.Item label="Ảnh phòng">
             <input type="file" accept="image/*" multiple onChange={handleFileChange} />
             <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
               {previewUrls.map((url, idx) => (
