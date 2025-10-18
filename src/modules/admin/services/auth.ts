@@ -1,7 +1,7 @@
 import api from "../services/api";
 
 type LoginPayload = { email: string; password: string };
-type RegisterPayload = { fullName: string; email: string; password: string };
+type RegisterPayload = { fullName: string; email: string; phone?: string; password: string };
 
 type User = { id: string; username?: string; fullName?: string; email: string; role: string };
 

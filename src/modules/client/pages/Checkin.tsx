@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   Form,
   Input,
+  InputNumber,
   Button,
   Card,
   Typography,
@@ -57,9 +58,10 @@ const Checkin: React.FC = () => {
   const navigate = useNavigate();
   const { roomId: urlRoomId } = useParams<{ roomId: string }>(); // Lấy roomId từ URL
 
-  // Theo dõi sự thay đổi của trường duration để cập nhật real-time (chỉ sử dụng trong form)
-  // const duration = Form.useWatch('duration', form) || 6;
-   useEffect(() => {
+  // Đồng bộ tiền đặt cọc giữa Form và Box thông tin
+  const depositValue = Form.useWatch('deposit', form) || 0;
+
+  useEffect(() => {
       window.scrollTo(0, 0);
     }, []);
 
@@ -76,8 +78,9 @@ const Checkin: React.FC = () => {
       });
       if (roomFromUrl) {
         setSelectedRoom(roomFromUrl);
+        const normalizedId: string = typeof roomFromUrl._id === 'object' ? String(roomFromUrl._id.$oid) : String(roomFromUrl._id);
         form.setFieldsValue({
-          roomId: roomFromUrl._id,
+          roomId: normalizedId,
           deposit: parseFloat(roomFromUrl.pricePerMonth) * 1
         });
       } else {
@@ -85,7 +88,8 @@ const Checkin: React.FC = () => {
       }
     } else if (rooms.length > 0) {
       // Nếu không có roomId từ URL, chọn phòng đầu tiên mặc định
-      form.setFieldsValue({ roomId: rooms[0]._id });
+      const firstId: string = typeof rooms[0]._id === 'object' ? String(rooms[0]._id.$oid) : String(rooms[0]._id);
+      form.setFieldsValue({ roomId: firstId });
       setSelectedRoom(rooms[0]);
     }
   }, [form, urlRoomId]);
@@ -104,7 +108,8 @@ const Checkin: React.FC = () => {
   const handleProceedToContract = () => {
     if (selectedRoom) {
       // Chuyển đến trang contract với roomId
-      navigate(`/contracts/${selectedRoom._id}`);
+      const id = typeof selectedRoom._id === 'object' ? selectedRoom._id.$oid : selectedRoom._id;
+      navigate(`/contracts/${id}`);
     }
   };
 
@@ -263,7 +268,7 @@ const Checkin: React.FC = () => {
                       onChange={handleRoomChange}
                     >
                       {availableRooms.map(room => {
-                        const roomId = typeof room._id === 'object' ? room._id.$oid : room._id;
+                        const roomId: string = typeof room._id === 'object' ? String(room._id.$oid) : String(room._id);
                         return (
                           <Option key={roomId} value={roomId}>
                             Phòng {room.roomNumber} - {room.type} - {new Intl.NumberFormat('vi-VN').format(room.pricePerMonth)}₫/tháng
@@ -310,11 +315,19 @@ const Checkin: React.FC = () => {
                       label="Tiền Đặt Cọc ($)"
                       name="deposit"
                     >
-                      <Input
-                        type="number"
-                        prefix={<DollarOutlined />}
+                      <InputNumber
                         size="large"
                         disabled
+                        addonBefore={<DollarOutlined />}
+                        addonAfter="VNĐ"
+                        precision={0}
+                        style={{ width: "100%" }}
+                        formatter={(value) => {
+                          if (value === undefined || value === null || value === '') return '';
+                          const numeric = Number(String(value).replace(/\D/g, ''));
+                          return new Intl.NumberFormat('vi-VN').format(numeric);
+                        }}
+                        parser={(value) => (value ? Number(String(value).replace(/\D/g, '')) : 0)}
                       />
                     </Form.Item>
                   </Col>
@@ -384,7 +397,7 @@ const Checkin: React.FC = () => {
                     </Descriptions.Item>
                     <Descriptions.Item label="Giá thuê">
                       <Text strong style={{ color: "#1890ff" }}>
-                        {new Intl.NumberFormat('vi-VN').format(selectedRoom.pricePerMonth)}₫/tháng
+                        {new Intl.NumberFormat('vi-VN').format(selectedRoom.pricePerMonth)} VNĐ/tháng
                       </Text>
                     </Descriptions.Item>
                     <Descriptions.Item label="Tầng">
@@ -400,17 +413,17 @@ const Checkin: React.FC = () => {
                   <div style={{ background: "#f6ffed", padding: 12, borderRadius: 8, marginBottom: 16 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                       <Text>Tiền thuê :</Text>
-                      <Text strong>{new Intl.NumberFormat('vi-VN').format(parseFloat(selectedRoom.pricePerMonth) * 1)}₫</Text>
+                      <Text strong>{new Intl.NumberFormat('vi-VN').format(parseFloat(selectedRoom.pricePerMonth) * 1)} VNĐ</Text>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                       <Text>Tiền đặt cọc :</Text>
-                      <Text strong>{new Intl.NumberFormat('vi-VN').format(parseFloat(selectedRoom.pricePerMonth) * 1)}₫</Text>
+                      <Text strong>{new Intl.NumberFormat('vi-VN').format(Number(depositValue))} VNĐ</Text>
                     </div>
                     <Divider style={{ margin: "8px 0" }} />
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                       <Text strong>Tổng cộng:</Text>
                       <Text strong style={{ color: "#1890ff", fontSize: 16 }}>
-                        {new Intl.NumberFormat('vi-VN').format((parseFloat(selectedRoom.pricePerMonth) * 1 + parseFloat(selectedRoom.pricePerMonth) * 1))}₫
+                        {new Intl.NumberFormat('vi-VN').format((parseFloat(selectedRoom.pricePerMonth) * 1 + Number(depositValue)))} VNĐ
                       </Text>
                     </div>
                   </div>

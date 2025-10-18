@@ -91,7 +91,9 @@ const Navbar: React.FC = () => {
       case "logout":
         setIsLoggedIn(false);
         setUserName("");
-        localStorage.removeItem("currentUser"); // Xóa thông tin người dùng khỏi localStorage
+        localStorage.removeItem("currentUser");
+        localStorage.removeItem("token");
+        navigate("/");
         break;
     }
   };
@@ -257,8 +259,10 @@ const Navbar: React.FC = () => {
                 onClick={() => {
                   setIsLoggedIn(false);
                   setUserName("");
-                  localStorage.removeItem("currentUser"); // Xóa thông tin người dùng khỏi localStorage
+                  localStorage.removeItem("currentUser");
+                  localStorage.removeItem("token");
                   setOpenDrawer(false);
+                  navigate("/");
                 }}
                 style={{ padding: 0, marginTop: 8 }}
               >

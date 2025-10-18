@@ -21,24 +21,35 @@ import {
 import { PlusOutlined, EditOutlined, DeleteOutlined, UserOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { User } from "../../../types/user";
-import dbData from "../../../../db.json";
+import { adminUserService } from "../services/user";
 
 const { Title } = Typography;
 const { Option } = Select;
+
+type FormValues = Partial<User> & { password?: string };
 
 const Users: React.FC = () => {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
     const [editing, setEditing] = useState<User | null>(null);
-    const [form] = Form.useForm<User>();
+    const [form] = Form.useForm<FormValues>();
     const [keyword, setKeyword] = useState<string>("");
     const [roleFilter, setRoleFilter] = useState<string | undefined>(undefined);
 
     useEffect(() => {
-        const initUsers: User[] = (dbData as any).users || [];
-        setUsers(initUsers);
-        setLoading(false);
+        let mounted = true;
+        (async () => {
+            try {
+                const list = await adminUserService.list();
+                if (mounted) setUsers(list);
+            } finally {
+                if (mounted) setLoading(false);
+            }
+        })();
+        return () => {
+            mounted = false;
+        };
     }, []);
 
     const openModal = (record?: User) => {
@@ -48,7 +59,7 @@ const Users: React.FC = () => {
         } else {
             setEditing(null);
             form.resetFields();
-            form.setFieldsValue({ role: "USER" } as any);
+            form.setFieldsValue({ role: "TENANT" } as any);
         }
         setIsModalOpen(true);
     };
@@ -61,27 +72,42 @@ const Users: React.FC = () => {
     const handleSave = async () => {
         try {
             const values = await form.validateFields();
+            const roleToSend = (values.role === "USER" ? "TENANT" : values.role) as any;
             if (editing) {
-                const updated = users.map((u) => (u._id === editing._id ? { ...editing, ...values } : u));
-                setUsers(updated);
+                const id = (editing._id as string) || (editing.id as string);
+                const updated = await adminUserService.update(id, {
+                    fullName: values.fullName,
+                    email: values.email,
+                    phone: values.phone,
+                    role: roleToSend,
+                } as any);
+                setUsers((prev) => prev.map((u) => ((u._id || u.id) === (updated._id || updated.id) ? updated : u)));
                 message.success("Cập nhật người dùng thành công!");
             } else {
-                const newUser: User = {
-                    _id: Date.now().toString(),
-                    createdAt: new Date().toISOString(),
-                    ...values,
-                } as User;
-                setUsers((prev) => [...prev, newUser]);
+                if (!values.password) {
+                    message.error("Vui lòng nhập mật khẩu cho tài khoản mới");
+                    return;
+                }
+                const created = await adminUserService.create({
+                    fullName: values.fullName!,
+                    email: values.email!,
+                    phone: values.phone,
+                    role: (roleToSend as any)!,
+                    password: values.password,
+                });
+                setUsers((prev) => [created, ...prev]);
                 message.success("Thêm người dùng thành công!");
             }
             closeModal();
         } catch (e) {
-            // ignore, antd will highlight invalid fields
+            // antd will highlight invalid fields or API error handled globally
         }
     };
 
-    const handleDelete = (id?: string) => {
+    const handleDelete = async (id?: string) => {
         const key = id ?? "";
+        if (!key) return;
+        await adminUserService.remove(key);
         setUsers((prev) => prev.filter((u) => (u._id ?? u.id) !== key));
         message.success("Đã xóa người dùng!");
     };
@@ -153,7 +179,7 @@ const Users: React.FC = () => {
             },
             filters: [
                 { text: "Quản trị", value: "ADMIN" },
-                { text: "Người dùng", value: "USER" },
+                { text: "Người dùng", value: "TENANT" },
             ],
             onFilter: (value, record) => record.role === value,
         },
@@ -207,7 +233,7 @@ const Users: React.FC = () => {
                             onChange={(v) => setRoleFilter(v)}
                             options={[
                                 { label: "Quản trị", value: "ADMIN" },
-                                { label: "Người dùng", value: "USER" },
+                                { label: "Người dùng", value: "TENANT" },
                             ]}
                         />
                     </Col>
@@ -244,7 +270,7 @@ const Users: React.FC = () => {
                 width={560}
                 centered
             >
-                <Form<User> form={form} layout="vertical">
+                <Form<FormValues> form={form} layout="vertical">
                     <Row gutter={16}>
                         <Col xs={24} md={12}>
                             <Form.Item label="Avatar (URL)" name="avatar">
@@ -270,10 +296,17 @@ const Users: React.FC = () => {
                             <Form.Item label="Vai trò" name="role" rules={[{ required: true, message: "Chọn vai trò" }]} initialValue="USER">
                                 <Select>
                                     <Option value="ADMIN">Quản trị</Option>
-                                    <Option value="USER">Người dùng</Option>
+                                    <Option value="TENANT">Người dùng</Option>
                                 </Select>
                             </Form.Item>
                         </Col>
+                        {!editing && (
+                            <Col xs={24} md={12}>
+                                <Form.Item label="Mật khẩu" name="password" rules={[{ required: true, message: "Nhập mật khẩu" }, { min: 6, message: "Ít nhất 6 ký tự" }]}>
+                                    <Input.Password placeholder="••••••" />
+                                </Form.Item>
+                            </Col>
+                        )}
                     </Row>
                 </Form>
             </Modal>

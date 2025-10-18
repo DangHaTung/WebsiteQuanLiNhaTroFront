@@ -71,7 +71,7 @@ const Profile = () => {
                                 <SettingOutlined /> Thông tin cơ bản
                             </span>
                         }
-                        bordered={false}
+                        variant="borderless"
                         style={cardStyle}
                     >
                         <Space direction="vertical">
@@ -90,7 +90,7 @@ const Profile = () => {
 
                     <Card
                         title="Phân quyền & Trạng thái truy cập"
-                        bordered={false}
+                        variant="borderless"
                         style={cardStyle}
                     >
                         <Text type="secondary">Quyền: {user.role}</Text>
@@ -102,7 +102,7 @@ const Profile = () => {
             key: "2",
             label: "Bảo mật",
             children: (
-                <Card bordered={false} style={cardStyle}>
+                <Card variant="borderless" style={cardStyle}>
                     <Form
                         layout="vertical"
                         onFinish={handleUpdatePassword}
@@ -174,7 +174,7 @@ const Profile = () => {
             key: "3",
             label: "Hoạt động gần đây",
             children: (
-                <Card bordered={false} style={cardStyle}>
+                <Card variant="borderless" style={cardStyle}>
                     <List
                         itemLayout="horizontal"
                         dataSource={activities}
@@ -199,7 +199,7 @@ const Profile = () => {
                 {/* CỘT TRÁI */}
                 <Col xs={24} md={8}>
                     <Card
-                        bordered={false}
+                        variant="borderless"
                         style={{
                             textAlign: "center",
                             borderRadius: 16,

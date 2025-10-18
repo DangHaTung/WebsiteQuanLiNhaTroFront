@@ -10,7 +10,7 @@ const AdminRegister: React.FC = () => {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = React.useState(false);
 
-  const onFinish = async (values: { fullName: string; email: string; password: string }) => {
+  const onFinish = async (values: { fullName: string; email: string; phone?: string; password: string }) => {
     try {
       setSubmitting(true);
       const res = await adminAuthService.register(values);
@@ -37,6 +37,9 @@ const AdminRegister: React.FC = () => {
           </Form.Item>
           <Form.Item name="email" label="Email" rules={[{ required: true, message: "Vui lòng nhập email" }, { type: "email", message: "Email không hợp lệ" }]}>
             <Input placeholder="abc@gmail.com" />
+          </Form.Item>
+          <Form.Item name="phone" label="Số điện thoại" rules={[{ pattern: /^[0-9]{9,11}$/, message: "Số điện thoại phải từ 9–11 chữ số" }]}>
+            <Input placeholder="0912345678" />
           </Form.Item>
           <Form.Item name="password" label="Mật khẩu" rules={[{ required: true, message: "Vui lòng nhập mật khẩu" }, { min: 6, message: "Ít nhất 6 ký tự" }]}>
             <Input.Password placeholder="••••••" />
