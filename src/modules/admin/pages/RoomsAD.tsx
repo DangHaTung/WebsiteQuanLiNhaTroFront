@@ -290,7 +290,7 @@ const RoomsAD: React.FC = () => {
           <Col xs={24} sm={12} md={6}>
             <div className="filter-card filter-card-column">
               <span style={{ fontWeight: 600, marginBottom: 8 }}>Loại phòng:</span>
-              {["SINGLE", "DOUBLE", "DORM", "STUDIO", "VIP"].map((type) => (
+              {["SINGLE", "DOUBLE"].map((type) => (
                 <Tag
                   key={type}
                   color={filterType === type ? "blue" : "default"}
@@ -350,9 +350,6 @@ const RoomsAD: React.FC = () => {
                 <Select placeholder="Chọn loại">
                   <Option value="SINGLE">SINGLE</Option>
                   <Option value="DOUBLE">DOUBLE</Option>
-                  <Option value="DORM">DORM</Option>
-                  <Option value="STUDIO">STUDIO</Option>
-                  <Option value="VIP">VIP</Option>
                 </Select>
               </Form.Item>
             </Col>

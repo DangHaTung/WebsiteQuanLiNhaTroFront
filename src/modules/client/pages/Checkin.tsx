@@ -1,138 +1,110 @@
 import React, { useState, useEffect } from "react";
-import {
-  Form,
-  Input,
-  InputNumber,
-  Button,
-  Card,
-  Typography,
-  Select,
-  DatePicker,
-  Row,
-  Col,
-  Divider,
-  Space,
-  message,
-  Radio,
-  Avatar,
-  Tag,
-  Alert,
-  Descriptions,
-  Checkbox
-} from "antd";
-import {
-  UserOutlined,
-  PhoneOutlined,
-  MailOutlined,
-  HomeOutlined,
-  CheckCircleOutlined,
-  DollarOutlined,
-} from "@ant-design/icons";
+import { Form, Input, InputNumber, Button, Card, Typography, Select, DatePicker, Row, Col, Divider, Space, message, Radio, Avatar, Tag, Alert, Descriptions, Checkbox } from "antd";
+import { UserOutlined, PhoneOutlined, MailOutlined, HomeOutlined, CheckCircleOutlined, DollarOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import "../../../assets/styles/checkin.css";
-import dbData from "../../../../db.json";
+
+import type { Room } from "../../../types/room";
+import { getRoomById, getAllRooms } from "../services/room";
+import type { CheckinFormData } from "../../../types/bill";
+import { clientAuthService } from "../services/auth";
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
 
-interface CheckinFormData {
-  fullName: string;
-  phone: string;
-  email: string;
-  roomId: string;
-  checkinDate: string;
-  duration: number; // months
-  deposit: number;
-  paymentMethod: string;
-  idCard: string;
-  emergencyContact: string;
-  notes: string;
-}
-
 const Checkin: React.FC = () => {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
-  const [selectedRoom, setSelectedRoom] = useState<any>(null);
-  const [availableRooms, setAvailableRooms] = useState<any[]>([]);
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const navigate = useNavigate();
-  const { roomId: urlRoomId } = useParams<{ roomId: string }>(); // Lấy roomId từ URL
+  const { roomId: urlRoomId } = useParams<{ roomId: string }>();
 
-  // Đồng bộ tiền đặt cọc giữa Form và Box thông tin
-  const depositValue = Form.useWatch('deposit', form) || 0;
-
-  useEffect(() => {
-      window.scrollTo(0, 0);
-    }, []);
+  const depositValue = Form.useWatch("deposit", form) || 0;
 
   useEffect(() => {
-    // Load available rooms from db.json
-    const rooms = dbData.rooms.filter(room => room.status === 'AVAILABLE');
-    setAvailableRooms(rooms);
+    window.scrollTo(0, 0);
+  }, []);
 
-    // Nếu có roomId từ URL, tự động chọn phòng đó
-    if (urlRoomId) {
-      const roomFromUrl = dbData.rooms.find(room => {
-        const roomId = typeof room._id === 'object' ? room._id.$oid : room._id;
-        return roomId === urlRoomId;
-      });
-      if (roomFromUrl) {
-        setSelectedRoom(roomFromUrl);
-        const normalizedId: string = typeof roomFromUrl._id === 'object' ? String(roomFromUrl._id.$oid) : String(roomFromUrl._id);
-        form.setFieldsValue({
-          roomId: normalizedId,
-          deposit: parseFloat(roomFromUrl.pricePerMonth) * 1
-        });
-      } else {
-        message.error("Không tìm thấy phòng với ID này");
+  // Lấy tất cả phòng
+  useEffect(() => {
+    const fetchRooms = async () => {
+      try {
+        const rooms = await getAllRooms();
+        const available = rooms.filter((r) => r.status === "AVAILABLE");
+        setAvailableRooms(available);
+
+        if (urlRoomId) {
+          const room = await getRoomById(urlRoomId);
+          if (room) {
+            setSelectedRoom(room);
+            form.setFieldsValue({
+              roomId: String(room._id),
+              deposit: room.pricePerMonth,
+            });
+          } else {
+            message.error("Không tìm thấy phòng với ID này");
+          }
+        } else if (available.length > 0) {
+          setSelectedRoom(available[0]);
+          form.setFieldsValue({
+            roomId: String(available[0]._id),
+            deposit: available[0].pricePerMonth,
+          });
+        }
+      } catch (error) {
+        console.error(error);
+        message.error("Không thể tải danh sách phòng");
       }
-    } else if (rooms.length > 0) {
-      // Nếu không có roomId từ URL, chọn phòng đầu tiên mặc định
-      const firstId: string = typeof rooms[0]._id === 'object' ? String(rooms[0]._id.$oid) : String(rooms[0]._id);
-      form.setFieldsValue({ roomId: firstId });
-      setSelectedRoom(rooms[0]);
-    }
+    };
+    fetchRooms();
   }, [form, urlRoomId]);
 
-  const handleRoomChange = (roomId: string) => {
-    const room = availableRooms.find(r => {
-      const rId = typeof r._id === 'object' ? r._id.$oid : r._id;
-      return rId === roomId;
-    });
-    setSelectedRoom(room);
-    form.setFieldsValue({
-      deposit: parseFloat(room.pricePerMonth) * 1
-    });
+  useEffect(() => {
+    const currentUser = clientAuthService.getCurrentUser();
+    if (currentUser) {
+      form.setFieldsValue({
+        fullName: currentUser.username,
+        email: currentUser.email,
+        // phone: currentUser.phone
+      });
+    }
+  }, [form]);
+
+  const handleRoomChange = async (roomId: string) => {
+    try {
+      const room = await getRoomById(roomId);
+      setSelectedRoom(room);
+      form.setFieldsValue({
+        deposit: room.pricePerMonth,
+      });
+    } catch (error) {
+      message.error("Không tìm thấy phòng");
+    }
   };
 
   const handleProceedToContract = () => {
-    if (selectedRoom) {
-      // Chuyển đến trang contract với roomId
-      const id = typeof selectedRoom._id === 'object' ? selectedRoom._id.$oid : selectedRoom._id;
-      navigate(`/contracts/${id}`);
-    }
+    if (selectedRoom) navigate(`/contracts/${String(selectedRoom._id)}`);
   };
 
   const onFinish = async (values: CheckinFormData) => {
     setLoading(true);
-
     try {
-      // Simulate API call to create contract
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      console.log("Checkin form values:", values);
 
-      // TODO: Send data to API to create contract and update room status
-      console.log('Checkin form values:', values); // Log form values for debugging
-
-      // Reset form after success
       form.resetFields();
+      setSelectedRoom(null);
+      setAcceptedTerms(false);
 
-      // Redirect to home or show success message
-      setTimeout(() => {
-        message.success("Đăng ký check-in thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất.");
-      }, 2000);
-
+      message.success(
+        "Đăng ký check-in thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất."
+      );
     } catch (error) {
-      message.error("Có lỗi xảy ra khi đăng ký check-in. Vui lòng thử lại!");
+      message.error(
+        "Có lỗi xảy ra khi đăng ký check-in. Vui lòng thử lại!"
+      );
     } finally {
       setLoading(false);
     }
@@ -169,10 +141,10 @@ const Checkin: React.FC = () => {
                 onFinish={onFinish}
                 initialValues={{
                   duration: 6,
-                  deposit: selectedRoom ? parseFloat(selectedRoom.pricePerMonth) * 1 : 0,
-                  paymentMethod: "BANK"
+                  paymentMethod: "BANK",
                 }}
               >
+                {/* Họ và Tên */}
                 <Row gutter={16}>
                   <Col span={12}>
                     <Form.Item
@@ -180,7 +152,7 @@ const Checkin: React.FC = () => {
                       name="fullName"
                       rules={[
                         { required: true, message: "Vui lòng nhập họ và tên!" },
-                        { min: 2, message: "Tên phải có ít nhất 2 ký tự!" }
+                        { min: 2, message: "Tên phải có ít nhất 2 ký tự!" },
                       ]}
                     >
                       <Input
@@ -190,13 +162,15 @@ const Checkin: React.FC = () => {
                       />
                     </Form.Item>
                   </Col>
+
+                  {/* Số điện thoại */}
                   <Col span={12}>
                     <Form.Item
                       label="Số Điện Thoại"
                       name="phone"
                       rules={[
                         { required: true, message: "Vui lòng nhập số điện thoại!" },
-                        { pattern: /^[0-9]{10,11}$/, message: "Số điện thoại không hợp lệ!" }
+                        { pattern: /^[0-9]{10,11}$/, message: "Số điện thoại không hợp lệ!" },
                       ]}
                     >
                       <Input
@@ -208,12 +182,13 @@ const Checkin: React.FC = () => {
                   </Col>
                 </Row>
 
+                {/* Email */}
                 <Form.Item
                   label="Email"
                   name="email"
                   rules={[
                     { required: true, message: "Vui lòng nhập email!" },
-                    { type: "email", message: "Email không hợp lệ!" }
+                    { type: "email", message: "Email không hợp lệ!" },
                   ]}
                 >
                   <Input
@@ -223,12 +198,13 @@ const Checkin: React.FC = () => {
                   />
                 </Form.Item>
 
+                {/* CMND/CCCD */}
                 <Form.Item
                   label="Số CMND/CCCD"
                   name="idCard"
                   rules={[
                     { required: true, message: "Vui lòng nhập số CMND/CCCD!" },
-                    { pattern: /^[0-9]{9,12}$/, message: "Số CMND/CCCD không hợp lệ!" }
+                    { pattern: /^[0-9]{9,12}$/, message: "Số CMND/CCCD không hợp lệ!" },
                   ]}
                 >
                   <Input
@@ -237,6 +213,7 @@ const Checkin: React.FC = () => {
                   />
                 </Form.Item>
 
+                {/* Người liên hệ khẩn cấp */}
                 <Form.Item
                   label="Người Liên Hệ Khẩn Cấp"
                   name="emergencyContact"
@@ -250,35 +227,45 @@ const Checkin: React.FC = () => {
 
                 <Divider>Thông Tin Thuê Phòng</Divider>
 
+                {/* Chọn phòng */}
                 <Form.Item
                   label="Chọn Phòng"
                   name="roomId"
                   rules={[{ required: true, message: "Vui lòng chọn phòng!" }]}
                 >
                   {urlRoomId ? (
-                    // Nếu có roomId từ URL, hiển thị thông tin phòng được chọn và ẩn dropdown
-                    <div style={{ padding: "8px 12px", background: "#f5f5f5", borderRadius: 6, border: "1px solid #d9d9d9" }}>
-                      <Text strong>Đã chọn: Phòng {selectedRoom?.roomNumber} - {selectedRoom?.type} - {new Intl.NumberFormat('vi-VN').format(selectedRoom?.pricePerMonth)}₫/tháng</Text>
+                    <div
+                      style={{
+                        padding: "8px 12px",
+                        background: "#f5f5f5",
+                        borderRadius: 6,
+                        border: "1px solid #d9d9d9",
+                      }}
+                    >
+                      <Text strong>
+                        Đã chọn: Phòng {selectedRoom?.roomNumber} - {selectedRoom?.type} -{" "}
+                        {selectedRoom?.pricePerMonth !== undefined
+                          ? new Intl.NumberFormat("vi-VN").format(selectedRoom.pricePerMonth)
+                          : "0"}₫/tháng
+                      </Text>
                     </div>
                   ) : (
-                    // Nếu không có roomId từ URL, hiển thị dropdown bình thường
                     <Select
                       placeholder="Chọn phòng muốn thuê"
                       size="large"
                       onChange={handleRoomChange}
                     >
-                      {availableRooms.map(room => {
-                        const roomId: string = typeof room._id === 'object' ? String(room._id.$oid) : String(room._id);
-                        return (
-                          <Option key={roomId} value={roomId}>
-                            Phòng {room.roomNumber} - {room.type} - {new Intl.NumberFormat('vi-VN').format(room.pricePerMonth)}₫/tháng
-                          </Option>
-                        );
-                      })}
+                      {availableRooms.map((room) => (
+                        <Option key={room._id} value={room._id}>
+                          Phòng {room.roomNumber} - {room.type} -{" "}
+                          {new Intl.NumberFormat("vi-VN").format(room.pricePerMonth)}₫/tháng
+                        </Option>
+                      ))}
                     </Select>
                   )}
                 </Form.Item>
 
+                {/* Ngày check-in + Thời gian thuê */}
                 <Row gutter={16}>
                   <Col span={12}>
                     <Form.Item
@@ -290,10 +277,11 @@ const Checkin: React.FC = () => {
                         placeholder="Chọn ngày nhận phòng"
                         size="large"
                         style={{ width: "100%" }}
-                        disabledDate={(current) => current && current.isBefore(new Date(), 'day')}
+                        disabledDate={(current) => current && current.isBefore(new Date(), "day")}
                       />
                     </Form.Item>
                   </Col>
+
                   <Col span={12}>
                     <Form.Item
                       label="Thời Gian Thuê (tháng)"
@@ -309,12 +297,10 @@ const Checkin: React.FC = () => {
                   </Col>
                 </Row>
 
+                {/* Tiền đặt cọc + Phương thức thanh toán */}
                 <Row gutter={16}>
                   <Col span={12}>
-                    <Form.Item
-                      label="Tiền Đặt Cọc ($)"
-                      name="deposit"
-                    >
+                    <Form.Item label="Tiền Đặt Cọc" name="deposit">
                       <InputNumber
                         size="large"
                         disabled
@@ -323,14 +309,15 @@ const Checkin: React.FC = () => {
                         precision={0}
                         style={{ width: "100%" }}
                         formatter={(value) => {
-                          if (value === undefined || value === null || value === '') return '';
-                          const numeric = Number(String(value).replace(/\D/g, ''));
-                          return new Intl.NumberFormat('vi-VN').format(numeric);
+                          if (value === undefined || value === null || value === "") return "";
+                          const numeric = Number(String(value).replace(/\D/g, ""));
+                          return new Intl.NumberFormat("vi-VN").format(numeric);
                         }}
-                        parser={(value) => (value ? Number(String(value).replace(/\D/g, '')) : 0)}
+                        parser={(value) => (value ? Number(String(value).replace(/\D/g, "")) : 0)}
                       />
                     </Form.Item>
                   </Col>
+
                   <Col span={12}>
                     <Form.Item
                       label="Phương Thức Thanh Toán"
@@ -346,6 +333,7 @@ const Checkin: React.FC = () => {
                   </Col>
                 </Row>
 
+                {/* Ghi chú */}
                 <Form.Item label="Ghi Chú Thêm" name="notes">
                   <Input.TextArea
                     rows={3}
@@ -357,7 +345,7 @@ const Checkin: React.FC = () => {
             </Card>
           </Col>
 
-          {/* Thông tin phòng được chọn */}
+          {/* Thông tin phòng */}
           <Col xs={24} lg={8}>
             <Card
               title={
@@ -381,31 +369,29 @@ const Checkin: React.FC = () => {
                     <Title level={4} style={{ margin: 0 }}>
                       Phòng {selectedRoom.roomNumber}
                     </Title>
-                    <Tag color="green" style={{ marginTop: 4 }}>
-                      {selectedRoom.status === 'AVAILABLE' ? 'Còn trống' : 'Đã thuê'}
+                    <Tag color={selectedRoom.status === "AVAILABLE" ? "green" : "red"} style={{ marginTop: 4 }}>
+                      {selectedRoom.status === "AVAILABLE" ? "Còn trống" : "Đã thuê"}
                     </Tag>
                   </div>
 
                   <Descriptions column={1} size="small">
                     <Descriptions.Item label="Loại phòng">
-                      {selectedRoom.type === 'SINGLE' ? 'Phòng đơn' :
-                       selectedRoom.type === 'DOUBLE' ? 'Phòng đôi' :
-                       selectedRoom.type === 'STUDIO' ? 'Studio' : 'VIP'}
+                      {selectedRoom.type === "SINGLE"
+                        ? "Phòng đơn"
+                        : selectedRoom.type === "DOUBLE"
+                          ? "Phòng đôi"
+                          : selectedRoom.type === "STUDIO"
+                            ? "Studio"
+                            : "VIP"}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Diện tích">
-                      {selectedRoom.areaM2}m²
-                    </Descriptions.Item>
+                    <Descriptions.Item label="Diện tích">{selectedRoom.areaM2}m²</Descriptions.Item>
                     <Descriptions.Item label="Giá thuê">
                       <Text strong style={{ color: "#1890ff" }}>
-                        {new Intl.NumberFormat('vi-VN').format(selectedRoom.pricePerMonth)} VNĐ/tháng
+                        {new Intl.NumberFormat("vi-VN").format(selectedRoom.pricePerMonth)} VNĐ/tháng
                       </Text>
                     </Descriptions.Item>
-                    <Descriptions.Item label="Tầng">
-                      {selectedRoom.floor}
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Khu vực">
-                      {selectedRoom.district}
-                    </Descriptions.Item>
+                    <Descriptions.Item label="Tầng">{selectedRoom.floor}</Descriptions.Item>
+                    <Descriptions.Item label="Khu vực">{selectedRoom.district}</Descriptions.Item>
                   </Descriptions>
 
                   <Divider>Tổng Chi Phí</Divider>
@@ -413,57 +399,46 @@ const Checkin: React.FC = () => {
                   <div style={{ background: "#f6ffed", padding: 12, borderRadius: 8, marginBottom: 16 }}>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                       <Text>Tiền thuê :</Text>
-                      <Text strong>{new Intl.NumberFormat('vi-VN').format(parseFloat(selectedRoom.pricePerMonth) * 1)} VNĐ</Text>
+                      <Text strong>
+                        {selectedRoom?.pricePerMonth !== undefined
+                          ? new Intl.NumberFormat("vi-VN").format(selectedRoom.pricePerMonth)
+                          : "0"} VNĐ
+                      </Text>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                       <Text>Tiền đặt cọc :</Text>
-                      <Text strong>{new Intl.NumberFormat('vi-VN').format(Number(depositValue))} VNĐ</Text>
+                      <Text strong>{new Intl.NumberFormat("vi-VN").format(Number(depositValue))} VNĐ</Text>
                     </div>
                     <Divider style={{ margin: "8px 0" }} />
                     <div style={{ display: "flex", justifyContent: "space-between" }}>
                       <Text strong>Tổng cộng:</Text>
                       <Text strong style={{ color: "#1890ff", fontSize: 16 }}>
-                        {new Intl.NumberFormat('vi-VN').format((parseFloat(selectedRoom.pricePerMonth) * 1 + Number(depositValue)))} VNĐ
+                        {selectedRoom && !isNaN(depositValue)
+                          ? new Intl.NumberFormat("vi-VN").format(selectedRoom.pricePerMonth + depositValue)
+                          : "0"} VNĐ
                       </Text>
                     </div>
                   </div>
 
-                  {/* Xác nhận và thanh toán */}
-                  <div style={{
-                    padding: "16px",
-                    background: "#fff7e6",
-                    borderRadius: "8px",
-                    border: "1px solid #ffd591",
-                    marginTop: "16px"
-                  }}>
-                    <div style={{
-                      display: "flex",
-                      alignItems: "center",
-                      marginBottom: "16px",
-                      gap: "8px"
-                    }}>
-                      <Checkbox
-                        checked={acceptedTerms}
-                        onChange={(e: any) => setAcceptedTerms(e.target.checked)}
-                      />
-                      <Button
-                        type="link"
+                  {/* Xác nhận + thanh toán */}
+                  <div
+                    style={{
+                      padding: "16px",
+                      background: "#fff7e6",
+                      borderRadius: "8px",
+                      border: "1px solid #ffd591",
+                      marginTop: "16px",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 4 }}>
+                      <Checkbox checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} />
+                      <span>Tôi đã đọc kỹ hợp đồng và đồng ý với</span>
+                      <Typography.Text
+                        style={{ color: "#1890ff", textDecoration: "underline", cursor: "pointer" }}
                         onClick={handleProceedToContract}
-                        style={{
-                          color: "#1890ff",
-                          textDecoration: "underline",
-                          padding: "0",
-                          height: "auto",
-                          margin: "0",
-                          lineHeight: "1.4"
-                        }}
                       >
-                        <div style={{ fontSize: "14px", lineHeight: "1.3", textAlign: "left" }}>
-                          Tôi đã đọc kỹ hợp đồng và đồng ý
-                          <br />
-                           với các ĐIỀU KHOẢN
-                        </div>
-                      </Button>
+                        ĐIỀU KHOẢN
+                      </Typography.Text>
                     </div>
 
                     {acceptedTerms ? (
@@ -475,22 +450,12 @@ const Checkin: React.FC = () => {
                         block
                         icon={<CheckCircleOutlined />}
                         className="btn-animated"
-                        style={{
-                          height: "48px",
-                          fontSize: "16px",
-                          border: "none",
-                          borderRadius: "8px"
-                        }}
+                        style={{ height: "48px", fontSize: "16px", border: "none", borderRadius: "8px" }}
                       >
                         {loading ? "Đang Xử Lý..." : "Thanh toán"}
                       </Button>
                     ) : (
-                      <div style={{
-                        textAlign: "center",
-                        padding: "8px 0",
-                        color: "#666",
-                        fontSize: "14px"
-                      }}>
+                      <div style={{ textAlign: "center", padding: "8px 0", color: "#666", fontSize: "14px" }}>
                         ✓ Vui lòng xác nhận để tiếp tục thanh toán
                       </div>
                     )}
