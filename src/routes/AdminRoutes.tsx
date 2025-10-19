@@ -21,7 +21,7 @@ const adminRoutes = [
   { path: "bills", element: <RequireAdmin><BillsAD /></RequireAdmin> },
   { path: "users", element: <RequireAdmin><Users /></RequireAdmin> },
   { path: "contracts", element: <RequireAdmin><ContractsAD /></RequireAdmin> },
-  { path: "roomsAd", element: <RequireAdmin><RoomsAD /></RequireAdmin> },
+  { path: "roomsad", element: <RequireAdmin><RoomsAD /></RequireAdmin> },
 ];
 
 export default adminRoutes;
