@@ -2,8 +2,8 @@ import api from "../services/api";
 import type { Room } from "../../../types/room";
 
 export const adminRoomService = {
-  async getAll(): Promise<Room[]> {
-    const res = await api.get("/rooms");
+  async getAll(params?: { page?: number; limit?: number; status?: string; type?: string; q?: string }): Promise<Room[]> {
+    const res = await api.get("/rooms", { params });
     return res.data.data;
   },
 

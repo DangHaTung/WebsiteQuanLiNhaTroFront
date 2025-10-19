@@ -22,8 +22,12 @@ import {
 import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { Contract } from "../../../types/contract";
+import type { Tenant } from "../../../types/tenant";
+import type { Room } from "../../../types/room";
 import dayjs, { Dayjs } from "dayjs";
-import dbData from "../../../../db.json";
+import { adminContractService } from "../services/contract";
+import { adminTenantService } from "../services/tenant";
+import { adminRoomService } from "../services/room";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -35,11 +39,13 @@ interface ContractFormValues {
   endDate: Dayjs;
   deposit: number;
   monthlyRent: number;
-  status: "ACTIVE" | "ENDED" | "PENDING";
+  status: "ACTIVE" | "ENDED" | "CANCELED";
 }
 
 const ContractsAD: React.FC = () => {
   const [contracts, setContracts] = useState<Contract[]>([]);
+  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editing, setEditing] = useState<Contract | null>(null);
@@ -49,21 +55,40 @@ const ContractsAD: React.FC = () => {
   const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(null);
 
   useEffect(() => {
-    const list: Contract[] = (dbData as any).contracts || [];
-    setContracts(list);
-    setLoading(false);
+    loadData();
   }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [contractsData, tenantsData, roomsData] = await Promise.all([
+        adminContractService.getAll({ limit: 50 }),
+        adminTenantService.getAll({ limit: 50 }),
+        adminRoomService.getAll(),
+      ]);
+      
+      setContracts(contractsData);
+      setTenants(tenantsData);
+      setRooms(roomsData);
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const openModal = (record?: Contract) => {
     if (record) {
       setEditing(record);
+      const tenantId = typeof record.tenantId === "string" ? record.tenantId : record.tenantId?._id;
+      const roomId = typeof record.roomId === "string" ? record.roomId : record.roomId?._id;
       form.setFieldsValue({
-        tenantId: record.tenantId,
-        roomId: record.roomId,
+        tenantId,
+        roomId,
         startDate: dayjs(record.startDate),
         endDate: dayjs(record.endDate),
-        deposit: Number(record.deposit ?? 0),
-        monthlyRent: Number(record.monthlyRent ?? 0),
+        deposit: typeof record.deposit === 'number' ? record.deposit : Number(record.deposit ?? 0),
+        monthlyRent: typeof record.monthlyRent === 'number' ? record.monthlyRent : Number(record.monthlyRent ?? 0),
         status: record.status as any,
       });
     } else {
@@ -82,44 +107,71 @@ const ContractsAD: React.FC = () => {
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
-      const payload: Contract = {
-        _id: editing?._id || Date.now().toString(),
+      const payload: Partial<Contract> = {
         tenantId: values.tenantId,
         roomId: values.roomId,
         startDate: values.startDate.toISOString(),
         endDate: values.endDate.toISOString(),
-        deposit: String(values.deposit ?? "0"),
-        monthlyRent: String(values.monthlyRent ?? "0"),
+        deposit: values.deposit ?? 0,
+        monthlyRent: values.monthlyRent ?? 0,
         status: values.status,
-        createdAt: editing?.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
       };
 
       if (editing) {
-        setContracts((prev) => prev.map((c) => (c._id === editing._id ? { ...payload } : c)));
+        await adminContractService.update(editing._id, payload);
         message.success("Cập nhật hợp đồng thành công!");
       } else {
-        setContracts((prev) => [...prev, payload]);
+        await adminContractService.create(payload);
         message.success("Thêm hợp đồng thành công!");
       }
       closeModal();
-    } catch (e) {
-      // antd will show validation errors
+      loadData();
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || "Có lỗi xảy ra");
     }
   };
 
-  const handleDelete = (id: string) => {
-    setContracts((prev) => prev.filter((c) => c._id !== id));
-    message.success("Đã xóa hợp đồng!");
+  const handleDelete = async (id: string) => {
+    try {
+      await adminContractService.remove(id);
+      message.success("Đã xóa hợp đồng!");
+      loadData();
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || "Lỗi khi xóa hợp đồng");
+    }
+  };
+
+  const getTenantName = (tenantId: string | Tenant): string => {
+    if (tenantId === null || tenantId === undefined) {
+      return "N/A";
+    }
+    
+    if (typeof tenantId === "object" && tenantId?.fullName) {
+      return tenantId.fullName;
+    }
+    
+    const tenant = tenants.find((t) => t._id === tenantId);
+    return tenant?.fullName || (typeof tenantId === "string" ? tenantId : "N/A");
+  };
+
+  const getRoomNumber = (roomId: string | Room): string => {
+    if (typeof roomId === "object" && roomId?.roomNumber) {
+      return roomId.roomNumber;
+    }
+    const room = rooms.find((r) => r._id === roomId);
+    return room?.roomNumber || (typeof roomId === "string" ? roomId : "N/A");
   };
 
   const filteredContracts = useMemo(() => {
     let data = [...contracts];
     if (keyword.trim()) {
       const k = keyword.toLowerCase();
-      data = data.filter(
-        (c) => c._id.toLowerCase().includes(k) || c.tenantId.toLowerCase().includes(k) || c.roomId.toLowerCase().includes(k)
-      );
+      data = data.filter((c) => {
+        const id = c._id.toLowerCase();
+        const tenantName = getTenantName(c.tenantId).toLowerCase();
+        const roomNumber = getRoomNumber(c.roomId).toLowerCase();
+        return id.includes(k) || tenantName.includes(k) || roomNumber.includes(k);
+      });
     }
     if (statusFilter) {
       data = data.filter((c) => c.status === statusFilter);
@@ -132,12 +184,16 @@ const ContractsAD: React.FC = () => {
       });
     }
     return data;
-  }, [contracts, keyword, statusFilter, dateRange]);
+  }, [contracts, keyword, statusFilter, dateRange, tenants, rooms]);
 
   const total = filteredContracts.length;
   const activeCount = useMemo(() => filteredContracts.filter((c) => c.status === "ACTIVE").length, [filteredContracts]);
   const totalMonthly = useMemo(
-    () => filteredContracts.reduce((sum, c) => sum + Number(c.monthlyRent || 0), 0),
+    () => filteredContracts.reduce((sum, c) => {
+      // Backend đã chuyển đổi Decimal128 sang number, chỉ cần kiểm tra NaN
+      const rent = typeof c.monthlyRent === 'number' && !isNaN(c.monthlyRent) ? c.monthlyRent : 0;
+      return sum + rent;
+    }, 0),
     [filteredContracts]
   );
 
@@ -152,19 +208,19 @@ const ContractsAD: React.FC = () => {
       ),
     },
     {
-      title: "Người thuê (tenantId)",
+      title: "Người thuê",
       dataIndex: "tenantId",
       key: "tenantId",
-      render: (v: string) => (
-        <span style={{ whiteSpace: "normal", wordBreak: "break-word" }}>{v}</span>
+      render: (v: string | Tenant) => (
+        <span style={{ whiteSpace: "normal", wordBreak: "break-word" }}>{getTenantName(v)}</span>
       ),
     },
     {
-      title: "Phòng (roomId)",
+      title: "Phòng",
       dataIndex: "roomId",
       key: "roomId",
-      render: (v: string) => (
-        <span style={{ whiteSpace: "normal", wordBreak: "break-word" }}>{v}</span>
+      render: (v: string | Room) => (
+        <span style={{ whiteSpace: "normal", wordBreak: "break-word" }}>{getRoomNumber(v)}</span>
       ),
     },
     {
@@ -184,14 +240,26 @@ const ContractsAD: React.FC = () => {
       dataIndex: "deposit",
       key: "deposit",
       align: "right",
-      render: (v: string) => Number(v).toLocaleString("vi-VN"),
+      render: (v: any) => {
+        // Backend đã chuyển đổi Decimal128 sang number
+        if (typeof v === 'number' && !isNaN(v)) {
+          return v.toLocaleString("vi-VN");
+        }
+        return "0";
+      },
     },
     {
       title: "Tiền thuê (VNĐ)",
       dataIndex: "monthlyRent",
       key: "monthlyRent",
       align: "right",
-      render: (v: string) => Number(v).toLocaleString("vi-VN"),
+      render: (v: any) => {
+        // Backend đã chuyển đổi Decimal128 sang number
+        if (typeof v === 'number' && !isNaN(v)) {
+          return v.toLocaleString("vi-VN");
+        }
+        return "0";
+      },
     },
     {
       title: "Trạng thái",
@@ -201,14 +269,14 @@ const ContractsAD: React.FC = () => {
       filters: [
         { text: "Đang hiệu lực", value: "ACTIVE" },
         { text: "Đã kết thúc", value: "ENDED" },
-        { text: "Chờ", value: "PENDING" },
+        { text: "Đã hủy", value: "CANCELED" },
       ],
       onFilter: (val, record) => record.status === val,
       render: (s: Contract["status"]) => {
         const map: Record<string, { color: string; text: string }> = {
           ACTIVE: { color: "green", text: "Đang hiệu lực" },
           ENDED: { color: "default", text: "Đã kết thúc" },
-          PENDING: { color: "orange", text: "Chờ" },
+          CANCELED: { color: "red", text: "Đã hủy" },
         };
         const m = map[s] || { color: "blue", text: s };
         return <Tag color={m.color}>{m.text}</Tag>;
@@ -247,7 +315,7 @@ const ContractsAD: React.FC = () => {
         <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
           <Col xs={24} sm={12} md={8} lg={6}>
             <Input.Search
-              placeholder="Tìm theo mã/tenantId/roomId"
+              placeholder="Tìm theo mã/tên người thuê/phòng"
               allowClear
               onSearch={setKeyword}
               onChange={(e) => setKeyword(e.target.value)}
@@ -263,7 +331,7 @@ const ContractsAD: React.FC = () => {
               options={[
                 { label: "Đang hiệu lực", value: "ACTIVE" },
                 { label: "Đã kết thúc", value: "ENDED" },
-                { label: "Chờ", value: "PENDING" },
+                { label: "Đã hủy", value: "CANCELED" },
               ]}
             />
           </Col>
@@ -318,13 +386,53 @@ const ContractsAD: React.FC = () => {
         <Form<ContractFormValues> form={form} layout="vertical">
           <Row gutter={16}>
             <Col xs={24} md={12}>
-              <Form.Item label="Người thuê (tenantId)" name="tenantId" rules={[{ required: true, message: "Nhập tenantId" }]}>
-                <Input placeholder="tenant id" />
+              <Form.Item label="Người thuê" name="tenantId" rules={[{ required: true, message: "Chọn người thuê" }]}>
+                <Select
+                  showSearch
+                  placeholder="Chọn người thuê"
+                  optionFilterProp="children"
+                  filterOption={(input, option: any) => {
+                    const children = option?.children;
+                    if (children && typeof children === 'string') {
+                      return children.toLowerCase().includes(input.toLowerCase());
+                    }
+                    return false;
+                  }}
+                >
+                  {tenants.map((tenant) => (
+                    <Option key={tenant._id} value={tenant._id}>
+                      {tenant.fullName} {tenant.email ? `- ${tenant.email}` : ""}
+                    </Option>
+                  ))}
+                </Select>
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item label="Phòng (roomId)" name="roomId" rules={[{ required: true, message: "Nhập roomId" }]}>
-                <Input placeholder="room id" />
+              <Form.Item label="Phòng" name="roomId" rules={[{ required: true, message: "Chọn phòng" }]}>
+                <Select
+                  showSearch
+                  placeholder="Chọn phòng"
+                  onChange={(roomId) => {
+                    const room = rooms.find(r => r._id === roomId);
+                    if (room && room.pricePerMonth) {
+                      form.setFieldValue('monthlyRent', Number(room.pricePerMonth));
+                    }
+                  }}
+                  optionFilterProp="children"
+                  filterOption={(input, option: any) => {
+                    const children = option?.children;
+                    if (children && typeof children === 'string') {
+                      return children.toLowerCase().includes(input.toLowerCase());
+                    }
+                    return false;
+                  }}
+                >
+                  {rooms.map((room) => (
+                    <Option key={room._id} value={room._id}>
+                      {room.roomNumber} - {room.type} - {Number(room.pricePerMonth || 0).toLocaleString("vi-VN")}₫
+                    </Option>
+                  ))}
+                </Select>
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
@@ -352,7 +460,7 @@ const ContractsAD: React.FC = () => {
                 <Select>
                   <Option value="ACTIVE">Đang hiệu lực</Option>
                   <Option value="ENDED">Đã kết thúc</Option>
-                  <Option value="PENDING">Chờ</Option>
+                  <Option value="CANCELED">Đã hủy</Option>
                 </Select>
               </Form.Item>
             </Col>

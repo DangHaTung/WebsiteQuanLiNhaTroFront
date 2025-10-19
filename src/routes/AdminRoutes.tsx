@@ -18,10 +18,10 @@ const adminRoutes = [
   { path: "register", element: <AdminRegister /> },
   { path: "dashboard", element: <RequireAdmin><Dashboard /></RequireAdmin> },
   { path: "profile", element: <RequireAdmin><Profile /></RequireAdmin> },
-  { path: "bill", element: <RequireAdmin><BillsAD /></RequireAdmin> },
+  { path: "bills", element: <RequireAdmin><BillsAD /></RequireAdmin> },
   { path: "users", element: <RequireAdmin><Users /></RequireAdmin> },
   { path: "contracts", element: <RequireAdmin><ContractsAD /></RequireAdmin> },
-  { path: "rooms", element: <RequireAdmin><RoomsAD /></RequireAdmin> },
+  { path: "roomsAd", element: <RequireAdmin><RoomsAD /></RequireAdmin> },
 ];
 
 export default adminRoutes;

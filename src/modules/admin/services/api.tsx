@@ -8,6 +8,7 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("admin_token");
+    
     if (token) {
       if (config.headers instanceof AxiosHeaders) {
         config.headers.set("Authorization", `Bearer ${token}`);
@@ -24,7 +25,9 @@ api.interceptors.request.use(
 );
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem("admin_token");

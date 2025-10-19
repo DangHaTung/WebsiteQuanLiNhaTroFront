@@ -1,28 +1,34 @@
-export type BillStatus = "PAID" | "UNPAID" | "PARTIALLY_PAID";
+import type { Contract } from "./contract";
+
+export type BillStatus = "PAID" | "UNPAID" | "PARTIALLY_PAID" | "VOID";
 
 export interface BillLineItem {
     item: string;
     quantity: number;
-    unitPrice: string; // kept as string to mirror db.json
-    lineTotal: string; // kept as string to mirror db.json
+    unitPrice: number; // number for API calls
+    lineTotal: number; // number for API calls
 }
 
 export interface BillPayment {
     paidAt: string; // ISO string
-    amount: string; // string to mirror db.json
+    amount: number; // number for API calls
     method: string;
+    provider?: string;
+    transactionId?: string;
     note?: string;
+    metadata?: any;
 }
 
 export interface Bill {
     _id: string;
-    contractId: string;
+    contractId: string | Contract;  // Can be populated
     billingDate: string; // ISO string
     status: BillStatus;
     lineItems: BillLineItem[];
-    amountDue: string; // string in db.json
-    amountPaid: string; // string in db.json
+    amountDue: number; // number for API calls
+    amountPaid: number; // number for API calls
     payments?: BillPayment[];
+    note?: string;
     createdAt?: string;
     updatedAt?: string;
 }

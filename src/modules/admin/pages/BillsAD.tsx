@@ -22,8 +22,10 @@ import {
 import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { Bill, BillStatus } from "../../../types/bill";
+import type { Contract } from "../../../types/contract";
 import dayjs, { Dayjs } from "dayjs";
-import dbData from "../../../../db.json";
+import { adminBillService } from "../services/bill";
+import { adminContractService } from "../services/contract";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -38,6 +40,7 @@ interface BillFormValues {
 
 const BillsAD: React.FC = () => {
     const [bills, setBills] = useState<Bill[]>([]);
+    const [contracts, setContracts] = useState<Contract[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
     const [editing, setEditing] = useState<Bill | null>(null);
@@ -47,16 +50,31 @@ const BillsAD: React.FC = () => {
     const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(null);
 
     useEffect(() => {
-        const list: Bill[] = (dbData as any).bills || [];
-        setBills(list);
-        setLoading(false);
+        loadData();
     }, []);
+
+    const loadData = async () => {
+        try {
+            setLoading(true);
+            const [billsData, contractsData] = await Promise.all([
+                adminBillService.getAll({ limit: 50 }),
+                adminContractService.getAll({ limit: 50 }),
+            ]);
+            setBills(billsData);
+            setContracts(contractsData);
+        } catch (error: any) {
+            message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const openModal = (record?: Bill) => {
         if (record) {
             setEditing(record);
+            const contractId = typeof record.contractId === "string" ? record.contractId : record.contractId?._id;
             form.setFieldsValue({
-                contractId: record.contractId,
+                contractId,
                 billingDate: dayjs(record.billingDate),
                 status: record.status,
                 amountDue: Number(record.amountDue || 0),
@@ -78,44 +96,61 @@ const BillsAD: React.FC = () => {
     const handleSave = async () => {
         try {
             const values = await form.validateFields();
-            const payload: Bill = {
-                _id: editing?._id || Date.now().toString(),
+            const payload: Partial<Bill> = {
                 contractId: values.contractId,
                 billingDate: values.billingDate.toISOString(),
                 status: values.status,
-                amountDue: String(values.amountDue ?? 0),
-                amountPaid: String(values.amountPaid ?? 0),
-                lineItems: editing?.lineItems || [],
-                payments: editing?.payments || [],
-                createdAt: editing?.createdAt || new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
+                amountDue: values.amountDue ?? 0,
+                amountPaid: values.amountPaid ?? 0,
+                lineItems: editing?.lineItems || [{
+                    item: "Tiền thuê phòng",
+                    quantity: 1,
+                    unitPrice: values.amountDue ?? 0,
+                    lineTotal: values.amountDue ?? 0
+                }],
             };
 
             if (editing) {
-                setBills((prev) => prev.map((b) => (b._id === editing._id ? { ...payload } : b)));
+                await adminBillService.update(editing._id, payload);
                 message.success("Cập nhật hóa đơn thành công!");
             } else {
-                setBills((prev) => [...prev, payload]);
+                await adminBillService.create(payload);
                 message.success("Thêm hóa đơn thành công!");
             }
             closeModal();
-        } catch (e) {
-            // validation handled by antd
+            loadData();
+        } catch (error: any) {
+            message.error(error?.response?.data?.message || "Có lỗi xảy ra");
         }
     };
 
-    const handleDelete = (id: string) => {
-        setBills((prev) => prev.filter((b) => b._id !== id));
-        message.success("Đã xóa hóa đơn!");
+    const handleDelete = async (id: string) => {
+        try {
+            await adminBillService.remove(id);
+            message.success("Đã xóa hóa đơn!");
+            loadData();
+        } catch (error: any) {
+            message.error(error?.response?.data?.message || "Lỗi khi xóa hóa đơn");
+        }
+    };
+
+    const getContractInfo = (contractId: string | Contract): string => {
+        if (typeof contractId === "object" && contractId?._id) {
+            return contractId._id;
+        }
+        const contract = contracts.find((c) => c._id === contractId);
+        return contract?._id || (typeof contractId === "string" ? contractId : "N/A");
     };
 
     const filteredBills = useMemo(() => {
         let data = [...bills];
         if (keyword.trim()) {
             const k = keyword.toLowerCase();
-            data = data.filter(
-                (b) => b._id.toLowerCase().includes(k) || b.contractId.toLowerCase().includes(k)
-            );
+            data = data.filter((b) => {
+                const id = b._id.toLowerCase();
+                const contractInfo = getContractInfo(b.contractId).toLowerCase();
+                return id.includes(k) || contractInfo.includes(k);
+            });
         }
         if (statusFilter) data = data.filter((b) => b.status === statusFilter);
         if (dateRange) {
@@ -126,7 +161,7 @@ const BillsAD: React.FC = () => {
             });
         }
         return data;
-    }, [bills, keyword, statusFilter, dateRange]);
+    }, [bills, keyword, statusFilter, dateRange, contracts]);
 
     const total = filteredBills.length;
     const paidCount = useMemo(() => filteredBills.filter((b) => b.status === "PAID").length, [filteredBills]);
@@ -147,8 +182,8 @@ const BillsAD: React.FC = () => {
             title: "Hợp đồng",
             dataIndex: "contractId",
             key: "contractId",
-            render: (v: string) => (
-                <span style={{ whiteSpace: "normal", wordBreak: "break-word" }}>{v}</span>
+            render: (v: string | Contract) => (
+                <span style={{ whiteSpace: "normal", wordBreak: "break-word" }}>{getContractInfo(v)}</span>
             ),
         },
         {
@@ -173,6 +208,7 @@ const BillsAD: React.FC = () => {
                     PAID: { color: "green", text: "Đã thanh toán" },
                     UNPAID: { color: "red", text: "Chưa thanh toán" },
                     PARTIALLY_PAID: { color: "orange", text: "Một phần" },
+                    VOID: { color: "default", text: "Đã hủy" },
                 };
                 const m = map[s];
                 return <Tag color={m.color}>{m.text}</Tag>;
@@ -183,14 +219,26 @@ const BillsAD: React.FC = () => {
             dataIndex: "amountDue",
             key: "amountDue",
             align: "right",
-            render: (v: string) => Number(v).toLocaleString("vi-VN"),
+            render: (v: any) => {
+                // Backend đã chuyển đổi Decimal128 sang number
+                if (typeof v === 'number' && !isNaN(v)) {
+                    return v.toLocaleString("vi-VN");
+                }
+                return "0";
+            },
         },
         {
             title: "Đã thu (₫)",
             dataIndex: "amountPaid",
             key: "amountPaid",
             align: "right",
-            render: (v: string) => Number(v).toLocaleString("vi-VN"),
+            render: (v: any) => {
+                // Backend đã chuyển đổi Decimal128 sang number
+                if (typeof v === 'number' && !isNaN(v)) {
+                    return v.toLocaleString("vi-VN");
+                }
+                return "0";
+            },
         },
         {
             title: "",
@@ -297,8 +345,29 @@ const BillsAD: React.FC = () => {
                 <Form<BillFormValues> form={form} layout="vertical">
                     <Row gutter={16}>
                         <Col xs={24} md={12}>
-                            <Form.Item label="Mã hợp đồng" name="contractId" rules={[{ required: true, message: "Nhập mã hợp đồng" }]}>
-                                <Input placeholder="contract id" />
+                            <Form.Item label="Hợp đồng" name="contractId" rules={[{ required: true, message: "Chọn hợp đồng" }]}>
+                                <Select
+                                    showSearch
+                                    placeholder="Chọn hợp đồng"
+                                    optionFilterProp="children"
+                                    filterOption={(input, option: any) => {
+                                        const children = option?.children;
+                                        if (children && typeof children === 'string') {
+                                            return children.toLowerCase().includes(input.toLowerCase());
+                                        }
+                                        return false;
+                                    }}
+                                >
+                                    {contracts.map((contract) => {
+                                        const tenantName = typeof contract.tenantId === "object" ? contract.tenantId?.fullName : "";
+                                        const roomNumber = typeof contract.roomId === "object" ? contract.roomId?.roomNumber : "";
+                                        return (
+                                            <Option key={contract._id} value={contract._id}>
+                                                {contract._id.substring(0, 8)}... {tenantName && `- ${tenantName}`} {roomNumber && `(${roomNumber})`}
+                                            </Option>
+                                        );
+                                    })}
+                                </Select>
                             </Form.Item>
                         </Col>
                         <Col xs={24} md={12}>
