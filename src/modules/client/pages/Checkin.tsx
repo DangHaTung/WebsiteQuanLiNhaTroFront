@@ -8,6 +8,7 @@ import type { Room } from "../../../types/room";
 import { getRoomById, getAllRooms } from "../services/room";
 import type { CheckinFormData } from "../../../types/bill";
 import { clientAuthService } from "../services/auth";
+import { clientTenantService } from "../services/tenant";
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -91,7 +92,20 @@ const Checkin: React.FC = () => {
   const onFinish = async (values: CheckinFormData) => {
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Tạo tenant với thông tin CCCD/CMND
+      const tenantData = {
+        fullName: values.fullName,
+        phone: values.phone,
+        email: values.email,
+        identityNo: values.idCard, // Lưu CCCD/CMND từ form
+      };
+
+      console.log("Creating tenant with data:", tenantData);
+      
+      // Gọi API tạo tenant
+      const tenant = await clientTenantService.create(tenantData);
+      
+      console.log("Tenant created:", tenant);
       console.log("Checkin form values:", values);
 
       form.resetFields();
@@ -101,9 +115,14 @@ const Checkin: React.FC = () => {
       message.success(
         "Đăng ký check-in thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất."
       );
-    } catch (error) {
+      
+      // Navigate về trang chủ hoặc trang khác
+      navigate("/");
+      
+    } catch (error: any) {
+      console.error("Error creating tenant:", error);
       message.error(
-        "Có lỗi xảy ra khi đăng ký check-in. Vui lòng thử lại!"
+        error?.response?.data?.message || "Có lỗi xảy ra khi đăng ký check-in. Vui lòng thử lại!"
       );
     } finally {
       setLoading(false);
