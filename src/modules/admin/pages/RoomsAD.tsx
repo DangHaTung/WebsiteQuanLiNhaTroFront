@@ -1,9 +1,32 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Table, Button, Space, Tag, Modal, Form, Input, InputNumber, Select, message, Row, Col, Typography, Avatar, Statistic } from "antd";
-import { PlusOutlined, EditOutlined, DeleteOutlined, ApartmentOutlined } from "@ant-design/icons";
+import {
+  Table,
+  Button,
+  Space,
+  Tag,
+  Modal,
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  message,
+  Row,
+  Col,
+  Typography,
+  Avatar,
+  Statistic
+} from "antd";
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  ApartmentOutlined,
+  EyeOutlined,
+} from "@ant-design/icons";
 import { adminRoomService } from "../services/room";
 import type { Room } from "../../../types/room";
 import "../../../assets/styles/roomAd.css";
+import RoomDetailDrawer from "../components/RoomDetailDrawer";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -18,18 +41,31 @@ const RoomsAD: React.FC = () => {
   const [filterType, setFilterType] = useState<Room["type"] | "ALL">("ALL");
   const [filterStatus, setFilterStatus] = useState<Room["status"] | "ALL">("ALL");
 
-  // --- Image upload & preview ---
+  // Image upload & preview
+  const [existingImages, setExistingImages] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
 
+  // Drawer detail
+  const [detailVisible, setDetailVisible] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
-    const filesArray = Array.from(e.target.files);
+    const filesArray = Array.from(e.target.files).filter((f) => f.type.startsWith("image/") && f.size <= 5 * 1024 * 1024);
     setSelectedFiles(filesArray);
 
+    // Preview chỉ show ảnh mới
     const urls = filesArray.map((file) => URL.createObjectURL(file));
-    setPreviewUrls(urls);
+    setPreviewUrls(urls); // ko còn ghép ảnh cũ nữa
   };
+
+  useEffect(() => {
+    fetchRooms();
+    return () => {
+      previewUrls.forEach((u) => URL.revokeObjectURL(u));
+    };
+  }, []);
 
   const fetchRooms = async () => {
     try {
@@ -44,22 +80,15 @@ const RoomsAD: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchRooms();
-  }, []);
-
-  // Modal handlers
   const handleOk = async () => {
     try {
       const values = await form.validateFields();
       const formData = new FormData();
 
-      // Add form fields
       Object.keys(values).forEach((key) => {
-        if (key !== "images") formData.append(key, values[key]);
+        if (key !== "images") formData.append(key, (values as any)[key]);
       });
 
-      // Add images
       selectedFiles.forEach((file) => {
         formData.append("images", file);
       });
@@ -94,15 +123,29 @@ const RoomsAD: React.FC = () => {
 
   const onEdit = (room: Room) => {
     setEditingRoom(room);
-    form.setFieldsValue({ ...room }); // dùng trực tiếp coverImageUrl
+
+    form.setFieldsValue({
+      roomNumber: room.roomNumber,
+      type: room.type,
+      pricePerMonth: room.pricePerMonth,
+      areaM2: room.areaM2,
+      status: room.status,
+      floor: room.floor,
+      district: room.district,
+
+    });
     setIsModalOpen(true);
 
-    // Show existing images
     if (room.images?.length) {
-      setPreviewUrls(room.images.map((img) => img.url));
+      const urls = room.images.map((img) => typeof img === "string" ? img : img.url);
+      setExistingImages(urls);
+      setPreviewUrls(urls); // show preview ban đầu
     } else {
+      setExistingImages([]);
       setPreviewUrls([]);
     }
+
+    setSelectedFiles([]); // reset ảnh mới
   };
 
   const onDelete = (room: Room) => {
@@ -135,24 +178,48 @@ const RoomsAD: React.FC = () => {
     });
   }, [rooms, filterStatus, filterType]);
 
+  const openDetail = (room: Room) => {
+    setSelectedRoom(room);
+    setDetailVisible(true);
+  };
+
+  const closeDetail = () => {
+    setDetailVisible(false);
+    setSelectedRoom(null);
+  };
+
   // Table columns
   const columns = [
     {
       title: "Ảnh",
       dataIndex: "coverImageUrl",
       key: "coverImageUrl",
-      render: (url: string) =>
+      render: (url: string, record: Room) =>
         url ? (
-          <Avatar shape="square" size={64} src={url} className="avatar-hover" />
+          <Avatar
+            shape="square"
+            size={64}
+            src={url}
+            className="avatar-hover"
+            style={{ cursor: "pointer" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              openDetail(record);
+            }}
+          />
         ) : (
-          <Avatar shape="square" size={64} style={{ backgroundColor: "#f0f0f0" }} />
+          <Avatar shape="square" size={64} style={{ backgroundColor: "#f0f0f0", cursor: "pointer" }} onClick={() => openDetail(record)} />
         ),
     },
     {
       title: "Số phòng",
       dataIndex: "roomNumber",
       key: "roomNumber",
-      render: (text: string) => <b>{text}</b>,
+      render: (text: string, record: Room) => (
+        <b style={{ cursor: "pointer" }} onClick={() => openDetail(record)}>
+          {text}
+        </b>
+      ),
     },
     {
       title: "Loại",
@@ -188,9 +255,7 @@ const RoomsAD: React.FC = () => {
       title: "Giá (VNĐ)",
       dataIndex: "pricePerMonth",
       key: "pricePerMonth",
-      render: (price: number) => (
-        <span style={{ color: "#1890ff", fontWeight: 600 }}>{price?.toLocaleString()}</span>
-      ),
+      render: (price: number) => <span style={{ color: "#1890ff", fontWeight: 600 }}>{price?.toLocaleString()}</span>,
     },
     {
       title: "Diện tích (m²)",
@@ -235,8 +300,36 @@ const RoomsAD: React.FC = () => {
       key: "action",
       render: (_: any, record: Room) => (
         <Space>
-          <Button type="primary" icon={<EditOutlined />} shape="circle" onClick={() => onEdit(record)} className="btn-hover" />
-          <Button danger icon={<DeleteOutlined />} shape="circle" onClick={() => onDelete(record)} className="btn-hover" />
+          <Button
+            type="primary"
+            icon={<EditOutlined />}
+            shape="circle"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(record);
+            }}
+            className="btn-hover"
+          />
+          <Button
+            danger
+            icon={<DeleteOutlined />}
+            shape="circle"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(record);
+            }}
+            className="btn-hover"
+          />
+          <Button
+            icon={<EyeOutlined />}
+            shape="circle"
+            onClick={(e) => {
+              e.stopPropagation();
+              openDetail(record);
+            }}
+            className="btn-hover"
+            title="Xem chi tiết"
+          />
         </Space>
       ),
     },
@@ -253,7 +346,19 @@ const RoomsAD: React.FC = () => {
             </Title>
           </Col>
           <Col>
-            <Button type="primary" icon={<PlusOutlined />} size="large" onClick={() => setIsModalOpen(true)} className="btn-hover-gradient">
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              size="large"
+              onClick={() => {
+                form.resetFields();
+                setSelectedFiles([]);
+                setPreviewUrls([]);
+                setEditingRoom(null);
+                setIsModalOpen(true);
+              }}
+              className="btn-hover-gradient"
+            >
               Thêm phòng
             </Button>
           </Col>
@@ -323,10 +428,13 @@ const RoomsAD: React.FC = () => {
           pagination={{ pageSize: 8, showSizeChanger: true, pageSizeOptions: [5, 8, 10, 20] }}
           size="middle"
           rowClassName={() => "hover-row"}
+          onRow={(record) => ({
+            onClick: () => openDetail(record),
+          })}
         />
       </div>
 
-      {/* Modal */}
+      {/* Modal (Add/Edit) */}
       <Modal
         title={editingRoom ? "Chỉnh sửa phòng" : "Thêm phòng"}
         open={isModalOpen}
@@ -399,17 +507,19 @@ const RoomsAD: React.FC = () => {
             <input type="file" accept="image/*" multiple onChange={handleFileChange} />
             <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
               {previewUrls.map((url, idx) => (
-                <img
-                  key={idx}
-                  src={url}
-                  alt={`preview-${idx}`}
-                  style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8 }}
-                />
+                <img key={idx} src={url} alt={`preview-${idx}`} style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8 }} />
               ))}
             </div>
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* Drawer: Detail view */}
+      <RoomDetailDrawer
+        open={detailVisible}
+        onClose={closeDetail}
+        room={selectedRoom}
+      />
     </div>
   );
 };
