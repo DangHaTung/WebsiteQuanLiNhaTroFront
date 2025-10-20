@@ -1,27 +1,85 @@
 import { useEffect, useState } from "react";
-import { Row, Col, Card, Avatar, Button, Tag, Typography, Space, List, Divider, Tabs, Badge, Input, Form, message, Spin, Upload, Modal, type UploadFile } from "antd";
-import { MailOutlined, PhoneOutlined, CalendarOutlined, EditOutlined, LockOutlined, ClockCircleOutlined, SettingOutlined, KeyOutlined, EyeInvisibleOutlined, EyeTwoTone, UploadOutlined } from "@ant-design/icons";
+import {
+    Row,
+    Col,
+    Card,
+    Avatar,
+    Button,
+    Tag,
+    Typography,
+    Space,
+    List,
+    Divider,
+    Tabs,
+    Badge,
+    Input,
+    Form,
+    message,
+    Spin,
+    Upload,
+    Modal,
+    type UploadFile,
+} from "antd";
+import {
+    MailOutlined,
+    PhoneOutlined,
+    CalendarOutlined,
+    EditOutlined,
+    LockOutlined,
+    KeyOutlined,
+    EyeInvisibleOutlined,
+    EyeTwoTone,
+    SettingOutlined,
+    ClockCircleOutlined,
+    UploadOutlined,
+} from "@ant-design/icons";
+
 import "../../../assets/styles/profileAd.css";
-import type { IUser } from "../../../types/profile";
+import type { User } from "../../../types/user";
+import { getProfileForForm, updatePassword, updateProfile } from "../services/profile";
 
 const { Title, Text } = Typography;
 
-const Profile = () => {
-    const [user, setUser] = useState<IUser | null>(null);
-    const [loading, setLoading] = useState<boolean>(true);
-    const [activeTab, setActiveTab] = useState("1");
+const cardStyle = {
+    borderRadius: 16,
+    boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
+};
 
+const Profile = () => {
+    const [user, setUser] = useState<User | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState("1");
+    const [isModalVisible, setIsModalVisible] = useState(false);
+    const [fileList, setFileList] = useState<UploadFile[]>([]);
+    const [form] = Form.useForm();
+
+    // Lấy data admin đang đăng nhập
     useEffect(() => {
-        fetch("http://localhost:3001/users")
-            .then((res) => res.json())
-            .then((data) => {
-                const foundUser = data.find(
-                    (u: IUser) => u._id === "652f1c4a6b0c4f001f1e0a01"
-                );
-                setUser(foundUser || null);
+        const fetchUser = async () => {
+            setLoading(true);
+            try {
+                const data = await getProfileForForm();
+
+                if (!data) {
+                    message.error("Token không hợp lệ hoặc hết hạn. Vui lòng đăng nhập lại.");
+                    return;
+                }
+
+                if (data.role !== "ADMIN") {
+                    message.error("Bạn không có quyền truy cập trang này");
+                    return;
+                }
+
+                setUser(data);
+            } catch (err) {
+                console.error(err);
+                message.error("Lấy thông tin người dùng thất bại");
+            } finally {
                 setLoading(false);
-            })
-            .catch(() => setLoading(false));
+            }
+        };
+
+        fetchUser();
     }, []);
 
     const activities = [
@@ -30,22 +88,65 @@ const Profile = () => {
         { action: "Xem báo cáo doanh thu", time: "10:10 08/10/2025" },
     ];
 
-    const handleUpdatePassword = (values: any) => {
-        message.success("Đổi mật khẩu thành công");
-        console.log("Form submit:", values);
+    const handleUpdatePassword = async (values: any) => {
+        try {
+            await updatePassword({
+                currentPassword: values.currentPassword,
+                newPassword: values.newPassword,
+            });
+            message.success("Đổi mật khẩu thành công");
+            form.resetFields(["currentPassword", "newPassword", "confirmPassword"]);
+        } catch (err: any) {
+            message.error(err.response?.data?.message || "Đổi mật khẩu thất bại");
+        }
     };
 
-    const [isModalVisible, setIsModalVisible] = useState(false);
-    const [fileList, setFileList] = useState<UploadFile[]>([]);
+    // Khi mở Modal, setFieldsValue ở đây → tránh warning
+    const handleOpenModal = () => {
+        form.setFieldsValue({
+            fullName: user?.fullName,
+            phone: user?.phone,
+        });
 
-    const handleOk = () => {
-        message.success("Cập nhật hồ sơ thành công");
-        setIsModalVisible(false);
+        setFileList(
+            user?.avatar
+                ? [
+                    {
+                        uid: "-1",
+                        name: "avatar.png",
+                        status: "done",
+                        url: user.avatar,
+                    },
+                ]
+                : []
+        );
+        setIsModalVisible(true);
     };
 
-    const handleCancel = () => {
-        setIsModalVisible(false);
+    const handleOk = async () => {
+        if (!user) return;
+        try {
+            const values = await form.validateFields();
+
+            const updated = await updateProfile({
+                fullName: values.fullName,
+                phone: values.phone,
+            });
+
+            setUser({
+                ...updated,
+                avatar: user.avatar, // giữ nguyên avatar hiển thị
+            });
+
+            message.success("Cập nhật hồ sơ thành công");
+            setIsModalVisible(false);
+        } catch (err) {
+            console.error(err);
+            message.error("Cập nhật hồ sơ thất bại");
+        }
     };
+
+    const handleCancel = () => setIsModalVisible(false);
 
     if (loading) {
         return (
@@ -71,7 +172,6 @@ const Profile = () => {
                                 <SettingOutlined /> Thông tin cơ bản
                             </span>
                         }
-                        variant="borderless"
                         style={cardStyle}
                     >
                         <Space direction="vertical">
@@ -79,20 +179,18 @@ const Profile = () => {
                                 <MailOutlined /> {user.email}
                             </Text>
                             <Text>
-                                <PhoneOutlined /> {user.phone}
+                                <PhoneOutlined /> {user.phone || "Chưa cập nhật"}
                             </Text>
                             <Text>
                                 <CalendarOutlined /> Ngày tạo:{" "}
-                                {new Date(user.createdAt).toLocaleDateString("vi-VN")}
+                                {user.createdAt
+                                    ? new Date(user.createdAt).toLocaleDateString("vi-VN")
+                                    : "Chưa cập nhật"}
                             </Text>
                         </Space>
                     </Card>
 
-                    <Card
-                        title="Phân quyền & Trạng thái truy cập"
-                        variant="borderless"
-                        style={cardStyle}
-                    >
+                    <Card title="Phân quyền & Trạng thái truy cập" style={cardStyle}>
                         <Text type="secondary">Quyền: {user.role}</Text>
                     </Card>
                 </Space>
@@ -102,23 +200,17 @@ const Profile = () => {
             key: "2",
             label: "Bảo mật",
             children: (
-                <Card variant="borderless" style={cardStyle}>
-                    <Form
-                        layout="vertical"
-                        onFinish={handleUpdatePassword}
-                        style={{ maxWidth: 500 }}
-                    >
+                <Card style={cardStyle}>
+                    <Form layout="vertical" onFinish={handleUpdatePassword} style={{ maxWidth: 500 }}>
                         <Form.Item
                             label="Mật khẩu hiện tại"
-                            name="oldPassword"
+                            name="currentPassword"
                             rules={[{ required: true, message: "Vui lòng nhập mật khẩu hiện tại" }]}
                         >
                             <Input.Password
                                 prefix={<KeyOutlined />}
                                 placeholder="Nhập mật khẩu hiện tại"
-                                iconRender={(visible) =>
-                                    visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
-                                }
+                                iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
                             />
                         </Form.Item>
 
@@ -130,9 +222,7 @@ const Profile = () => {
                             <Input.Password
                                 prefix={<LockOutlined />}
                                 placeholder="Nhập mật khẩu mới"
-                                iconRender={(visible) =>
-                                    visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
-                                }
+                                iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
                             />
                         </Form.Item>
 
@@ -147,9 +237,7 @@ const Profile = () => {
                                         if (!value || getFieldValue("newPassword") === value) {
                                             return Promise.resolve();
                                         }
-                                        return Promise.reject(
-                                            new Error("Mật khẩu xác nhận không khớp")
-                                        );
+                                        return Promise.reject(new Error("Mật khẩu xác nhận không khớp"));
                                     },
                                 }),
                             ]}
@@ -157,9 +245,7 @@ const Profile = () => {
                             <Input.Password
                                 prefix={<LockOutlined />}
                                 placeholder="Xác nhận mật khẩu mới"
-                                iconRender={(visible) =>
-                                    visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />
-                                }
+                                iconRender={(visible) => (visible ? <EyeTwoTone /> : <EyeInvisibleOutlined />)}
                             />
                         </Form.Item>
 
@@ -174,7 +260,7 @@ const Profile = () => {
             key: "3",
             label: "Hoạt động gần đây",
             children: (
-                <Card variant="borderless" style={cardStyle}>
+                <Card style={cardStyle}>
                     <List
                         itemLayout="horizontal"
                         dataSource={activities}
@@ -196,10 +282,8 @@ const Profile = () => {
     return (
         <div style={{ padding: 24 }}>
             <Row gutter={24}>
-                {/* CỘT TRÁI */}
                 <Col xs={24} md={8}>
                     <Card
-                        variant="borderless"
                         style={{
                             textAlign: "center",
                             borderRadius: 16,
@@ -222,7 +306,13 @@ const Profile = () => {
                         <Divider />
 
                         <Space direction="vertical" style={{ width: "100%" }}>
-                            <Button icon={<EditOutlined />} type="primary" className="btn-hover" block onClick={() => setIsModalVisible(true)}>
+                            <Button
+                                icon={<EditOutlined />}
+                                type="primary"
+                                className="btn-hover"
+                                block
+                                onClick={handleOpenModal}
+                            >
                                 Chỉnh sửa hồ sơ
                             </Button>
                             <Modal
@@ -235,12 +325,12 @@ const Profile = () => {
                                 okButtonProps={{ className: "btn-hover" }}
                                 cancelButtonProps={{ className: "btn-hover cancel-btn" }}
                             >
-                                <Form layout="vertical">
-                                    <Form.Item label="Họ và tên" name="fullName" initialValue={user.fullName}>
+                                <Form form={form} layout="vertical">
+                                    <Form.Item label="Họ và tên" name="fullName">
                                         <Input />
                                     </Form.Item>
 
-                                    <Form.Item label="Số điện thoại" name="phone" initialValue={user.phone}>
+                                    <Form.Item label="Số điện thoại" name="phone">
                                         <Input />
                                     </Form.Item>
 
@@ -249,8 +339,11 @@ const Profile = () => {
                                             listType="picture"
                                             fileList={fileList}
                                             onChange={({ fileList }) => setFileList(fileList)}
+                                            maxCount={1}
                                         >
-                                            <Button icon={<UploadOutlined />} className="btn-hover">Tải ảnh lên</Button>
+                                            <Button icon={<UploadOutlined />} className="btn-hover">
+                                                Tải ảnh lên
+                                            </Button>
                                         </Upload>
                                     </Form.Item>
                                 </Form>
@@ -259,7 +352,6 @@ const Profile = () => {
                     </Card>
                 </Col>
 
-                {/* CỘT PHẢI */}
                 <Col xs={24} md={16}>
                     <Tabs
                         activeKey={activeTab}
@@ -277,11 +369,6 @@ const Profile = () => {
             </Row>
         </div>
     );
-};
-
-const cardStyle = {
-    borderRadius: 16,
-    boxShadow: "0 4px 20px rgba(0,0,0,0.05)",
 };
 
 export default Profile;
