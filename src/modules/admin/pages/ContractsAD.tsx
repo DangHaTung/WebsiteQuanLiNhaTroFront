@@ -1,10 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Button,
-  Card,
   DatePicker,
   Form,
-  Input,
   InputNumber,
   Modal,
   Popconfirm,
@@ -19,7 +17,7 @@ import {
   Col,
   Statistic,
 } from "antd";
-import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import { PlusOutlined, EditOutlined, DeleteOutlined, FileTextOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { Contract } from "../../../types/contract";
 import type { Tenant } from "../../../types/tenant";
@@ -28,6 +26,7 @@ import dayjs, { Dayjs } from "dayjs";
 import { adminContractService } from "../services/contract";
 import { adminTenantService } from "../services/tenant";
 import { adminRoomService } from "../services/room";
+import ContractDetailDrawer from "../components/ContractDetailDrawer";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -50,9 +49,11 @@ const ContractsAD: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [editing, setEditing] = useState<Contract | null>(null);
   const [form] = Form.useForm<ContractFormValues>();
-  const [keyword, setKeyword] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
-  const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string | "ALL">("ALL");
+
+  // Drawer detail
+  const [detailVisible, setDetailVisible] = useState(false);
+  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
 
   useEffect(() => {
     loadData();
@@ -164,38 +165,25 @@ const ContractsAD: React.FC = () => {
 
   const filteredContracts = useMemo(() => {
     let data = [...contracts];
-    if (keyword.trim()) {
-      const k = keyword.toLowerCase();
-      data = data.filter((c) => {
-        const id = c._id.toLowerCase();
-        const tenantName = getTenantName(c.tenantId).toLowerCase();
-        const roomNumber = getRoomNumber(c.roomId).toLowerCase();
-        return id.includes(k) || tenantName.includes(k) || roomNumber.includes(k);
-      });
-    }
-    if (statusFilter) {
+    if (statusFilter && statusFilter !== "ALL") {
       data = data.filter((c) => c.status === statusFilter);
     }
-    if (dateRange) {
-      const [start, end] = dateRange;
-      data = data.filter((c) => {
-        const s = dayjs(c.startDate);
-        return s.isAfter(start.startOf("day")) && s.isBefore(end.endOf("day"));
-      });
-    }
     return data;
-  }, [contracts, keyword, statusFilter, dateRange, tenants, rooms]);
+  }, [contracts, statusFilter]);
 
-  const total = filteredContracts.length;
   const activeCount = useMemo(() => filteredContracts.filter((c) => c.status === "ACTIVE").length, [filteredContracts]);
-  const totalMonthly = useMemo(
-    () => filteredContracts.reduce((sum, c) => {
-      // Backend đã chuyển đổi Decimal128 sang number, chỉ cần kiểm tra NaN
-      const rent = typeof c.monthlyRent === 'number' && !isNaN(c.monthlyRent) ? c.monthlyRent : 0;
-      return sum + rent;
-    }, 0),
-    [filteredContracts]
-  );
+  const endedCount = useMemo(() => filteredContracts.filter((c) => c.status === "ENDED").length, [filteredContracts]);
+  const canceledCount = useMemo(() => filteredContracts.filter((c) => c.status === "CANCELED").length, [filteredContracts]);
+
+  const openDetail = (contract: Contract) => {
+    setSelectedContract(contract);
+    setDetailVisible(true);
+  };
+
+  const closeDetail = () => {
+    setDetailVisible(false);
+    setSelectedContract(null);
+  };
 
   const columns: ColumnsType<Contract> = [
     {
@@ -203,8 +191,10 @@ const ContractsAD: React.FC = () => {
       dataIndex: "_id",
       key: "_id",
       width: 160,
-      render: (v: string) => (
-        <span style={{ whiteSpace: "normal", wordBreak: "break-word" }}>{v}</span>
+      render: (v: string, record: Contract) => (
+        <b style={{ cursor: "pointer" }} onClick={() => openDetail(record)}>
+          {v.substring(0, 8)}...
+        </b>
       ),
     },
     {
@@ -303,65 +293,107 @@ const ContractsAD: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24, background: "#f9fafc", minHeight: "100vh" }}>
-      <Card bordered={false} style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.05)", borderRadius: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <Title level={3} style={{ margin: 0 }}>Quản lý hợp đồng</Title>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()} style={{ borderRadius: 6, boxShadow: "0 2px 6px rgba(0,0,0,0.15)" }}>
-            Thêm hợp đồng
-          </Button>
-        </div>
-
-        <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-          <Col xs={24} sm={12} md={8} lg={6}>
-            <Input.Search
-              placeholder="Tìm theo mã/tên người thuê/phòng"
-              allowClear
-              onSearch={setKeyword}
-              onChange={(e) => setKeyword(e.target.value)}
-            />
+    <div style={{ padding: 24, background: "#f0f2f5", minHeight: "100vh" }}>
+      <div style={{ background: "#fff", padding: 24, borderRadius: 16, boxShadow: "0 8px 24px rgba(0,0,0,0.08)" }}>
+        {/* Header */}
+        <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
+          <Col>
+            <Title level={3} style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+              <FileTextOutlined style={{ color: "#1890ff", fontSize: 28 }} /> Quản lý Hợp đồng
+            </Title>
           </Col>
-          <Col xs={24} sm={12} md={8} lg={6}>
-            <Select
-              allowClear
-              placeholder="Lọc trạng thái"
-              style={{ width: "100%" }}
-              value={statusFilter}
-              onChange={(v) => setStatusFilter(v)}
-              options={[
-                { label: "Đang hiệu lực", value: "ACTIVE" },
-                { label: "Đã kết thúc", value: "ENDED" },
-                { label: "Đã hủy", value: "CANCELED" },
-              ]}
-            />
-          </Col>
-          <Col xs={24} sm={24} md={8} lg={8}>
-            <DatePicker.RangePicker
-              style={{ width: "100%" }}
-              format="DD/MM/YYYY"
-              onChange={(v) => setDateRange(v as any)}
-            />
-          </Col>
-          <Col xs={24} sm={24} md={24} lg={4}>
-            <Row gutter={16}>
-              <Col span={12}>
-                <Statistic title="Tổng HĐ" value={total} />
-              </Col>
-              <Col span={12}>
-                <Statistic title="Đang hiệu lực" value={activeCount} valueStyle={{ color: "#52c41a" }} />
-              </Col>
-            </Row>
+          <Col>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              size="large"
+              onClick={() => openModal()}
+            >
+              Thêm hợp đồng
+            </Button>
           </Col>
         </Row>
 
-        <Row gutter={16} style={{ marginBottom: 12 }}>
-          <Col span={24}>
-            <Statistic title="Tổng tiền thuê/tháng (lọc)" value={totalMonthly} suffix="₫" valueRender={() => (
-              <span style={{ fontWeight: 600 }}>{Number(totalMonthly).toLocaleString("vi-VN")}₫</span>
-            )} />
+        {/* Statistic */}
+        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+          <Col xs={24} sm={12} md={6}>
+            <div style={{ 
+              background: "#fff", 
+              padding: 20, 
+              borderRadius: 12, 
+              textAlign: "center", 
+              cursor: "pointer",
+              border: "1px solid #e8e8e8",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
+            }} onClick={() => setStatusFilter("ACTIVE")}>
+              <FileTextOutlined style={{ fontSize: 28, color: "#52c41a", marginBottom: 8 }} />
+              <Statistic title="Đang hiệu lực" value={activeCount} valueStyle={{ color: "#52c41a", fontWeight: 600 }} />
+            </div>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <div style={{ 
+              background: "#fff", 
+              padding: 20, 
+              borderRadius: 12, 
+              textAlign: "center", 
+              cursor: "pointer",
+              border: "1px solid #e8e8e8",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
+            }} onClick={() => setStatusFilter("ENDED")}>
+              <FileTextOutlined style={{ fontSize: 28, color: "#8c8c8c", marginBottom: 8 }} />
+              <Statistic title="Đã kết thúc" value={endedCount} valueStyle={{ color: "#8c8c8c", fontWeight: 600 }} />
+            </div>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <div style={{ 
+              background: "#fff", 
+              padding: 20, 
+              borderRadius: 12, 
+              textAlign: "center", 
+              cursor: "pointer",
+              border: "1px solid #e8e8e8",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
+            }} onClick={() => setStatusFilter("CANCELED")}>
+              <FileTextOutlined style={{ fontSize: 28, color: "#ff4d4f", marginBottom: 8 }} />
+              <Statistic title="Đã hủy" value={canceledCount} valueStyle={{ color: "#ff4d4f", fontWeight: 600 }} />
+            </div>
+          </Col>
+          <Col xs={24} sm={12} md={6}>
+            <div style={{ 
+              background: "#fff", 
+              padding: 20, 
+              borderRadius: 12, 
+              border: "1px solid #e8e8e8",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center"
+            }}>
+              <span style={{ fontWeight: 600, marginBottom: 8 }}>Trạng thái:</span>
+              {["ACTIVE", "ENDED", "CANCELED"].map((status) => (
+                <Tag
+                  key={status}
+                  color={statusFilter === status ? "blue" : "default"}
+                  onClick={() => setStatusFilter(status)}
+                  style={{ cursor: "pointer", marginBottom: 6 }}
+                >
+                  {status === "ACTIVE" ? "Đang hiệu lực" :
+                   status === "ENDED" ? "Đã kết thúc" : "Đã hủy"}
+                </Tag>
+              ))}
+              <Tag
+                color={statusFilter === "ALL" ? "blue" : "default"}
+                onClick={() => setStatusFilter("ALL")}
+                style={{ cursor: "pointer", marginBottom: 6 }}
+              >
+                Tất cả
+              </Tag>
+            </div>
           </Col>
         </Row>
 
+
+        {/* Table */}
         <Table<Contract>
           columns={columns}
           dataSource={filteredContracts}
@@ -369,10 +401,13 @@ const ContractsAD: React.FC = () => {
           loading={loading}
           pagination={{ pageSize: 8, showSizeChanger: true, pageSizeOptions: [5, 8, 10, 20] }}
           size="middle"
-          style={{ background: "white", borderRadius: 8 }}
+          onRow={(record) => ({
+            onClick: () => openDetail(record),
+          })}
         />
-      </Card>
+      </div>
 
+      {/* Modal (Add/Edit) */}
       <Modal
         title={editing ? "Chỉnh sửa hợp đồng" : "Thêm hợp đồng"}
         open={isModalOpen}
@@ -382,6 +417,7 @@ const ContractsAD: React.FC = () => {
         cancelText="Hủy"
         width={640}
         centered
+        okButtonProps={{ style: { background: "#1890ff", borderColor: "#1890ff" } }}
       >
         <Form<ContractFormValues> form={form} layout="vertical">
           <Row gutter={16}>
@@ -467,8 +503,18 @@ const ContractsAD: React.FC = () => {
           </Row>
         </Form>
       </Modal>
+
+      {/* Drawer: Detail view */}
+      <ContractDetailDrawer
+        open={detailVisible}
+        onClose={closeDetail}
+        contract={selectedContract}
+        tenants={tenants}
+        rooms={rooms}
+      />
     </div>
   );
 };
 
 export default ContractsAD;
+

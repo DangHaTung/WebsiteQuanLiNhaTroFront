@@ -1,10 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
     Button,
-    Card,
     DatePicker,
     Form,
-    Input,
     InputNumber,
     Modal,
     Popconfirm,
@@ -19,13 +17,18 @@ import {
     Col,
     Statistic,
 } from "antd";
-import { PlusOutlined, EditOutlined, DeleteOutlined } from "@ant-design/icons";
+import { PlusOutlined, EditOutlined, DeleteOutlined, FileTextOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { Bill, BillStatus } from "../../../types/bill";
 import type { Contract } from "../../../types/contract";
+import type { Tenant } from "../../../types/tenant";
+import type { Room } from "../../../types/room";
 import dayjs, { Dayjs } from "dayjs";
 import { adminBillService } from "../services/bill";
 import { adminContractService } from "../services/contract";
+import { adminTenantService } from "../services/tenant";
+import { adminRoomService } from "../services/room";
+import BillDetailDrawer from "../components/BillDetailDrawer";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -41,13 +44,17 @@ interface BillFormValues {
 const BillsAD: React.FC = () => {
     const [bills, setBills] = useState<Bill[]>([]);
     const [contracts, setContracts] = useState<Contract[]>([]);
+    const [tenants, setTenants] = useState<Tenant[]>([]);
+    const [rooms, setRooms] = useState<Room[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
     const [editing, setEditing] = useState<Bill | null>(null);
     const [form] = Form.useForm<BillFormValues>();
-    const [keyword, setKeyword] = useState<string>("");
-    const [statusFilter, setStatusFilter] = useState<BillStatus | undefined>(undefined);
-    const [dateRange, setDateRange] = useState<[Dayjs, Dayjs] | null>(null);
+    const [statusFilter, setStatusFilter] = useState<BillStatus | "ALL">("ALL");
+
+    // Drawer detail
+    const [detailVisible, setDetailVisible] = useState(false);
+    const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
 
     useEffect(() => {
         loadData();
@@ -56,12 +63,16 @@ const BillsAD: React.FC = () => {
     const loadData = async () => {
         try {
             setLoading(true);
-            const [billsData, contractsData] = await Promise.all([
+            const [billsData, contractsData, tenantsData, roomsData] = await Promise.all([
                 adminBillService.getAll({ limit: 50 }),
-                adminContractService.getAll({ limit: 50 }),
+                adminContractService.getAll({ limit: 100 }), // Tăng limit để đảm bảo load đủ contracts
+                adminTenantService.getAll({ limit: 50 }),
+                adminRoomService.getAll(),
             ]);
             setBills(billsData);
             setContracts(contractsData);
+            setTenants(tenantsData);
+            setRooms(roomsData);
         } catch (error: any) {
             message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu");
         } finally {
@@ -144,29 +155,23 @@ const BillsAD: React.FC = () => {
 
     const filteredBills = useMemo(() => {
         let data = [...bills];
-        if (keyword.trim()) {
-            const k = keyword.toLowerCase();
-            data = data.filter((b) => {
-                const id = b._id.toLowerCase();
-                const contractInfo = getContractInfo(b.contractId).toLowerCase();
-                return id.includes(k) || contractInfo.includes(k);
-            });
-        }
-        if (statusFilter) data = data.filter((b) => b.status === statusFilter);
-        if (dateRange) {
-            const [start, end] = dateRange;
-            data = data.filter((b) => {
-                const d = dayjs(b.billingDate);
-                return d.isAfter(start.startOf("day")) && d.isBefore(end.endOf("day"));
-            });
-        }
+        if (statusFilter && statusFilter !== "ALL") data = data.filter((b) => b.status === statusFilter);
         return data;
-    }, [bills, keyword, statusFilter, dateRange, contracts]);
+    }, [bills, statusFilter]);
 
-    const total = filteredBills.length;
     const paidCount = useMemo(() => filteredBills.filter((b) => b.status === "PAID").length, [filteredBills]);
-    const totalDue = useMemo(() => filteredBills.reduce((s, b) => s + Number(b.amountDue || 0), 0), [filteredBills]);
-    const totalPaid = useMemo(() => filteredBills.reduce((s, b) => s + Number(b.amountPaid || 0), 0), [filteredBills]);
+    const unpaidCount = useMemo(() => filteredBills.filter((b) => b.status === "UNPAID").length, [filteredBills]);
+    const partiallyPaidCount = useMemo(() => filteredBills.filter((b) => b.status === "PARTIALLY_PAID").length, [filteredBills]);
+
+    const openDetail = (bill: Bill) => {
+        setSelectedBill(bill);
+        setDetailVisible(true);
+    };
+
+    const closeDetail = () => {
+        setDetailVisible(false);
+        setSelectedBill(null);
+    };
 
     const columns: ColumnsType<Bill> = [
         {
@@ -174,8 +179,10 @@ const BillsAD: React.FC = () => {
             dataIndex: "_id",
             key: "_id",
             width: 160,
-            render: (v: string) => (
-                <span style={{ whiteSpace: "normal", wordBreak: "break-word" }}>{v}</span>
+            render: (v: string, record: Bill) => (
+                <b style={{ cursor: "pointer" }} onClick={() => openDetail(record)}>
+                    {v.substring(0, 8)}...
+                </b>
             ),
         },
         {
@@ -261,66 +268,107 @@ const BillsAD: React.FC = () => {
     ];
 
     return (
-        <div style={{ padding: 24, background: "#f9fafc", minHeight: "100vh" }}>
-            <Card bordered={false} style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.05)", borderRadius: 12 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-                    <Title level={3} style={{ margin: 0 }}>Quản lý hóa đơn</Title>
-                    <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal()} style={{ borderRadius: 6, boxShadow: "0 2px 6px rgba(0,0,0,0.15)" }}>
-                        Thêm hóa đơn
-                    </Button>
-                </div>
-
-                <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
-                    <Col xs={24} sm={12} md={8} lg={6}>
-                        <Input.Search
-                            placeholder="Tìm theo mã hóa đơn/hợp đồng"
-                            allowClear
-                            onSearch={setKeyword}
-                            onChange={(e) => setKeyword(e.target.value)}
-                        />
+        <div style={{ padding: 24, background: "#f0f2f5", minHeight: "100vh" }}>
+            <div style={{ background: "#fff", padding: 24, borderRadius: 16, boxShadow: "0 8px 24px rgba(0,0,0,0.08)" }}>
+                {/* Header */}
+                <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
+                    <Col>
+                        <Title level={3} style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+                            <FileTextOutlined style={{ color: "#1890ff", fontSize: 28 }} /> Quản lý Hóa đơn
+                        </Title>
                     </Col>
-                    <Col xs={24} sm={12} md={8} lg={6}>
-                        <Select
-                            allowClear
-                            placeholder="Lọc tình trạng"
-                            style={{ width: "100%" }}
-                            value={statusFilter}
-                            onChange={(v) => setStatusFilter(v as BillStatus)}
-                            options={[
-                                { label: "Đã thanh toán", value: "PAID" },
-                                { label: "Chưa thanh toán", value: "UNPAID" },
-                                { label: "Thanh toán một phần", value: "PARTIALLY_PAID" },
-                            ]}
-                        />
-                    </Col>
-                    <Col xs={24} sm={24} md={8} lg={8}>
-                        <DatePicker.RangePicker style={{ width: "100%" }} format="DD/MM/YYYY" onChange={(v) => setDateRange(v as any)} />
-                    </Col>
-                    <Col xs={24} sm={24} md={24} lg={4}>
-                        <Row gutter={16}>
-                            <Col span={12}>
-                                <Statistic title="Tổng HĐơn" value={total} />
-                            </Col>
-                            <Col span={12}>
-                                <Statistic title="Đã thanh toán" value={paidCount} valueStyle={{ color: "#52c41a" }} />
-                            </Col>
-                        </Row>
+                    <Col>
+                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            size="large"
+                            onClick={() => openModal()}
+                        >
+                            Thêm hóa đơn
+                        </Button>
                     </Col>
                 </Row>
 
-                <Row gutter={16} style={{ marginBottom: 12 }}>
-                    <Col xs={24} md={12}>
-                        <Statistic title="Tổng phải thu (lọc)" value={totalDue} suffix="₫" valueRender={() => (
-                            <span style={{ fontWeight: 600 }}>{Number(totalDue).toLocaleString("vi-VN")}₫</span>
-                        )} />
+                {/* Statistic */}
+                <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                    <Col xs={24} sm={12} md={6}>
+                        <div style={{ 
+                            background: "#fff", 
+                            padding: 20, 
+                            borderRadius: 12, 
+                            textAlign: "center", 
+                            cursor: "pointer",
+                            border: "1px solid #e8e8e8",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
+                        }} onClick={() => setStatusFilter("PAID")}>
+                            <FileTextOutlined style={{ fontSize: 28, color: "#52c41a", marginBottom: 8 }} />
+                            <Statistic title="Đã thanh toán" value={paidCount} valueStyle={{ color: "#52c41a", fontWeight: 600 }} />
+                        </div>
                     </Col>
-                    <Col xs={24} md={12}>
-                        <Statistic title="Tổng đã thu (lọc)" value={totalPaid} suffix="₫" valueRender={() => (
-                            <span style={{ fontWeight: 600 }}>{Number(totalPaid).toLocaleString("vi-VN")}₫</span>
-                        )} />
+                    <Col xs={24} sm={12} md={6}>
+                        <div style={{ 
+                            background: "#fff", 
+                            padding: 20, 
+                            borderRadius: 12, 
+                            textAlign: "center", 
+                            cursor: "pointer",
+                            border: "1px solid #e8e8e8",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
+                        }} onClick={() => setStatusFilter("UNPAID")}>
+                            <FileTextOutlined style={{ fontSize: 28, color: "#ff4d4f", marginBottom: 8 }} />
+                            <Statistic title="Chưa thanh toán" value={unpaidCount} valueStyle={{ color: "#ff4d4f", fontWeight: 600 }} />
+                        </div>
+                    </Col>
+                    <Col xs={24} sm={12} md={6}>
+                        <div style={{ 
+                            background: "#fff", 
+                            padding: 20, 
+                            borderRadius: 12, 
+                            textAlign: "center", 
+                            cursor: "pointer",
+                            border: "1px solid #e8e8e8",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
+                        }} onClick={() => setStatusFilter("PARTIALLY_PAID")}>
+                            <FileTextOutlined style={{ fontSize: 28, color: "#fa8c16", marginBottom: 8 }} />
+                            <Statistic title="Một phần" value={partiallyPaidCount} valueStyle={{ color: "#fa8c16", fontWeight: 600 }} />
+                        </div>
+                    </Col>
+                    <Col xs={24} sm={12} md={6}>
+                        <div style={{ 
+                            background: "#fff", 
+                            padding: 20, 
+                            borderRadius: 12, 
+                            border: "1px solid #e8e8e8",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
+                            display: "flex",
+                            flexDirection: "column",
+                            alignItems: "center"
+                        }}>
+                            <span style={{ fontWeight: 600, marginBottom: 8 }}>Tình trạng:</span>
+                            {["PAID", "UNPAID", "PARTIALLY_PAID"].map((status) => (
+                                <Tag
+                                    key={status}
+                                    color={statusFilter === status ? "blue" : "default"}
+                                    onClick={() => setStatusFilter(status as BillStatus)}
+                                    style={{ cursor: "pointer", marginBottom: 6 }}
+                                >
+                                    {status === "PAID" ? "Đã thanh toán" :
+                                     status === "UNPAID" ? "Chưa thanh toán" : "Một phần"}
+                                </Tag>
+                            ))}
+                            <Tag
+                                color={statusFilter === "ALL" ? "blue" : "default"}
+                                onClick={() => setStatusFilter("ALL")}
+                                style={{ cursor: "pointer", marginBottom: 6 }}
+                            >
+                                Tất cả
+                            </Tag>
+                        </div>
                     </Col>
                 </Row>
 
+
+                {/* Table */}
                 <Table<Bill>
                     columns={columns}
                     dataSource={filteredBills}
@@ -328,10 +376,13 @@ const BillsAD: React.FC = () => {
                     loading={loading}
                     pagination={{ pageSize: 8, showSizeChanger: true, pageSizeOptions: [5, 8, 10, 20] }}
                     size="middle"
-                    style={{ background: "white", borderRadius: 8 }}
+                    onRow={(record) => ({
+                        onClick: () => openDetail(record),
+                    })}
                 />
-            </Card>
+            </div>
 
+            {/* Modal (Add/Edit) */}
             <Modal
                 title={editing ? "Chỉnh sửa hóa đơn" : "Thêm hóa đơn"}
                 open={isModalOpen}
@@ -341,6 +392,7 @@ const BillsAD: React.FC = () => {
                 cancelText="Hủy"
                 width={640}
                 centered
+                okButtonProps={{ style: { background: "#1890ff", borderColor: "#1890ff" } }}
             >
                 <Form<BillFormValues> form={form} layout="vertical">
                     <Row gutter={16}>
@@ -397,8 +449,19 @@ const BillsAD: React.FC = () => {
                     </Row>
                 </Form>
             </Modal>
+
+            {/* Drawer: Detail view */}
+            <BillDetailDrawer
+                open={detailVisible}
+                onClose={closeDetail}
+                bill={selectedBill}
+                contracts={contracts}
+                tenants={tenants}
+                rooms={rooms}
+            />
         </div>
     );
 };
 
 export default BillsAD;
+

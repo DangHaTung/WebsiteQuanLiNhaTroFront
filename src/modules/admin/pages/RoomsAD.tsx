@@ -21,7 +21,6 @@ import {
   EditOutlined,
   DeleteOutlined,
   ApartmentOutlined,
-  EyeOutlined,
 } from "@ant-design/icons";
 import { adminRoomService } from "../services/room";
 import type { Room } from "../../../types/room";
@@ -42,7 +41,6 @@ const RoomsAD: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<Room["status"] | "ALL">("ALL");
 
   // Image upload & preview
-  const [existingImages, setExistingImages] = useState<string[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
 
@@ -137,11 +135,9 @@ const RoomsAD: React.FC = () => {
     setIsModalOpen(true);
 
     if (room.images?.length) {
-      const urls = room.images.map((img) => typeof img === "string" ? img : img.url);
-      setExistingImages(urls);
+      const urls = room.images.map((img) => typeof img === "string" ? img : (img as any).url);
       setPreviewUrls(urls); // show preview ban đầu
     } else {
-      setExistingImages([]);
       setPreviewUrls([]);
     }
 
@@ -192,24 +188,35 @@ const RoomsAD: React.FC = () => {
   const columns = [
     {
       title: "Ảnh",
-      dataIndex: "coverImageUrl",
-      key: "coverImageUrl",
-      render: (url: string, record: Room) =>
-        url ? (
+      dataIndex: "image",
+      key: "image",
+      render: (imageUrl: string, record: Room) => {
+        // Ưu tiên image, sau đó lấy ảnh đầu tiên từ images array
+        const displayImage = imageUrl || (record.images && record.images.length > 0 ? record.images[0] : null);
+        
+        return displayImage ? (
           <Avatar
             shape="square"
             size={64}
-            src={url}
+            src={displayImage}
             className="avatar-hover"
             style={{ cursor: "pointer" }}
             onClick={(e) => {
-              e.stopPropagation();
+              e?.stopPropagation();
               openDetail(record);
             }}
           />
         ) : (
-          <Avatar shape="square" size={64} style={{ backgroundColor: "#f0f0f0", cursor: "pointer" }} onClick={() => openDetail(record)} />
-        ),
+          <Avatar 
+            shape="square" 
+            size={64} 
+            style={{ backgroundColor: "#f0f0f0", cursor: "pointer" }} 
+            onClick={() => openDetail(record)}
+          >
+            <ApartmentOutlined style={{ fontSize: 24, color: "#999" }} />
+          </Avatar>
+        );
+      },
     },
     {
       title: "Số phòng",
@@ -305,7 +312,7 @@ const RoomsAD: React.FC = () => {
             icon={<EditOutlined />}
             shape="circle"
             onClick={(e) => {
-              e.stopPropagation();
+              e?.stopPropagation();
               onEdit(record);
             }}
             className="btn-hover"
@@ -315,20 +322,10 @@ const RoomsAD: React.FC = () => {
             icon={<DeleteOutlined />}
             shape="circle"
             onClick={(e) => {
-              e.stopPropagation();
+              e?.stopPropagation();
               onDelete(record);
             }}
             className="btn-hover"
-          />
-          <Button
-            icon={<EyeOutlined />}
-            shape="circle"
-            onClick={(e) => {
-              e.stopPropagation();
-              openDetail(record);
-            }}
-            className="btn-hover"
-            title="Xem chi tiết"
           />
         </Space>
       ),
