@@ -20,10 +20,6 @@
   transform: scale(1.1);
 }
 
-.content-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 30px rgba(0,0,0,0.12);
-}
 /* Gradient động sidebar */
 @keyframes gradientAnimation {
   0% { background-position: 0% 50%; }

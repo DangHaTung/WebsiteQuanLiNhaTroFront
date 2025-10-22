@@ -144,7 +144,13 @@ const Navbar: React.FC = () => {
               enterButton={<SearchOutlined />}
               size="large"
               allowClear
-              onSearch={(value) => console.log("Search:", value)}
+              onSearch={(value) => {
+                if (value.trim()) {
+                  navigate(`/rooms?q=${encodeURIComponent(value)}`);
+                } else {
+                  navigate("/rooms");
+                }
+              }}
             />
           </div>
 

@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { Carousel, Row, Col, Card, Button, Typography, Tag, Spin } from "antd";
+import { Carousel, Row, Col, Card, Button, Typography, Spin, message } from "antd";
 import {
   HomeOutlined,
-  FullscreenOutlined,
   ToolOutlined,
   CalendarOutlined,
   GiftOutlined,
@@ -13,10 +12,10 @@ import type { Post } from "../../../types/post";
 import RoomCard from "../components/RoomCard";
 import "../../../assets/styles/home.css";
 
-import dbData from "../../../../db.json";
 import banner1 from "../../../assets/images/banner1.png";
 import banner2 from "../../../assets/images/banner2.png";
 import banner3 from "../../../assets/images/banner3.png";
+import { getAllRooms } from "../services/room";
 
 const { Title } = Typography;
 
@@ -27,53 +26,24 @@ const Home: React.FC = () => {
   const [loadingPosts, setLoadingPosts] = useState<boolean>(true);
 
   useEffect(() => {
-    // Load rooms from db.json
-    const roomsData: Room[] = dbData.rooms.map((room: any) => {
-      const rawId: any = room._id;
-      const idStr =
-        typeof rawId === "string"
-          ? rawId
-          : typeof rawId === "number"
-          ? String(rawId)
-          : rawId && typeof rawId === "object" && typeof rawId.$oid === "string"
-          ? rawId.$oid
-          : String(rawId);
+    const fetchRooms = async () => {
+      try {
+        setLoading(true);
+        const data = await getAllRooms();
+        setRooms(data.slice(0, 8));
+      } catch (error) {
+        console.error("Lỗi khi tải phòng:", error);
+        message.error("Không thể tải danh sách phòng!");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-      const createdAt =
-        typeof room.createdAt === "string"
-          ? room.createdAt
-          : room.createdAt && typeof room.createdAt.$date === "string"
-          ? room.createdAt.$date
-          : new Date().toISOString();
-      const updatedAt = typeof room.updatedAt === "string" ? room.updatedAt : new Date().toISOString();
-
-      const imagesArr: string[] = Array.isArray(room.images)
-        ? room.images.map((it: any) => (typeof it === "string" ? it : it?.url)).filter(Boolean)
-        : [];
-      const imageUrl: string = room.coverImageUrl || room.image || imagesArr[0] || "/no-image.jpg";
-
-      return {
-        _id: idStr,
-        roomNumber: room.roomNumber,
-        type: room.type as "SINGLE" | "DOUBLE" | "STUDIO" | "VIP" | "DORM",
-        pricePerMonth: Number(room.pricePerMonth),
-        areaM2: room.areaM2,
-        floor: room.floor,
-        district: room.district,
-        status: room.status as "OCCUPIED" | "AVAILABLE" | "MAINTENANCE",
-        image: imageUrl,
-        images: imagesArr,
-        createdAt,
-        updatedAt,
-      } as Room;
-    });
-
-    setRooms(roomsData);
-    setLoading(false);
+    fetchRooms();
   }, []);
 
   useEffect(() => {
-    // For now, db.json chưa có posts nên tạo tạm mảng rỗng
+    // db.json chưa có posts nên tạo tạm mảng rỗng
     setPosts([]);
     setLoadingPosts(false);
   }, []);
@@ -102,8 +72,8 @@ const Home: React.FC = () => {
                   <div className="banner-text animate-fadeUp">
                     <h1>
                       {idx === 0 && "Tìm phòng trọ nhanh chóng & uy tín"}
-                      {idx === 1 && "Hàng ngàn căn hộ, homestay dành cho bạn"}
-                      {idx === 2 && "Đăng tin dễ dàng, tiếp cận người thuê ngay"}
+                      {idx === 1 && "Nhiều loại phòng, đầy đủ tiện nghi và nhiều lựa chọn cho bạn"}
+                      {idx === 2 && "Đăng ký thuê hoặc cho thuê dễ dàng ngay hôm nay"}
                     </h1>
                     <p>
                       Chỉ vài bước đơn giản để tìm phòng phù hợp với nhu cầu của bạn.
@@ -138,34 +108,34 @@ const Home: React.FC = () => {
         </Row>
       </section>
 
-      {/* KHU VỰC GỢI Ý */}
+      {/* PHÒNG TRỌ GỢI Ý */}
       <section className="section page-container">
         <Title level={2} className="section-title" style={{ textAlign: "center" }}>
-          Khu vực nổi bật
+          Phòng trọ lý tưởng cho bạn
         </Title>
         <p style={{ textAlign: "center", color: "#555", marginBottom: 24 }}>
-          Tìm phòng trọ phù hợp với nhu cầu và vị trí lý tưởng
+          Trải nghiệm không gian sống tiện nghi, an ninh và thoải mái, phù hợp với mọi nhu cầu của bạn
         </p>
 
         <div className="trend-grid">
           {[
             {
-              title: "Khu vực trung tâm",
-              desc: "Gần chợ, siêu thị, trường học — tiện nghi đầy đủ",
+              title: "Phòng trọ tiêu chuẩn",
+              desc: "Trang bị đầy đủ: giường, tủ, máy lạnh, WC riêng. Không gian thoáng đãng, yên tĩnh, an ninh tốt.",
               img: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=80",
             },
             {
-              title: "Khu vực giá rẻ",
-              desc: "Giá thuê phù hợp sinh viên & công nhân — an ninh đảm bảo",
+              title: "Phòng trọ giá hợp lý",
+              desc: "Chi phí hợp lý, phù hợp sinh viên và người đi làm. Thanh toán linh hoạt theo tháng, dễ dàng quản lý.",
               img: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80",
             },
-          ].map((area, index) => (
+          ].map((room, index) => (
             <div key={index} className="trend-card">
-              <img src={area.img} alt={area.title} />
+              <img src={room.img} alt={room.title} />
               <div className="trend-overlay" />
               <div className="trend-content">
-                <h2>{area.title}</h2>
-                <p>{area.desc}</p>
+                <h2>{room.title}</h2>
+                <p>{room.desc}</p>
                 <Button type="primary" className="btn-animated">
                   Xem phòng
                 </Button>
@@ -184,9 +154,9 @@ const Home: React.FC = () => {
           Khám phá các phòng trọ phù hợp với nhu cầu, vị trí và ngân sách của bạn
         </p>
 
-        <Row gutter={[24, 24]} justify="center">
-          {rooms.slice(0, 6).map((room) => (
-            <Col xs={24} sm={12} md={8} lg={6} xl={6} key={room._id}>
+        <Row gutter={[24, 24]} justify="center" style={{ padding: "40px 0" }}>
+          {rooms.map((room) => (
+            <Col xs={24} sm={12} md={8} lg={6} key={room._id}>
               <RoomCard room={room} />
             </Col>
           ))}
