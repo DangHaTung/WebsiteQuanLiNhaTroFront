@@ -4,6 +4,7 @@ import { DollarOutlined, HomeOutlined, PushpinOutlined, SyncOutlined } from "@an
 import RoomCard from "../components/RoomCard";
 import { getAllRooms } from "../services/room";
 import type { Room } from "../../../types/room";
+import { useLocation } from "react-router-dom";
 
 const { Title, Text } = Typography;
 const { Option } = Select;
@@ -18,6 +19,10 @@ const Rooms: React.FC = () => {
 
   const [selectedRoomType, setSelectedRoomType] = useState<string>("");
   const [selectedRoomStatus, setSelectedRoomStatus] = useState<string>("");
+
+  // Search
+  const location = useLocation();
+  const query = new URLSearchParams(location.search).get("q")?.toLowerCase() || "";
 
   const [hovered, setHovered] = useState(false);
 
@@ -47,15 +52,43 @@ const Rooms: React.FC = () => {
     fetchRooms();
   }, []);
 
+  const normalize = (str: string) => str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // bỏ dấu
+    .replace(/\s+/g, "") // bỏ tất cả khoảng trắng
+    .trim(); // loại bỏ khoảng trắng đầu cuối
+
   const filteredRooms = useMemo(() => {
+    const normalizedQuery = normalize(query);
+
     return rooms.filter((room) => {
-      const inPriceRange =
-        room.pricePerMonth >= priceRange[0] && room.pricePerMonth <= priceRange[1];
+      const inPriceRange = room.pricePerMonth >= priceRange[0] && room.pricePerMonth <= priceRange[1];
       const matchType = selectedRoomType ? room.type === selectedRoomType : true;
       const matchStatus = selectedRoomStatus ? room.status === selectedRoomStatus : true;
-      return inPriceRange && matchType && matchStatus;
+
+      const roomText = [
+        room.roomNumber,
+        room.district,
+        room.type === "SINGLE" ? "phong don" :
+          room.type === "DOUBLE" ? "phong doi" :
+            room.type === "DORM" ? "phong dorm" : "phong khac",
+      ].map(normalize).join(" ");
+
+      let matchQuery = true;
+      if (normalizedQuery) {
+        // Nếu query là số, check roomNumber bắt đầu bằng query
+        if (!isNaN(Number(normalizedQuery))) {
+          matchQuery = room.roomNumber.toString().startsWith(normalizedQuery);
+        } else {
+          // Nếu query là chữ, search trong roomText
+          matchQuery = roomText.includes(normalizedQuery);
+        }
+      }
+
+      return inPriceRange && matchType && matchStatus && matchQuery;
     });
-  }, [rooms, priceRange, selectedRoomType, selectedRoomStatus]);
+  }, [rooms, priceRange, selectedRoomType, selectedRoomStatus, query]);
 
   const roomTypes = useMemo(() => {
     return [...new Set(rooms.map((r) => r.type))].filter(Boolean);
