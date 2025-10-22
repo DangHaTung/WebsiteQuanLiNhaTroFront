@@ -38,7 +38,7 @@ const AdminLayout: React.FC = () => {
         onCollapse={setCollapsed}
         trigger={null}
         style={{
-          background: "linear-gradient(135deg, #1677ff, #69b1ff)",
+          background: "linear-gradient(135deg, #0d6efd, #0dcaf0)",
           backgroundSize: "400% 400%",
           animation: "gradientAnimation 15s ease infinite",
           transition: "all 0.3s",
@@ -139,13 +139,13 @@ const AdminLayout: React.FC = () => {
                 onClick: handleMenuClick,
                 items: isAuthenticated
                   ? [
-                      { key: "settings", icon: <SettingOutlined />, label: "Cài đặt" },
-                      { key: "logout", icon: <LogoutOutlined />, label: "Đăng xuất" },
-                    ]
+                    { key: "settings", icon: <SettingOutlined />, label: "Cài đặt" },
+                    { key: "logout", icon: <LogoutOutlined />, label: "Đăng xuất" },
+                  ]
                   : [
-                      { key: "login", icon: <LoginOutlined />, label: "Đăng nhập" },
-                      { key: "register", icon: <UserAddOutlined />, label: "Đăng ký" },
-                    ],
+                    { key: "login", icon: <LoginOutlined />, label: "Đăng nhập" },
+                    { key: "register", icon: <UserAddOutlined />, label: "Đăng ký" },
+                  ],
               }}
               placement="bottomRight"
               trigger={["click"]}
@@ -159,19 +159,7 @@ const AdminLayout: React.FC = () => {
 
         {/* Content */}
         <Content style={{ margin: "20px" }}>
-          <div
-            style={{
-              padding: 30,
-              minHeight: 360,
-              background: "#fff",
-              borderRadius: 16,
-              boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
-              transition: "all 0.3s",
-            }}
-            className="content-card hover-animate"
-          >
-            <Outlet />
-          </div>
+          <Outlet />
         </Content>
 
         {/* Footer */}

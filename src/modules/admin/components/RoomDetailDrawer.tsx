@@ -71,7 +71,6 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
         </Descriptions.Item>
         <Descriptions.Item label="Diện tích">{room.areaM2} m²</Descriptions.Item>
         <Descriptions.Item label="Tầng">{room.floor}</Descriptions.Item>
-        <Descriptions.Item label="Quận">{room.district}</Descriptions.Item>
         <Descriptions.Item label="Trạng thái">
           <Tag
             color={statusConfig[room.status].color}
