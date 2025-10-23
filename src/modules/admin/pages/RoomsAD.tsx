@@ -1,27 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  Table,
-  Button,
-  Space,
-  Tag,
-  Modal,
-  Form,
-  Input,
-  InputNumber,
-  Select,
-  message,
-  Row,
-  Col,
-  Typography,
-  Avatar,
-  Statistic
-} from "antd";
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  ApartmentOutlined,
-} from "@ant-design/icons";
+import { Table, Button, Space, Tag, Modal, Form, Input, InputNumber, Select, message, Row, Col, Typography, Avatar, Statistic } from "antd";
+import { PlusOutlined, EditOutlined, DeleteOutlined, ApartmentOutlined } from "@ant-design/icons";
 import { adminRoomService } from "../services/room";
 import type { Room } from "../../../types/room";
 import "../../../assets/styles/roomAd.css";
@@ -44,9 +23,11 @@ const RoomsAD: React.FC = () => {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
 
+  const [existingImages, setExistingImages] = useState<{ url: string; publicId?: string; keep?: boolean }[]>([]);
+
   // Drawer detail
   const [detailVisible, setDetailVisible] = useState(false);
-  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
@@ -87,6 +68,12 @@ const RoomsAD: React.FC = () => {
         if (key !== "images") formData.append(key, (values as any)[key]);
       });
 
+      // chỉ gửi ảnh cũ được giữ
+      existingImages.filter((img) => img.keep).forEach((img) => {
+        if (img.url) formData.append("images", img.url);
+      });
+
+      // thêm ảnh mới
       selectedFiles.forEach((file) => {
         formData.append("images", file);
       });
@@ -104,6 +91,7 @@ const RoomsAD: React.FC = () => {
       setEditingRoom(null);
       setSelectedFiles([]);
       setPreviewUrls([]);
+      setExistingImages([]);
       fetchRooms();
     } catch (error) {
       console.error(error);
@@ -121,7 +109,6 @@ const RoomsAD: React.FC = () => {
 
   const onEdit = (room: Room) => {
     setEditingRoom(room);
-
     form.setFieldsValue({
       roomNumber: room.roomNumber,
       type: room.type,
@@ -130,18 +117,21 @@ const RoomsAD: React.FC = () => {
       status: room.status,
       floor: room.floor,
       district: room.district,
-
     });
     setIsModalOpen(true);
 
+    // load ảnh cũ
     if (room.images?.length) {
-      const urls = room.images.map((img) => typeof img === "string" ? img : (img as any).url);
-      setPreviewUrls(urls); // show preview ban đầu
+      const imgs = room.images.map((img) =>
+        typeof img === "string" ? { url: img, keep: true } : { ...(img as any), keep: true }
+      );
+      setExistingImages(imgs);
     } else {
-      setPreviewUrls([]);
+      setExistingImages([]);
     }
 
     setSelectedFiles([]); // reset ảnh mới
+    setPreviewUrls([]);   // reset preview ảnh mới
   };
 
   const onDelete = (room: Room) => {
@@ -175,13 +165,8 @@ const RoomsAD: React.FC = () => {
   }, [rooms, filterStatus, filterType]);
 
   const openDetail = (room: Room) => {
-    setSelectedRoom(room);
+    setSelectedRoomId(room._id || null);
     setDetailVisible(true);
-  };
-
-  const closeDetail = () => {
-    setDetailVisible(false);
-    setSelectedRoom(null);
   };
 
   // Table columns
@@ -193,7 +178,7 @@ const RoomsAD: React.FC = () => {
       render: (imageUrl: string, record: Room) => {
         // Ưu tiên image, sau đó lấy ảnh đầu tiên từ images array
         const displayImage = imageUrl || (record.images && record.images.length > 0 ? record.images[0] : null);
-        
+
         return displayImage ? (
           <Avatar
             shape="square"
@@ -207,10 +192,10 @@ const RoomsAD: React.FC = () => {
             }}
           />
         ) : (
-          <Avatar 
-            shape="square" 
-            size={64} 
-            style={{ backgroundColor: "#f0f0f0", cursor: "pointer" }} 
+          <Avatar
+            shape="square"
+            size={64}
+            style={{ backgroundColor: "#f0f0f0", cursor: "pointer" }}
             onClick={() => openDetail(record)}
           >
             <ApartmentOutlined style={{ fontSize: 24, color: "#999" }} />
@@ -501,12 +486,38 @@ const RoomsAD: React.FC = () => {
           </Form.Item>
 
           <Form.Item label="Ảnh phòng">
-            <input type="file" accept="image/*" multiple onChange={handleFileChange} />
-            <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+              {existingImages.map((img, idx) => (
+                <div key={idx} style={{ position: "relative" }}>
+                  <img
+                    src={img.url}
+                    alt={`old-${idx}`}
+                    style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8, opacity: img.keep ? 1 : 0.4 }}
+                  />
+                  <Button
+                    size="small"
+                    danger
+                    style={{ position: "absolute", top: 2, right: 2 }}
+                    onClick={() => {
+                      setExistingImages((prev) =>
+                        prev.map((e, i) => (i === idx ? { ...e, keep: !e.keep } : e))
+                      );
+                    }}
+                  >
+                    {img.keep ? "X" : "↺"}
+                  </Button>
+                </div>
+              ))}
               {previewUrls.map((url, idx) => (
-                <img key={idx} src={url} alt={`preview-${idx}`} style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8 }} />
+                <img
+                  key={idx}
+                  src={url}
+                  alt={`new-${idx}`}
+                  style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8 }}
+                />
               ))}
             </div>
+            <input type="file" accept="image/*" multiple onChange={handleFileChange} />
           </Form.Item>
         </Form>
       </Modal>
@@ -514,8 +525,8 @@ const RoomsAD: React.FC = () => {
       {/* Drawer: Detail view */}
       <RoomDetailDrawer
         open={detailVisible}
-        onClose={closeDetail}
-        room={selectedRoom}
+        onClose={() => setDetailVisible(false)}
+        roomId={selectedRoomId}
       />
     </div>
   );

@@ -19,13 +19,13 @@ export interface CheckinFormData {
 export interface BillLineItem {
     item: string;
     quantity: number;
-    unitPrice: number; // number for API calls
-    lineTotal: number; // number for API calls
+    unitPrice: number; 
+    lineTotal: number; 
 }
 
 export interface BillPayment {
-    paidAt: string; // ISO string
-    amount: number; // number for API calls
+    paidAt: string; 
+    amount: number; 
     method: string;
     provider?: string;
     transactionId?: string;
@@ -35,12 +35,12 @@ export interface BillPayment {
 
 export interface Bill {
     _id: string;
-    contractId: string | Contract;  // Can be populated
-    billingDate: string; // ISO string
+    contractId: string | Contract;  
+    billingDate: string; 
     status: BillStatus;
     lineItems: BillLineItem[];
-    amountDue: number; // number for API calls
-    amountPaid: number; // number for API calls
+    amountDue: number; 
+    amountPaid: number; 
     payments?: BillPayment[];
     note?: string;
     createdAt?: string;
