@@ -1,22 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-    Button,
-    DatePicker,
-    Form,
-    InputNumber,
-    Modal,
-    Popconfirm,
-    Select,
-    Space,
-    Table,
-    Tag,
-    Tooltip,
-    Typography,
-    message,
-    Row,
-    Col,
-    Statistic,
-} from "antd";
+import { Button, DatePicker, Form, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message, Row, Col, Statistic } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined, FileTextOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { Bill, BillStatus } from "../../../types/bill";
@@ -54,7 +37,7 @@ const BillsAD: React.FC = () => {
 
     // Drawer detail
     const [detailVisible, setDetailVisible] = useState(false);
-    const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
+    const [selectedBillId, setSelectedBillId] = useState<string | undefined>(undefined);
 
     useEffect(() => {
         loadData();
@@ -159,18 +142,18 @@ const BillsAD: React.FC = () => {
         return data;
     }, [bills, statusFilter]);
 
-    const paidCount = useMemo(() => filteredBills.filter((b) => b.status === "PAID").length, [filteredBills]);
-    const unpaidCount = useMemo(() => filteredBills.filter((b) => b.status === "UNPAID").length, [filteredBills]);
-    const partiallyPaidCount = useMemo(() => filteredBills.filter((b) => b.status === "PARTIALLY_PAID").length, [filteredBills]);
+    const paidCount = useMemo(() => bills.filter((b) => b.status === "PAID").length, [bills]);
+    const unpaidCount = useMemo(() => bills.filter((b) => b.status === "UNPAID").length, [bills]);
+    const partiallyPaidCount = useMemo(() => bills.filter((b) => b.status === "PARTIALLY_PAID").length, [bills]);
 
     const openDetail = (bill: Bill) => {
-        setSelectedBill(bill);
+        setSelectedBillId(bill._id);
         setDetailVisible(true);
     };
 
     const closeDetail = () => {
         setDetailVisible(false);
-        setSelectedBill(null);
+        setSelectedBillId(undefined);
     };
 
     const columns: ColumnsType<Bill> = [
@@ -292,11 +275,11 @@ const BillsAD: React.FC = () => {
                 {/* Statistic */}
                 <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                     <Col xs={24} sm={12} md={6}>
-                        <div style={{ 
-                            background: "#fff", 
-                            padding: 20, 
-                            borderRadius: 12, 
-                            textAlign: "center", 
+                        <div style={{
+                            background: "#fff",
+                            padding: 20,
+                            borderRadius: 12,
+                            textAlign: "center",
                             cursor: "pointer",
                             border: "1px solid #e8e8e8",
                             boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
@@ -306,11 +289,11 @@ const BillsAD: React.FC = () => {
                         </div>
                     </Col>
                     <Col xs={24} sm={12} md={6}>
-                        <div style={{ 
-                            background: "#fff", 
-                            padding: 20, 
-                            borderRadius: 12, 
-                            textAlign: "center", 
+                        <div style={{
+                            background: "#fff",
+                            padding: 20,
+                            borderRadius: 12,
+                            textAlign: "center",
                             cursor: "pointer",
                             border: "1px solid #e8e8e8",
                             boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
@@ -320,11 +303,11 @@ const BillsAD: React.FC = () => {
                         </div>
                     </Col>
                     <Col xs={24} sm={12} md={6}>
-                        <div style={{ 
-                            background: "#fff", 
-                            padding: 20, 
-                            borderRadius: 12, 
-                            textAlign: "center", 
+                        <div style={{
+                            background: "#fff",
+                            padding: 20,
+                            borderRadius: 12,
+                            textAlign: "center",
                             cursor: "pointer",
                             border: "1px solid #e8e8e8",
                             boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
@@ -334,10 +317,10 @@ const BillsAD: React.FC = () => {
                         </div>
                     </Col>
                     <Col xs={24} sm={12} md={6}>
-                        <div style={{ 
-                            background: "#fff", 
-                            padding: 20, 
-                            borderRadius: 12, 
+                        <div style={{
+                            background: "#fff",
+                            padding: 20,
+                            borderRadius: 12,
                             border: "1px solid #e8e8e8",
                             boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
                             display: "flex",
@@ -353,7 +336,7 @@ const BillsAD: React.FC = () => {
                                     style={{ cursor: "pointer", marginBottom: 6 }}
                                 >
                                     {status === "PAID" ? "Đã thanh toán" :
-                                     status === "UNPAID" ? "Chưa thanh toán" : "Một phần"}
+                                        status === "UNPAID" ? "Chưa thanh toán" : "Một phần"}
                                 </Tag>
                             ))}
                             <Tag
@@ -454,7 +437,7 @@ const BillsAD: React.FC = () => {
             <BillDetailDrawer
                 open={detailVisible}
                 onClose={closeDetail}
-                bill={selectedBill}
+                billId={selectedBillId ?? null}
                 contracts={contracts}
                 tenants={tenants}
                 rooms={rooms}

@@ -1,89 +1,62 @@
-/* search.css */
-
-/* Input */
-.ant-input-search .ant-input {
-  border-radius: 12px;
-  border: 1px solid #d9d9d9;
+.search-bar-container {
+  display: flex;
+  gap: 8px;
+  align-items: center;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), inset 0 -1px 3px rgba(0,0,0,0.05);
 }
 
-.ant-input-search .ant-input:focus {
-  border-color: #1677ff;
-  box-shadow: 0 8px 24px rgba(22, 119, 255, 0.2), inset 0 -1px 3px rgba(0,0,0,0.05);
-  outline: none;
-  transform: scale(1.02);
+.search-input {
+  flex: 1;
+  border-radius: 50px;
+  border: 1px solid #d9d9d9;
+  padding: 8px 16px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
-/* Placeholder */
-.ant-input::placeholder {
-  color: #999;
-  transition: all 0.3s ease, transform 0.3s ease;
+.search-input:focus {
+  border: 1.5px solid #40a9ff;
 }
 
-.ant-input:focus::placeholder {
-  color: #bbb;
-  transform: translateX(2px);
-}
-
-/* Button */
-.ant-input-search-button {
-  border-radius: 0 12px 12px 0;
-  background: linear-gradient(135deg, #0d6efd, #0dcaf0);
-  color: #fff;
-  border: none;
+.search-button {
   position: relative;
   overflow: hidden;
-  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #40a9ff, #1890ff);
+  border: none;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease-in-out;
 }
 
-/* Gradient animation */
-@keyframes gradientHover {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+.search-button:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 15px rgba(24, 144, 255, 0.4);
 }
 
-/* Shine effect */
-.ant-input-search-button::after {
+.search-button:active {
+  transform: translateY(1px) scale(0.98);
+  box-shadow: 0 3px 8px rgba(24, 144, 255, 0.3);
+}
+
+/* Shimmer effect */
+.search-shimmer {
   content: "";
   position: absolute;
   top: 0;
-  left: -75%;
+  left: -150%;
   width: 50%;
   height: 100%;
   background: linear-gradient(
     120deg,
     rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.5) 50%,
+    rgba(255, 255, 255, 0.6) 50%,
     rgba(255, 255, 255, 0) 100%
   );
-  transform: skewX(-25deg);
+  transform: skewX(-20deg);
   pointer-events: none;
-  transition: all 0.3s ease;
+  transition: left 0.6s ease;
 }
 
-/* Hover: shine tiến + gradient chạy */
-.ant-input-search-button:hover::after {
-  animation: shineForward 1s forwards;
-}
-.ant-input-search-button:hover {
-  animation: gradientHover 4s ease infinite;
-  box-shadow: 0 8px 28px rgba(22, 119, 255, 0.5);
-}
-
-/* Unhover: shine lùi */
-.ant-input-search-button:not(:hover)::after {
-  animation: shineBackward 1s forwards;
-}
-
-/* Keyframes */
-@keyframes shineForward {
-  0% { left: -75%; }
-  100% { left: 100%; }
-}
-
-@keyframes shineBackward {
-  0% { left: 100%; }
-  100% { left: -75%; }
+.search-button.hovered .search-shimmer {
+  left: 150%;
 }

@@ -124,7 +124,9 @@ const AdminLayout: React.FC = () => {
             }
           )}
 
-          <SearchBar onSearch={(value) => console.log("Searching:", value)} />
+          <div className="header-center">
+            <SearchBar />
+          </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
 
