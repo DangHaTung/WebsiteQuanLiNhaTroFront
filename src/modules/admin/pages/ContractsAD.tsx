@@ -1,22 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  Button,
-  DatePicker,
-  Form,
-  InputNumber,
-  Modal,
-  Popconfirm,
-  Select,
-  Space,
-  Table,
-  Tag,
-  Tooltip,
-  Typography,
-  message,
-  Row,
-  Col,
-  Statistic,
-} from "antd";
+import { Button, DatePicker, Form, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message, Row, Col, Statistic } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined, FileTextOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { Contract } from "../../../types/contract";
@@ -53,7 +36,7 @@ const ContractsAD: React.FC = () => {
 
   // Drawer detail
   const [detailVisible, setDetailVisible] = useState(false);
-  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
+  const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -67,7 +50,7 @@ const ContractsAD: React.FC = () => {
         adminTenantService.getAll({ limit: 50 }),
         adminRoomService.getAll(),
       ]);
-      
+
       setContracts(contractsData);
       setTenants(tenantsData);
       setRooms(roomsData);
@@ -146,11 +129,11 @@ const ContractsAD: React.FC = () => {
     if (tenantId === null || tenantId === undefined) {
       return "N/A";
     }
-    
+
     if (typeof tenantId === "object" && tenantId?.fullName) {
       return tenantId.fullName;
     }
-    
+
     const tenant = tenants.find((t) => t._id === tenantId);
     return tenant?.fullName || (typeof tenantId === "string" ? tenantId : "N/A");
   };
@@ -171,18 +154,18 @@ const ContractsAD: React.FC = () => {
     return data;
   }, [contracts, statusFilter]);
 
-  const activeCount = useMemo(() => filteredContracts.filter((c) => c.status === "ACTIVE").length, [filteredContracts]);
-  const endedCount = useMemo(() => filteredContracts.filter((c) => c.status === "ENDED").length, [filteredContracts]);
-  const canceledCount = useMemo(() => filteredContracts.filter((c) => c.status === "CANCELED").length, [filteredContracts]);
+  const activeCount = useMemo(() => contracts.filter((c) => c.status === "ACTIVE").length, [contracts]);
+  const endedCount = useMemo(() => contracts.filter((c) => c.status === "ENDED").length, [contracts]);
+  const canceledCount = useMemo(() => contracts.filter((c) => c.status === "CANCELED").length, [contracts]);
 
   const openDetail = (contract: Contract) => {
-    setSelectedContract(contract);
+    setSelectedContractId(contract._id);
     setDetailVisible(true);
   };
 
   const closeDetail = () => {
     setDetailVisible(false);
-    setSelectedContract(null);
+    setSelectedContractId(null);
   };
 
   const columns: ColumnsType<Contract> = [
@@ -317,11 +300,11 @@ const ContractsAD: React.FC = () => {
         {/* Statistic */}
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
           <Col xs={24} sm={12} md={6}>
-            <div style={{ 
-              background: "#fff", 
-              padding: 20, 
-              borderRadius: 12, 
-              textAlign: "center", 
+            <div style={{
+              background: "#fff",
+              padding: 20,
+              borderRadius: 12,
+              textAlign: "center",
               cursor: "pointer",
               border: "1px solid #e8e8e8",
               boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
@@ -331,11 +314,11 @@ const ContractsAD: React.FC = () => {
             </div>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <div style={{ 
-              background: "#fff", 
-              padding: 20, 
-              borderRadius: 12, 
-              textAlign: "center", 
+            <div style={{
+              background: "#fff",
+              padding: 20,
+              borderRadius: 12,
+              textAlign: "center",
               cursor: "pointer",
               border: "1px solid #e8e8e8",
               boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
@@ -345,11 +328,11 @@ const ContractsAD: React.FC = () => {
             </div>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <div style={{ 
-              background: "#fff", 
-              padding: 20, 
-              borderRadius: 12, 
-              textAlign: "center", 
+            <div style={{
+              background: "#fff",
+              padding: 20,
+              borderRadius: 12,
+              textAlign: "center",
               cursor: "pointer",
               border: "1px solid #e8e8e8",
               boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
@@ -359,10 +342,10 @@ const ContractsAD: React.FC = () => {
             </div>
           </Col>
           <Col xs={24} sm={12} md={6}>
-            <div style={{ 
-              background: "#fff", 
-              padding: 20, 
-              borderRadius: 12, 
+            <div style={{
+              background: "#fff",
+              padding: 20,
+              borderRadius: 12,
               border: "1px solid #e8e8e8",
               boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
               display: "flex",
@@ -378,7 +361,7 @@ const ContractsAD: React.FC = () => {
                   style={{ cursor: "pointer", marginBottom: 6 }}
                 >
                   {status === "ACTIVE" ? "Đang hiệu lực" :
-                   status === "ENDED" ? "Đã kết thúc" : "Đã hủy"}
+                    status === "ENDED" ? "Đã kết thúc" : "Đã hủy"}
                 </Tag>
               ))}
               <Tag
@@ -508,9 +491,7 @@ const ContractsAD: React.FC = () => {
       <ContractDetailDrawer
         open={detailVisible}
         onClose={closeDetail}
-        contract={selectedContract}
-        tenants={tenants}
-        rooms={rooms}
+        contractId={selectedContractId}
       />
     </div>
   );

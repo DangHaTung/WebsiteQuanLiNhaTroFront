@@ -120,3 +120,20 @@
 .avatar-light-sweep:hover::after {
   left: 150%;
 }
+/* Căn giữa thanh search trong header */
+.header-center {
+  position: absolute;
+  left: 50%;
+  top: 20%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+/* Tùy chọn - giới hạn kích thước nếu header nhỏ */
+.header-center .search-bar-container {
+  max-width: 400px;
+  width: 100%;
+}
