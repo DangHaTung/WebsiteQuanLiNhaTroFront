@@ -80,16 +80,24 @@ const Profile: React.FC = () => {
 
             setLoading(true);
 
-            // Lấy rooms, contracts, bills song song
-            const [roomsRes, contractsRes, billsRes] = await Promise.all([
-                api.get(`/rooms?userId=${userId}`),
-                api.get(`/contracts?userId=${userId}`),
-                api.get(`/bills?userId=${userId}`),
-            ]);
+            // Lấy rooms public (không cần auth)
+            const roomsRes = await api.get(`/rooms/public`);
+            setRooms(Array.isArray(roomsRes.data.data) ? roomsRes.data.data : []);
 
-            setRooms(Array.isArray(roomsRes.data) ? roomsRes.data : []);
-            setContracts(Array.isArray(contractsRes.data) ? contractsRes.data : []);
-            setBills(Array.isArray(billsRes.data) ? billsRes.data : []);
+            // Chỉ lấy contracts và bills nếu user đã login
+            try {
+                const [contractsRes, billsRes] = await Promise.all([
+                    api.get(`/contracts/my-contracts`),
+                    api.get(`/bills/my-bills`),
+                ]);
+
+                setContracts(Array.isArray(contractsRes.data.data) ? contractsRes.data.data : []);
+                setBills(Array.isArray(billsRes.data.data) ? billsRes.data.data : []);
+            } catch (authError) {
+                console.log("User chưa login hoặc token không hợp lệ, chỉ hiển thị rooms public");
+                setContracts([]);
+                setBills([]);
+            }
         } catch (error) {
             console.error("Lỗi tải dữ liệu:", error);
         } finally {
