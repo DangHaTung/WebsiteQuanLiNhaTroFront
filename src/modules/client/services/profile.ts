@@ -5,7 +5,7 @@ import type { IUserToken } from "../../../types/user";
 
 // Giữ nguyên các hàm lấy theo ID
 export const getRoomById = async (id: string | number): Promise<IRoom> => {
-  const res = await api.get(`/rooms/${id}`);
+  const res = await api.get(`/rooms/public/${id}`);
   return res.data;
 };
 
@@ -21,22 +21,20 @@ export const getBillById = async (id: string | number): Promise<IBill> => {
   return res.data;
 };
 
-// Lấy rooms, contracts, bills theo userId (_id trong DB)
-export const getRoomsByUserId = async (userId: string): Promise<IRoom[]> => {
-  const res = await api.get(`/rooms`, { params: { userId } });
-  return res.data;
+// Lấy rooms, contracts, bills của user hiện tại
+export const getMyRooms = async (): Promise<IRoom[]> => {
+  const res = await api.get(`/rooms/public`);
+  return res.data.data;
 };
 
-export const getContractsByUserId = async (
-  userId: string
-): Promise<IContract[]> => {
-  const res = await api.get(`/contracts`, { params: { userId } });
-  return res.data;
+export const getMyContracts = async (): Promise<IContract[]> => {
+  const res = await api.get(`/contracts/my-contracts`);
+  return res.data.data;
 };
 
-export const getBillsByUserId = async (userId: string): Promise<IBill[]> => {
-  const res = await api.get(`/bills`, { params: { userId } });
-  return res.data;
+export const getMyBills = async (): Promise<IBill[]> => {
+  const res = await api.get(`/bills/my-bills`);
+  return res.data.data;
 };
 
 // Đổi mật khẩu (yêu cầu token qua interceptor)
@@ -67,9 +65,9 @@ export const getProfileDataFromToken = async (): Promise<{
     }
 
     const [rooms, contracts, bills] = await Promise.all([
-      getRoomsByUserId(userId),
-      getContractsByUserId(userId),
-      getBillsByUserId(userId),
+      getMyRooms(),
+      getMyContracts(),
+      getMyBills(),
     ]);
 
     return { user, rooms, contracts, bills };

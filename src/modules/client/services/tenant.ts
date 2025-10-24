@@ -12,19 +12,25 @@ export interface CreateTenantData {
 export const clientTenantService = {
   // Tạo tenant mới khi đặt phòng
   create: async (data: CreateTenantData) => {
-    const response = await api.post("/tenants", data);
+    const response = await api.post("/tennant", data);
     return response.data;
   },
 
   // Cập nhật thông tin tenant (thêm CCCD/CMND)
   update: async (id: string, data: Partial<CreateTenantData>) => {
-    const response = await api.put(`/tenants/${id}`, data);
+    const response = await api.put(`/tennant/${id}`, data);
     return response.data;
   },
 
-  // Lấy thông tin tenant theo ID
+  // Lấy thông tin tenant của mình
+  getMyTenant: async () => {
+    const response = await api.get(`/tennant/my-tenant`);
+    return response.data;
+  },
+
+  // Lấy thông tin tenant theo ID (admin only)
   getById: async (id: string) => {
-    const response = await api.get(`/tenants/${id}`);
+    const response = await api.get(`/tennant/${id}`);
     return response.data;
   },
 };
