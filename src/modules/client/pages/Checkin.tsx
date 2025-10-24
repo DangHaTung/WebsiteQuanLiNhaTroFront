@@ -3,6 +3,7 @@ import { Form, Input, InputNumber, Button, Card, Typography, Select, DatePicker,
 import { UserOutlined, PhoneOutlined, MailOutlined, HomeOutlined, CheckCircleOutlined, DollarOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import "../../../assets/styles/checkin.css";
+import { jwtDecode } from "jwt-decode";
 
 import type { Room } from "../../../types/room";
 import { getRoomById, getAllRooms } from "../services/room";
@@ -27,6 +28,18 @@ const Checkin: React.FC = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  useEffect(() => {
+    const raw = localStorage.getItem("token");
+    if (raw) {
+      try {
+        const payload: any = jwtDecode(raw);
+        if (payload && payload.phone) {
+          form.setFieldsValue({ phone: payload.phone });
+        }
+      } catch {}
+    }
+  }, [form]);
 
   // Lấy tất cả phòng
   useEffect(() => {
