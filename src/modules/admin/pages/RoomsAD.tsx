@@ -14,7 +14,8 @@ import {
   Col,
   Typography,
   Avatar,
-  Statistic
+  Statistic,
+  Tooltip,
 } from "antd";
 import {
   PlusOutlined,
@@ -323,16 +324,19 @@ const RoomsAD: React.FC = () => {
             }}
             className="btn-hover"
           />
-          <Button
-            danger
-            icon={<DeleteOutlined />}
-            shape="circle"
-            onClick={(e) => {
-              e?.stopPropagation();
-              onDelete(record);
-            }}
-            className="btn-hover"
-          />
+          <Tooltip title="Xóa">
+            <Button
+              type="primary"
+              danger
+              icon={<DeleteOutlined />}
+              shape="circle"
+              onClick={(e) => {
+                e?.stopPropagation();
+                onDelete(record);
+              }}
+              className="btn-hover"
+            />
+          </Tooltip>
         </Space>
       ),
     },

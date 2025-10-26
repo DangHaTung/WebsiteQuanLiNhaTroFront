@@ -10,6 +10,7 @@ import { getRoomById, getAllRooms } from "../services/room";
 import type { CheckinFormData } from "../../../types/bill";
 import { clientAuthService } from "../services/auth";
 import { clientTenantService } from "../services/tenant";
+import { clientCheckinService } from "../services/checkin";
 
 const { Title, Text, Paragraph } = Typography;
 const { Option } = Select;
@@ -105,32 +106,53 @@ const Checkin: React.FC = () => {
   const onFinish = async (values: CheckinFormData) => {
     setLoading(true);
     try {
-      // Tạo tenant với thông tin CCCD/CMND
-      const tenantData = {
-        fullName: values.fullName,
-        phone: values.phone,
-        email: values.email,
-        identityNo: values.idCard, // Lưu CCCD/CMND từ form
-      };
+      // Nếu thanh toán tiền mặt: LƯU vào DB (Contract + Bill) rồi chuyển trang
+      if (values.paymentMethod === "CASH") {
+        if (!selectedRoom) throw new Error("Vui lòng chọn phòng");
+        const checkinISO = (() => {
+          const d: any = (values as any).checkinDate;
+          try {
+            if (!d) return new Date().toISOString();
+            if (typeof d === "string") return new Date(d).toISOString();
+            if (typeof d?.toDate === "function") return d.toDate().toISOString(); // dayjs
+            if (typeof d?.toISOString === "function") return d.toISOString(); // Date
+            return new Date(d).toISOString();
+          } catch {
+            return new Date().toISOString();
+          }
+        })();
 
-      console.log("Creating tenant with data:", tenantData);
-      
-      // Gọi API tạo tenant
-      const tenant = await clientTenantService.create(tenantData);
-      
-      console.log("Tenant created:", tenant);
-      console.log("Checkin form values:", values);
+        const payload = {
+          roomId: String(selectedRoom._id),
+          checkinDate: checkinISO,
+          duration: Number(values.duration),
+          deposit: Number(depositValue) || 0,
+          notes: values.notes,
+        };
 
+        const res = await clientCheckinService.createCashCheckin(payload);
+        if (!res?.success) throw new Error(res?.message || "Tạo hợp đồng/hóa đơn (CASH) thất bại");
+        message.success("Thanh toán tiền mặt đã được ghi nhận. Hóa đơn và hợp đồng đã lưu.");
+        navigate("/payment-success");
+      } else {
+        // Các phương thức khác: tạo tenant rồi điều hướng
+        const tenantData = {
+          fullName: values.fullName,
+          phone: values.phone,
+          email: values.email,
+          identityNo: values.idCard,
+        };
+        console.log("Creating tenant with data:", tenantData);
+        const tenant = await clientTenantService.create(tenantData);
+        console.log("Tenant created:", tenant);
+        message.success("Đăng ký check-in thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất.");
+        navigate("/payment-success");
+      }
+
+      // Dọn form
       form.resetFields();
       setSelectedRoom(null);
       setAcceptedTerms(false);
-
-      message.success(
-        "Đăng ký check-in thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất."
-      );
-      
-      // Navigate về trang chủ hoặc trang khác
-      navigate("/");
       
     } catch (error: any) {
       console.error("Error creating tenant:", error);
@@ -241,18 +263,6 @@ const Checkin: React.FC = () => {
                 >
                   <Input
                     placeholder="Nhập số chứng minh nhân dân hoặc căn cước công dân"
-                    size="large"
-                  />
-                </Form.Item>
-
-                {/* Người liên hệ khẩn cấp */}
-                <Form.Item
-                  label="Người Liên Hệ Khẩn Cấp"
-                  name="emergencyContact"
-                  rules={[{ required: true, message: "Vui lòng nhập thông tin liên hệ khẩn cấp!" }]}
-                >
-                  <Input
-                    placeholder="Tên và số điện thoại người liên hệ khẩn cấp"
                     size="large"
                   />
                 </Form.Item>
@@ -477,6 +487,7 @@ const Checkin: React.FC = () => {
                       <Button
                         type="primary"
                         htmlType="submit"
+                        onClick={() => form.submit()}
                         loading={loading}
                         size="large"
                         block
