@@ -8,6 +8,21 @@ import type { Tenant } from "../../../types/tenant";
 import type { Room } from "../../../types/room";
 import { adminBillService } from "../services/bill";
 
+const dec = (v: any): number => {
+  if (v === null || v === undefined) return 0;
+  if (typeof v === "number") return v;
+  if (typeof v === "string") return Number(v) || 0;
+  if (typeof v === "object") {
+    if (typeof (v as any).$numberDecimal === "string") return Number((v as any).$numberDecimal) || 0;
+    if (typeof (v as any).toString === "function") {
+      const s = (v as any).toString();
+      const n = Number(s);
+      if (!isNaN(n)) return n;
+    }
+  }
+  return 0;
+};
+
 interface BillDetailDrawerProps {
   open: boolean;
   onClose: () => void;
@@ -138,7 +153,7 @@ const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
             </Descriptions.Item>
             <Descriptions.Item label="Còn lại">
               <Text strong style={{ color: "#fa8c16", fontSize: 16 }}>
-                {(Number(bill.amountDue || 0) - Number(bill.amountPaid || 0)).toLocaleString("vi-VN")} ₫
+                {Math.max(Number(bill.amountDue || 0) - Number(bill.amountPaid || 0), 0).toLocaleString("vi-VN")} ₫
               </Text>
             </Descriptions.Item>
             {/* Ngày tạo & cập nhật */}
@@ -164,12 +179,12 @@ const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
                 </Descriptions.Item>
                 <Descriptions.Item label="Tiền thuê/tháng">
                   <Text strong style={{ color: "#52c41a", fontSize: 16 }}>
-                    {Number(contract.monthlyRent ?? 0).toLocaleString("vi-VN")} ₫
+                    {dec(contract.monthlyRent).toLocaleString("vi-VN")} ₫
                   </Text>
                 </Descriptions.Item>
                 <Descriptions.Item label="Tiền cọc">
                   <Text strong style={{ color: "#fa8c16", fontSize: 16 }}>
-                    {Number(contract.deposit ?? 0).toLocaleString("vi-VN")} ₫
+                    {dec(contract.deposit).toLocaleString("vi-VN")} ₫
                   </Text>
                 </Descriptions.Item>
                 <Descriptions.Item label="Số phòng">{room?.roomNumber}</Descriptions.Item>

@@ -44,71 +44,97 @@ const Profile: React.FC = () => {
     const [contracts, setContracts] = useState<IContract[]>([]);
     const [bills, setBills] = useState<IBill[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
+    const [tabLoading, setTabLoading] = useState<{ [key: string]: boolean }>({});
 
     const [pwdForm] = Form.useForm<{ currentPassword: string; newPassword: string }>();
     const [pwdModalOpen, setPwdModalOpen] = useState(false);
 
-    const fetchData = async () => {
-        try {
-            const token = localStorage.getItem("token");
-            if (!token) throw new Error("Chưa đăng nhập");
+    // Load user info on component mount
+    useEffect(() => {
+        const loadUserInfo = async () => {
+            try {
+                const token = localStorage.getItem("token");
+                if (!token) throw new Error("Chưa đăng nhập");
 
-            const decoded = jwtDecode<IUserToken>(token);
-            // Kết hợp thông tin từ token và user đã lưu khi đăng nhập (localStorage)
-            const stored = clientAuthService.getCurrentUser();
-            const issuedAt = (decoded as any)?.iat ? new Date((decoded as any).iat * 1000).toISOString() : undefined;
-            const mergedUser: IUserToken = {
-                ...(decoded as any),
-                ...(stored as any),
-                fullName:
-                    (stored as any)?.fullName ||
-                    (stored as any)?.username ||
-                    (decoded as any)?.fullName ||
-                    (decoded as any)?.email,
-                phone: (stored as any)?.phone || (decoded as any)?.phone || "",
-                createdAt: (stored as any)?.createdAt || issuedAt,
-            } as any;
-            setUser(mergedUser);
-
-            // Lấy userId đúng từ token
-            const userId = decoded.id;
-
-            if (!userId) {
-                console.error("User ID không tồn tại trong token");
-                return;
+                const decoded = jwtDecode<IUserToken>(token);
+                const stored = clientAuthService.getCurrentUser();
+                const issuedAt = (decoded as any)?.iat ? new Date((decoded as any).iat * 1000).toISOString() : undefined;
+                const mergedUser: IUserToken = {
+                    ...(decoded as any),
+                    ...(stored as any),
+                    fullName:
+                        (stored as any)?.fullName ||
+                        (stored as any)?.username ||
+                        (decoded as any)?.fullName ||
+                        (decoded as any)?.email,
+                    phone: (stored as any)?.phone || (decoded as any)?.phone || "",
+                    createdAt: (stored as any)?.createdAt || issuedAt,
+                } as any;
+                setUser(mergedUser);
+            } catch (error) {
+                console.error("Lỗi tải thông tin người dùng:", error);
+            } finally {
+                setLoading(false);
             }
+        };
 
-            setLoading(true);
+        loadUserInfo();
+    }, []);
 
-            // Lấy rooms public (không cần auth)
+    // Function to load rooms data
+    const loadRoomsData = async () => {
+        setTabLoading(prev => ({ ...prev, "2": true }));
+        try {
             const roomsRes = await api.get(`/rooms/public`);
             setRooms(Array.isArray(roomsRes.data.data) ? roomsRes.data.data : []);
-
-            // Chỉ lấy contracts và bills nếu user đã login
-            try {
-                const [contractsRes, billsRes] = await Promise.all([
-                    api.get(`/contracts/my-contracts`),
-                    api.get(`/bills/my-bills`),
-                ]);
-
-                setContracts(Array.isArray(contractsRes.data.data) ? contractsRes.data.data : []);
-                setBills(Array.isArray(billsRes.data.data) ? billsRes.data.data : []);
-            } catch (authError) {
-                console.log("User chưa login hoặc token không hợp lệ, chỉ hiển thị rooms public");
-                setContracts([]);
-                setBills([]);
-            }
         } catch (error) {
-            console.error("Lỗi tải dữ liệu:", error);
+            console.error("Lỗi tải danh sách phòng:", error);
+            message.error("Không thể tải danh sách phòng");
         } finally {
-            setLoading(false);
+            setTabLoading(prev => ({ ...prev, "2": false }));
         }
     };
 
+    // Function to load contracts and bills data
+    const loadContractsAndBillsData = async (tabKey: string) => {
+        setTabLoading(prev => ({ ...prev, [tabKey]: true }));
+        try {
+            const [contractsRes, billsRes] = await Promise.all([
+                api.get(`/contracts/my-contracts`),
+                api.get(`/bills/my-bills`),
+            ]);
 
-    useEffect(() => {
-        fetchData();
-    }, []);
+            setContracts(Array.isArray(contractsRes.data.data) ? contractsRes.data.data : []);
+            setBills(Array.isArray(billsRes.data.data) ? billsRes.data.data : []);
+        } catch (error) {
+            console.error("Lỗi tải hợp đồng và hóa đơn:", error);
+            message.error("Không thể tải hợp đồng và hóa đơn");
+        } finally {
+            setTabLoading(prev => ({ ...prev, [tabKey]: false }));
+        }
+    };
+
+    // Handle tab change
+    const handleTabChange = (key: string) => {
+        switch (key) {
+            case "2": // Phòng trọ của tôi
+                if (rooms.length === 0) {
+                    loadRoomsData();
+                }
+                break;
+            case "3": // Hợp đồng & hóa đơn
+                // Luôn gọi API khi click vào tab Hợp đồng & hóa đơn
+                loadContractsAndBillsData("3");
+                break;
+            case "6": // Thống kê cá nhân
+                // Luôn gọi API khi click vào tab Thống kê cá nhân
+                loadContractsAndBillsData("6");
+                break;
+            // Tab 1 (Thông tin cá nhân) không cần call API
+            default:
+                break;
+        }
+    };
 
     if (loading)
         return <Spin size="large" style={{ display: "block", margin: "100px auto" }} />;
@@ -117,10 +143,12 @@ const Profile: React.FC = () => {
 
     const safeBills = Array.isArray(bills) ? bills : [];
     const totalPaid = safeBills.reduce((acc, b) => acc + (b.amountPaid || 0), 0);
-    const totalDebt = safeBills.reduce(
-        (acc, b) => acc + ((b.amountDue || 0) - (b.amountPaid || 0)),
-        0
-    );
+    const totalDebt = safeBills.reduce((acc, b) => {
+        const due = Number(b.amountDue || 0);
+        const paid = Number(b.amountPaid || 0);
+        const remaining = Math.max(due - paid, 0);
+        return acc + remaining;
+    }, 0);
 
     return (
         <div className="profile-container">
@@ -158,7 +186,6 @@ const Profile: React.FC = () => {
                                     className="glow-button"
                                     type="primary"
                                     icon={<LockOutlined />}
-
                                 >
                                     Sửa thông tin
                                 </Button>
@@ -181,6 +208,7 @@ const Profile: React.FC = () => {
                         <Tabs
                             defaultActiveKey="1"
                             className="modern-tabs"
+                            onChange={handleTabChange}
                             items={[
                                 {
                                     key: "1",
@@ -211,182 +239,192 @@ const Profile: React.FC = () => {
                                     key: "2",
                                     label: "Phòng trọ của tôi",
                                     children: (
-                                        <List
-                                            itemLayout="horizontal"
-                                            dataSource={rooms}
-                                            renderItem={(item, index) => (
-                                                <List.Item
-                                                    key={item._id || index}
-                                                    className="list-item-hover"
-                                                    actions={[
-                                                        <Tooltip title="Chỉnh sửa tin" key="edit">
-                                                            <Button
-                                                                shape="circle"
-                                                                icon={<EditOutlined />}
-                                                            />
-                                                        </Tooltip>,
-                                                    ]}
-                                                >
-                                                    <List.Item.Meta
-                                                        avatar={
-                                                            <Avatar
-                                                                shape="square"
-                                                                size={60}
-                                                                src={item.image}
-                                                                icon={<HomeOutlined />}
-                                                            />
-                                                        }
-                                                        title={`Phòng ${item.roomNumber}`}
-                                                        description={
-                                                            <>
-                                                                <Text strong>
-                                                                    {Number(item.pricePerMonth).toLocaleString()} đ / tháng
-                                                                </Text>
-                                                                <br />
-                                                                <Text>{item.district}</Text>
-                                                            </>
-                                                        }
-                                                    />
-                                                </List.Item>
-                                            )}
-                                        />
+                                        <Spin spinning={tabLoading["2"]}>
+                                            <List
+                                                itemLayout="horizontal"
+                                                dataSource={rooms}
+                                                renderItem={(item, index) => (
+                                                    <List.Item
+                                                        key={item._id || index}
+                                                        className="list-item-hover"
+                                                        actions={[
+                                                            <Tooltip title="Chỉnh sửa tin" key="edit">
+                                                                <Button
+                                                                    shape="circle"
+                                                                    icon={<EditOutlined />}
+                                                                />
+                                                            </Tooltip>,
+                                                        ]}
+                                                    >
+                                                        <List.Item.Meta
+                                                            avatar={
+                                                                <Avatar
+                                                                    shape="square"
+                                                                    size={60}
+                                                                    src={item.image}
+                                                                    icon={<HomeOutlined />}
+                                                                />
+                                                            }
+                                                            title={`Phòng ${item.roomNumber}`}
+                                                            description={
+                                                                <>
+                                                                    <Text strong>
+                                                                        {Number(item.pricePerMonth).toLocaleString()} đ / tháng
+                                                                    </Text>
+                                                                    <br />
+                                                                    <Text>{item.district}</Text>
+                                                                </>
+                                                            }
+                                                        />
+                                                    </List.Item>
+                                                )}
+                                            />
+                                        </Spin>
                                     ),
                                 },
                                 {
                                     key: "3",
                                     label: "Hợp đồng & hóa đơn",
                                     children: (
-                                        <>
-                                            <h3>Hợp đồng</h3>
-                                            <List
-                                                dataSource={contracts}
-                                                renderItem={(item, index) => (
-                                                    <List.Item
-                                                        key={item._id || index}
-                                                        className="list-item-hover"
-                                                    >
-                                                        <List.Item.Meta
-                                                            avatar={<Avatar icon={<CalendarOutlined />} />}
-                                                            title={`Hợp đồng #${item._id || index}`}
-                                                            description={
-                                                                <>
-                                                                    <Text>
-                                                                        Ngày bắt đầu:{" "}
-                                                                        {new Date(item.startDate).toLocaleDateString()}
-                                                                    </Text>
-                                                                    <br />
-                                                                    <Text>
-                                                                        Ngày kết thúc:{" "}
-                                                                        {new Date(item.endDate).toLocaleDateString()}
-                                                                    </Text>
-                                                                    <br />
-                                                                    <Text>Trạng thái: {item.status}</Text>
-                                                                </>
-                                                            }
-                                                        />
-                                                    </List.Item>
-                                                )}
-                                            />
+                                        <Spin spinning={tabLoading["3"]}>
+                                            <>
+                                                <h3>Hợp đồng</h3>
+                                                <List
+                                                    dataSource={contracts}
+                                                    renderItem={(item, index) => (
+                                                        <List.Item
+                                                            key={item._id || index}
+                                                            className="list-item-hover"
+                                                        >
+                                                            <List.Item.Meta
+                                                                avatar={<Avatar icon={<CalendarOutlined />} />}
+                                                                title={`Hợp đồng #${item._id || index}`}
+                                                                description={
+                                                                    <>
+                                                                        <Text>
+                                                                            Ngày bắt đầu:{" "}
+                                                                            {new Date(item.startDate).toLocaleDateString()}
+                                                                        </Text>
+                                                                        <br />
+                                                                        <Text>
+                                                                            Ngày kết thúc:{" "}
+                                                                            {new Date(item.endDate).toLocaleDateString()}
+                                                                        </Text>
+                                                                        <br />
+                                                                        <Text>Trạng thái: {item.status}</Text>
+                                                                    </>
+                                                                }
+                                                            />
+                                                        </List.Item>
+                                                    )}
+                                                />
 
-                                            <Divider />
+                                                <Divider />
 
-                                            <h3>Hóa đơn</h3>
-                                            <List
-                                                dataSource={safeBills}
-                                                renderItem={(item, index) => (
-                                                    <List.Item
-                                                        key={item._id || index}
-                                                        className="list-item-hover"
-                                                    >
-                                                        <List.Item.Meta
-                                                            avatar={<Avatar icon={<MessageOutlined />} />}
-                                                            title={`Hóa đơn ngày ${new Date(
-                                                                item.billingDate
-                                                            ).toLocaleDateString()}`}
-                                                            description={
-                                                                <>
-                                                                    <Text>
-                                                                        Tổng tiền:{" "}
-                                                                        {(item.amountDue || 0).toLocaleString()} đ
-                                                                    </Text>
-                                                                    <br />
-                                                                    <Text>
-                                                                        Đã thanh toán:{" "}
-                                                                        {(item.amountPaid || 0).toLocaleString()} đ
-                                                                    </Text>
-                                                                    <br />
-                                                                    <Tag
-                                                                        color={
-                                                                            item.status === "PARTIALLY_PAID"
-                                                                                ? "orange"
-                                                                                : "green"
-                                                                        }
-                                                                    >
-                                                                        {item.status || "-"}
-                                                                    </Tag>
-                                                                </>
-                                                            }
-                                                        />
-                                                    </List.Item>
-                                                )}
-                                            />
-                                        </>
+                                                <h3>Hóa đơn</h3>
+                                                <List
+                                                    dataSource={safeBills}
+                                                    renderItem={(item, index) => (
+                                                        <List.Item
+                                                            key={item._id || index}
+                                                            className="list-item-hover"
+                                                        >
+                                                            <List.Item.Meta
+                                                                avatar={<Avatar icon={<MessageOutlined />} />}
+                                                                title={`Hóa đơn ngày ${new Date(
+                                                                    item.billingDate
+                                                                ).toLocaleDateString()}`}
+                                                                description={
+                                                                    <>
+                                                                        <Text>
+                                                                            Tổng tiền:{" "}
+                                                                            {(item.amountDue || 0).toLocaleString()} đ
+                                                                        </Text>
+                                                                        <br />
+                                                                        <Text>
+                                                                            Đã thanh toán:{" "}
+                                                                            {(item.amountPaid || 0).toLocaleString()} đ
+                                                                        </Text>
+                                                                        <br />
+                                                                        <Tag
+                                                                            color={
+                                                                                item.status === "PAID"
+                                                                                    ? "green"
+                                                                                    : item.status === "UNPAID"
+                                                                                    ? "red"
+                                                                                    : item.status === "PARTIALLY_PAID"
+                                                                                    ? "orange"
+                                                                                    : "default"
+                                                                            }
+                                                                        >
+                                                                            {item.status || "-"}
+                                                                        </Tag>
+                                                                    </>
+                                                                }
+                                                            />
+                                                        </List.Item>
+                                                    )}
+                                                />
+                                            </>
+                                        </Spin>
                                     ),
                                 },
                                 {
                                     key: "6",
                                     label: "Thống kê cá nhân",
                                     children: (
-                                        <div className="tab-content">
-                                            <Row gutter={[16, 16]}>
-                                                <Col xs={24} md={8}>
-                                                    <Card className="stat-card" bordered={false}>
-                                                        <Title level={4}>Phòng đang cho thuê</Title>
-                                                        <Text strong style={{ fontSize: 24 }}>
-                                                            {rooms.length}
-                                                        </Text>
-                                                    </Card>
-                                                </Col>
-                                                <Col xs={24} md={8}>
-                                                    <Card className="stat-card" bordered={false}>
-                                                        <Title level={4}>Hợp đồng hiện tại</Title>
-                                                        <Text strong style={{ fontSize: 24 }}>
-                                                            {contracts.length}
-                                                        </Text>
-                                                    </Card>
-                                                </Col>
-                                                <Col xs={24} md={8}>
-                                                    <Card className="stat-card" bordered={false}>
-                                                        <Title level={4}>Tổng hóa đơn</Title>
-                                                        <Text strong style={{ fontSize: 24 }}>
-                                                            {safeBills.length}
-                                                        </Text>
-                                                    </Card>
-                                                </Col>
-                                            </Row>
+                                        <Spin spinning={tabLoading["6"]}>
+                                            <div className="tab-content">
+                                                <Row gutter={[16, 16]}>
+                                                    <Col xs={24} md={8}>
+                                                        <Card className="stat-card" bordered={false}>
+                                                            <Title level={4}>Phòng đang cho thuê</Title>
+                                                            <Text strong style={{ fontSize: 24 }}>
+                                                                {rooms.length}
+                                                            </Text>
+                                                        </Card>
+                                                    </Col>
+                                                    <Col xs={24} md={8}>
+                                                        <Card className="stat-card" bordered={false}>
+                                                            <Title level={4}>Hợp đồng hiện tại</Title>
+                                                            <Text strong style={{ fontSize: 24 }}>
+                                                                {contracts.length}
+                                                            </Text>
+                                                        </Card>
+                                                    </Col>
+                                                    <Col xs={24} md={8}>
+                                                        <Card className="stat-card" bordered={false}>
+                                                            <Title level={4}>Tổng hóa đơn</Title>
+                                                            <Text strong style={{ fontSize: 24 }}>
+                                                                {safeBills.length}
+                                                            </Text>
+                                                        </Card>
+                                                    </Col>
+                                                </Row>
 
-                                            <Divider />
+                                                <Divider />
 
-                                            <Row gutter={[16, 16]}>
-                                                <Col xs={24} md={12}>
-                                                    <Card
-                                                        title="Tổng tiền đã thanh toán"
-                                                        bordered={false}
-                                                    >
-                                                        <Title level={3} style={{ color: "green" }}>
-                                                            {totalPaid.toLocaleString()} đ
-                                                        </Title>
-                                                    </Card>
-                                                </Col>
-                                                <Col xs={24} md={12}>
-                                                    <Card title="Tổng tiền còn nợ" bordered={false}>
-                                                        <Title level={3} style={{ color: "red" }}>
-                                                            {totalDebt.toLocaleString()} đ
-                                                        </Title>
-                                                    </Card>
-                                                </Col>
-                                            </Row>
-                                        </div>
+                                                <Row gutter={[16, 16]}>
+                                                    <Col xs={24} md={12}>
+                                                        <Card
+                                                            title="Tổng tiền đã thanh toán"
+                                                            bordered={false}
+                                                        >
+                                                            <Title level={3} style={{ color: "green" }}>
+                                                                {totalPaid.toLocaleString()} đ
+                                                            </Title>
+                                                        </Card>
+                                                    </Col>
+                                                    <Col xs={24} md={12}>
+                                                        <Card title="Tổng tiền còn nợ" bordered={false}>
+                                                            <Title level={3} style={{ color: "red" }}>
+                                                                {totalDebt.toLocaleString()} đ
+                                                            </Title>
+                                                        </Card>
+                                                    </Col>
+                                                </Row>
+                                            </div>
+                                        </Spin>
                                     ),
                                 },
                             ]}

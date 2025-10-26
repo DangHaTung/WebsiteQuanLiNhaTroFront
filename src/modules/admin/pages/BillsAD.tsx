@@ -12,6 +12,7 @@ import { adminContractService } from "../services/contract";
 import { adminTenantService } from "../services/tenant";
 import { adminRoomService } from "../services/room";
 import BillDetailDrawer from "../components/BillDetailDrawer";
+import "../../../assets/styles/roomAd.css";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -39,31 +40,71 @@ const BillsAD: React.FC = () => {
     const [detailVisible, setDetailVisible] = useState(false);
     const [selectedBillId, setSelectedBillId] = useState<string | undefined>(undefined);
 
+    // State để theo dõi đã load các dữ liệu phụ chưa
+    const [hasLoadedContracts, setHasLoadedContracts] = useState<boolean>(false);
+    const [hasLoadedTenants, setHasLoadedTenants] = useState<boolean>(false);
+    const [hasLoadedRooms, setHasLoadedRooms] = useState<boolean>(false);
+
     useEffect(() => {
-        loadData();
+        loadBills();
     }, []);
 
-    const loadData = async () => {
+    // Chỉ load bills ban đầu
+    const loadBills = async () => {
         try {
             setLoading(true);
-            const [billsData, contractsData, tenantsData, roomsData] = await Promise.all([
-                adminBillService.getAll({ limit: 50 }),
-                adminContractService.getAll({ limit: 100 }), // Tăng limit để đảm bảo load đủ contracts
-                adminTenantService.getAll({ limit: 50 }),
-                adminRoomService.getAll(),
-            ]);
+            const billsData = await adminBillService.getAll({ limit: 50 });
             setBills(billsData);
-            setContracts(contractsData);
-            setTenants(tenantsData);
-            setRooms(roomsData);
         } catch (error: any) {
-            message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu");
+            message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu hóa đơn");
         } finally {
             setLoading(false);
         }
     };
 
-    const openModal = (record?: Bill) => {
+    // Load contracts chỉ khi cần (khi mở modal)
+    const loadContractsIfNeeded = async () => {
+        if (!hasLoadedContracts) {
+            try {
+                const contractsData = await adminContractService.getAll({ limit: 100 });
+                setContracts(contractsData);
+                setHasLoadedContracts(true);
+            } catch (error: any) {
+                message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu hợp đồng");
+            }
+        }
+    };
+
+    // Load tenants chỉ khi cần (khi mở drawer detail)
+    const loadTenantsIfNeeded = async () => {
+        if (!hasLoadedTenants) {
+            try {
+                const tenantsData = await adminTenantService.getAll({ limit: 50 });
+                setTenants(tenantsData);
+                setHasLoadedTenants(true);
+            } catch (error: any) {
+                message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu người thuê");
+            }
+        }
+    };
+
+    // Load rooms chỉ khi cần (khi mở drawer detail)
+    const loadRoomsIfNeeded = async () => {
+        if (!hasLoadedRooms) {
+            try {
+                const roomsData = await adminRoomService.getAll();
+                setRooms(roomsData);
+                setHasLoadedRooms(true);
+            } catch (error: any) {
+                message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu phòng");
+            }
+        }
+    };
+
+    const openModal = async (record?: Bill) => {
+        // Chỉ load contracts khi mở modal (vì cần cho dropdown)
+        await loadContractsIfNeeded();
+
         if (record) {
             setEditing(record);
             const contractId = typeof record.contractId === "string" ? record.contractId : record.contractId?._id;
@@ -90,6 +131,16 @@ const BillsAD: React.FC = () => {
     const handleSave = async () => {
         try {
             const values = await form.validateFields();
+            // Nếu hóa đơn đang ở trạng thái PAID, không cho phép chuyển về trạng thái khác
+            if (editing?.status === "PAID" && values.status !== "PAID") {
+                message.error("Hóa đơn đã thanh toán, không thể chuyển về chưa thanh toán hoặc hủy");
+                return;
+            }
+            // Nếu hóa đơn đang ở trạng thái PARTIALLY_PAID, không cho phép chuyển về UNPAID hoặc VOID (cho phép chuyển lên PAID)
+            if (editing?.status === "PARTIALLY_PAID" && (values.status === "UNPAID" || values.status === ("VOID" as any))) {
+                message.error("Hóa đơn đã thanh toán một phần, không thể chuyển về chưa thanh toán hoặc hủy");
+                return;
+            }
             const payload: Partial<Bill> = {
                 contractId: values.contractId,
                 billingDate: values.billingDate.toISOString(),
@@ -112,7 +163,7 @@ const BillsAD: React.FC = () => {
                 message.success("Thêm hóa đơn thành công!");
             }
             closeModal();
-            loadData();
+            loadBills();
         } catch (error: any) {
             message.error(error?.response?.data?.message || "Có lỗi xảy ra");
         }
@@ -122,7 +173,7 @@ const BillsAD: React.FC = () => {
         try {
             await adminBillService.remove(id);
             message.success("Đã xóa hóa đơn!");
-            loadData();
+            loadBills();
         } catch (error: any) {
             message.error(error?.response?.data?.message || "Lỗi khi xóa hóa đơn");
         }
@@ -130,10 +181,21 @@ const BillsAD: React.FC = () => {
 
     const getContractInfo = (contractId: string | Contract): string => {
         if (typeof contractId === "object" && contractId?._id) {
-            return contractId._id;
+            return contractId._id.substring(0, 8) + '...';
         }
+
+        // Nếu backend đã populate contract data trong bill, không cần tìm trong contracts list
+        const bill = bills.find(b => 
+            (typeof b.contractId === 'object' && b.contractId?._id === contractId) ||
+            (typeof b.contractId === 'string' && b.contractId === contractId)
+        );
+        
+        if (bill && typeof bill.contractId === 'object') {
+            return bill.contractId._id.substring(0, 8) + '...';
+        }
+
         const contract = contracts.find((c) => c._id === contractId);
-        return contract?._id || (typeof contractId === "string" ? contractId : "N/A");
+        return contract?._id.substring(0, 8) + '...' || (typeof contractId === "string" ? contractId.substring(0, 8) + '...' : "N/A");
     };
 
     const filteredBills = useMemo(() => {
@@ -146,7 +208,10 @@ const BillsAD: React.FC = () => {
     const unpaidCount = useMemo(() => bills.filter((b) => b.status === "UNPAID").length, [bills]);
     const partiallyPaidCount = useMemo(() => bills.filter((b) => b.status === "PARTIALLY_PAID").length, [bills]);
 
-    const openDetail = (bill: Bill) => {
+    const openDetail = async (bill: Bill) => {
+        // Load tenants và rooms khi mở drawer detail (nếu chưa load)
+        await Promise.all([loadTenantsIfNeeded(), loadRoomsIfNeeded()]);
+        
         setSelectedBillId(bill._id);
         setDetailVisible(true);
     };
@@ -201,7 +266,7 @@ const BillsAD: React.FC = () => {
                     VOID: { color: "default", text: "Đã hủy" },
                 };
                 const m = map[s];
-                return <Tag color={m.color}>{m.text}</Tag>;
+                return <Tag color={m.color} className="tag-hover">{m.text}</Tag>;
             },
         },
         {
@@ -209,12 +274,13 @@ const BillsAD: React.FC = () => {
             dataIndex: "amountDue",
             key: "amountDue",
             align: "right",
-            render: (v: any) => {
-                // Backend đã chuyển đổi Decimal128 sang number
-                if (typeof v === 'number' && !isNaN(v)) {
-                    return v.toLocaleString("vi-VN");
-                }
-                return "0";
+            render: (_: any, record: Bill) => {
+                const due = typeof record.amountDue === 'number' && !isNaN(record.amountDue) ? record.amountDue : 0;
+                const paid = typeof record.amountPaid === 'number' && !isNaN(record.amountPaid) ? record.amountPaid : 0;
+                let display = due;
+                if (record.status === 'PAID') display = 0;
+                else if (record.status === 'PARTIALLY_PAID') display = Math.max(due - paid, 0);
+                return display.toLocaleString("vi-VN");
             },
         },
         {
@@ -222,12 +288,13 @@ const BillsAD: React.FC = () => {
             dataIndex: "amountPaid",
             key: "amountPaid",
             align: "right",
-            render: (v: any) => {
-                // Backend đã chuyển đổi Decimal128 sang number
-                if (typeof v === 'number' && !isNaN(v)) {
-                    return v.toLocaleString("vi-VN");
-                }
-                return "0";
+            render: (_: any, record: Bill) => {
+                const due = typeof record.amountDue === 'number' && !isNaN(record.amountDue) ? record.amountDue : 0;
+                const paid = typeof record.amountPaid === 'number' && !isNaN(record.amountPaid) ? record.amountPaid : 0;
+                let display = paid;
+                if (record.status === 'UNPAID') display = 0;
+                else if (record.status === 'PARTIALLY_PAID') display = Math.min(paid, due);
+                return display.toLocaleString("vi-VN");
             },
         },
         {
@@ -238,11 +305,17 @@ const BillsAD: React.FC = () => {
             render: (_: any, record: Bill) => (
                 <Space>
                     <Tooltip title="Sửa">
-                        <Button shape="circle" type="primary" icon={<EditOutlined />} onClick={() => openModal(record)} />
+                        <Button
+                            shape="circle"
+                            type="primary"
+                            icon={<EditOutlined />}
+                            className="btn-hover"
+                            onClick={(e) => { e.stopPropagation(); openModal(record); }}
+                        />
                     </Tooltip>
-                    <Tooltip title="Xóa">
-                        <Popconfirm title="Xóa hóa đơn này?" okText="Xóa" cancelText="Hủy" onConfirm={() => handleDelete(record._id)}>
-                            <Button shape="circle" danger icon={<DeleteOutlined />} />
+                    <Tooltip title={(record.status === 'PAID' || record.status === 'PARTIALLY_PAID') ? "Không thể xóa hóa đơn đã thanh toán/1 phần" : "Xóa"}>
+                        <Popconfirm title="Xóa hóa đơn này?" okText="Xóa" cancelText="Hủy" onConfirm={() => handleDelete(record._id)} disabled={record.status === 'PAID' || record.status === 'PARTIALLY_PAID'}>
+                            <Button shape="circle" type="primary" danger icon={<DeleteOutlined />} className="btn-hover" onClick={(e) => e.stopPropagation()} disabled={record.status === 'PAID' || record.status === 'PARTIALLY_PAID'} />
                         </Popconfirm>
                     </Tooltip>
                 </Space>
@@ -412,7 +485,7 @@ const BillsAD: React.FC = () => {
                         </Col>
                         <Col xs={24} md={12}>
                             <Form.Item label="Tình trạng" name="status" initialValue="UNPAID" rules={[{ required: true }]}>
-                                <Select>
+                                <Select disabled={editing?.status === 'PAID'}>
                                     <Option value="PAID">Đã thanh toán</Option>
                                     <Option value="UNPAID">Chưa thanh toán</Option>
                                     <Option value="PARTIALLY_PAID">Một phần</Option>
@@ -447,4 +520,3 @@ const BillsAD: React.FC = () => {
 };
 
 export default BillsAD;
-

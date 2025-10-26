@@ -10,6 +10,7 @@ import { adminContractService } from "../services/contract";
 import { adminTenantService } from "../services/tenant";
 import { adminRoomService } from "../services/room";
 import ContractDetailDrawer from "../components/ContractDetailDrawer";
+import "../../../assets/styles/roomAd.css";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -38,30 +39,57 @@ const ContractsAD: React.FC = () => {
   const [detailVisible, setDetailVisible] = useState(false);
   const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
 
+  // State để theo dõi đã load tenants và rooms chưa
+  const [hasLoadedTenants, setHasLoadedTenants] = useState<boolean>(false);
+  const [hasLoadedRooms, setHasLoadedRooms] = useState<boolean>(false);
+
   useEffect(() => {
-    loadData();
+    loadContracts();
   }, []);
 
-  const loadData = async () => {
+  // Chỉ load contracts ban đầu
+  const loadContracts = async () => {
     try {
       setLoading(true);
-      const [contractsData, tenantsData, roomsData] = await Promise.all([
-        adminContractService.getAll({ limit: 50 }),
-        adminTenantService.getAll({ limit: 50 }),
-        adminRoomService.getAll(),
-      ]);
-
+      const contractsData = await adminContractService.getAll({ limit: 50 });
       setContracts(contractsData);
-      setTenants(tenantsData);
-      setRooms(roomsData);
     } catch (error: any) {
-      message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu");
+      message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu hợp đồng");
     } finally {
       setLoading(false);
     }
   };
 
-  const openModal = (record?: Contract) => {
+  // Load tenants chỉ khi cần (khi mở modal)
+  const loadTenantsIfNeeded = async () => {
+    if (!hasLoadedTenants) {
+      try {
+        const tenantsData = await adminTenantService.getAll({ limit: 50 });
+        setTenants(tenantsData);
+        setHasLoadedTenants(true);
+      } catch (error: any) {
+        message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu người thuê");
+      }
+    }
+  };
+
+  // Load rooms chỉ khi cần (khi mở modal)
+  const loadRoomsIfNeeded = async () => {
+    if (!hasLoadedRooms) {
+      try {
+        const roomsData = await adminRoomService.getAll();
+        setRooms(roomsData);
+        setHasLoadedRooms(true);
+      } catch (error: any) {
+        message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu phòng");
+      }
+    }
+  };
+
+  const openModal = async (record?: Contract) => {
+    // Chỉ load tenants và rooms khi mở modal
+    await Promise.all([loadTenantsIfNeeded(), loadRoomsIfNeeded()]);
+
     if (record) {
       setEditing(record);
       const tenantId = typeof record.tenantId === "string" ? record.tenantId : record.tenantId?._id;
@@ -109,7 +137,7 @@ const ContractsAD: React.FC = () => {
         message.success("Thêm hợp đồng thành công!");
       }
       closeModal();
-      loadData();
+      loadContracts();
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Có lỗi xảy ra");
     }
@@ -119,7 +147,7 @@ const ContractsAD: React.FC = () => {
     try {
       await adminContractService.remove(id);
       message.success("Đã xóa hợp đồng!");
-      loadData();
+      loadContracts();
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Lỗi khi xóa hợp đồng");
     }
@@ -134,6 +162,16 @@ const ContractsAD: React.FC = () => {
       return tenantId.fullName;
     }
 
+    // Nếu backend đã populate tenant data trong contract, không cần tìm trong tenants list
+    const contract = contracts.find(c => 
+      (typeof c.tenantId === 'object' && c.tenantId?._id === tenantId) ||
+      (typeof c.tenantId === 'string' && c.tenantId === tenantId)
+    );
+    
+    if (contract && typeof contract.tenantId === 'object') {
+      return contract.tenantId.fullName || "N/A";
+    }
+
     const tenant = tenants.find((t) => t._id === tenantId);
     return tenant?.fullName || (typeof tenantId === "string" ? tenantId : "N/A");
   };
@@ -142,6 +180,17 @@ const ContractsAD: React.FC = () => {
     if (typeof roomId === "object" && roomId?.roomNumber) {
       return roomId.roomNumber;
     }
+
+    // Nếu backend đã populate room data trong contract, không cần tìm trong rooms list
+    const contract = contracts.find(c => 
+      (typeof c.roomId === 'object' && c.roomId?._id === roomId) ||
+      (typeof c.roomId === 'string' && c.roomId === roomId)
+    );
+    
+    if (contract && typeof contract.roomId === 'object') {
+      return contract.roomId.roomNumber || "N/A";
+    }
+
     const room = rooms.find((r) => r._id === roomId);
     return room?.roomNumber || (typeof roomId === "string" ? roomId : "N/A");
   };
@@ -214,7 +263,6 @@ const ContractsAD: React.FC = () => {
       key: "deposit",
       align: "right",
       render: (v: any) => {
-        // Backend đã chuyển đổi Decimal128 sang number
         if (typeof v === 'number' && !isNaN(v)) {
           return v.toLocaleString("vi-VN");
         }
@@ -227,7 +275,6 @@ const ContractsAD: React.FC = () => {
       key: "monthlyRent",
       align: "right",
       render: (v: any) => {
-        // Backend đã chuyển đổi Decimal128 sang number
         if (typeof v === 'number' && !isNaN(v)) {
           return v.toLocaleString("vi-VN");
         }
@@ -252,7 +299,7 @@ const ContractsAD: React.FC = () => {
           CANCELED: { color: "red", text: "Đã hủy" },
         };
         const m = map[s] || { color: "blue", text: s };
-        return <Tag color={m.color}>{m.text}</Tag>;
+        return <Tag color={m.color} className="tag-hover">{m.text}</Tag>;
       },
     },
     {
@@ -263,11 +310,17 @@ const ContractsAD: React.FC = () => {
       render: (_: any, record: Contract) => (
         <Space>
           <Tooltip title="Sửa">
-            <Button shape="circle" type="primary" icon={<EditOutlined />} onClick={() => openModal(record)} />
+            <Button
+              shape="circle"
+              type="primary"
+              icon={<EditOutlined />}
+              className="btn-hover"
+              onClick={(e) => { e.stopPropagation(); openModal(record); }}
+            />
           </Tooltip>
           <Tooltip title="Xóa">
             <Popconfirm title="Xóa hợp đồng này?" okText="Xóa" cancelText="Hủy" onConfirm={() => handleDelete(record._id)}>
-              <Button shape="circle" danger icon={<DeleteOutlined />} />
+              <Button shape="circle" type="primary" danger icon={<DeleteOutlined />} className="btn-hover" onClick={(e) => e.stopPropagation()} />
             </Popconfirm>
           </Tooltip>
         </Space>
@@ -374,7 +427,6 @@ const ContractsAD: React.FC = () => {
             </div>
           </Col>
         </Row>
-
 
         {/* Table */}
         <Table<Contract>
@@ -498,4 +550,3 @@ const ContractsAD: React.FC = () => {
 };
 
 export default ContractsAD;
-
