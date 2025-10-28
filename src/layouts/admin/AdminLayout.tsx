@@ -1,10 +1,11 @@
-import React, { useState } from "react";
-import { Avatar, Badge, Dropdown, Layout, Menu, type MenuProps, Tooltip } from "antd";
+import React, { useState, useEffect } from "react";
+import { Avatar, Dropdown, Layout, Menu, type MenuProps, Tooltip } from "antd";
 import { Outlet, useNavigate } from "react-router-dom";
-import { MenuFoldOutlined, MenuUnfoldOutlined, DashboardOutlined, UserOutlined, BellOutlined, SettingOutlined, LogoutOutlined, HomeOutlined, LoginOutlined, UserAddOutlined } from "@ant-design/icons";
+import { MenuFoldOutlined, MenuUnfoldOutlined, DashboardOutlined, UserOutlined, SettingOutlined, LogoutOutlined, HomeOutlined, LoginOutlined, UserAddOutlined } from "@ant-design/icons";
 import "../../assets/styles/layoutAd.css";
 import SearchBar from "./SearchBar";
 import { adminAuthService } from "../../modules/admin/services/auth";
+// notifications removed
 
 const { Header, Sider, Content, Footer } = Layout;
 
@@ -16,6 +17,8 @@ const AdminLayout: React.FC = () => {
 
   const isAuthenticated = adminAuthService.isAuthenticated();
   const currentUser = adminAuthService.getCurrentUser();
+
+  // notifications removed
 
   const handleMenuClick: MenuProps['onClick'] = (e) => {
     if (e.key === "settings") {
@@ -88,8 +91,14 @@ const AdminLayout: React.FC = () => {
             {
               key: "/admin/users",
               icon: <UserOutlined style={{ fontSize: 20 }} />,
-              label: "Users",
+              label: "Người dùng",
             },
+            {
+              key: "/admin/complaints",
+              icon: <SettingOutlined style={{ fontSize: 20 }} />,
+              label: "Khiếu nại",
+            },
+            // notifications menu removed
           ]}
           style={{
             background: "transparent",
@@ -130,10 +139,7 @@ const AdminLayout: React.FC = () => {
 
           <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
 
-            {/* Notification Icon */}
-            <Badge count={5} offset={[0, 0]}>
-              <BellOutlined className="icon-light-sweep" />
-            </Badge>
+            {/* notifications icon removed */}
 
             {/* User Dropdown */}
             <Dropdown

@@ -97,3 +97,24 @@
   border-left: 4px solid #1677ff;
 }
 
+/* Disable row hover highlight/effects inside complaints table */
+.no-row-hover .ant-table-tbody > tr:hover > td,
+.no-row-hover .ant-table-tbody > tr.ant-table-row:hover > td,
+.no-row-hover .ant-table-tbody > tr.ant-table-row-hover > td,
+.no-row-hover .ant-table-container .ant-table-tbody > tr:hover > td,
+.no-row-hover .ant-table-container .ant-table-tbody > tr.ant-table-row:hover > td,
+.no-row-hover .ant-table-container .ant-table-tbody > tr.ant-table-row-hover > td {
+  background-color: inherit !important;
+}
+.no-row-hover .ant-table-tbody > tr:hover,
+.no-row-hover .ant-table-tbody > tr.ant-table-row:hover,
+.no-row-hover .ant-table-tbody > tr.ant-table-row-hover,
+.no-row-hover .ant-table-container .ant-table-tbody > tr:hover,
+.no-row-hover .ant-table-container .ant-table-tbody > tr.ant-table-row:hover,
+.no-row-hover .ant-table-container .ant-table-tbody > tr.ant-table-row-hover {
+  transform: none !important;
+  box-shadow: none !important;
+  background-color: inherit !important;
+  cursor: default;
+}
+
