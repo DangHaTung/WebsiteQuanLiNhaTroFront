@@ -1,24 +1,41 @@
 import api from "../services/api";
 
 type LoginPayload = { email: string; password: string };
-type RegisterPayload = { fullName: string; email: string; phone?: string; password: string };
+type RegisterPayload = {
+  fullName: string;
+  email: string;
+  phone?: string;
+  password: string;
+};
 
-type User = { id: string; username?: string; fullName?: string; email: string; role: string };
+type User = {
+  id: string;
+  username?: string;
+  fullName?: string;
+  email: string;
+  role: string;
+};
 
 type LoginResponse = { message: string; token: string; user: User };
-type RegisterResponse = { message: string; user: Pick<User, "id" | "email" | "role"> & { fullName?: string } };
+type RegisterResponse = {
+  message: string;
+  user: Pick<User, "id" | "email" | "role"> & { fullName?: string };
+};
 
 export const adminAuthService = {
   async login(payload: LoginPayload) {
     const { data } = await api.post<LoginResponse>("/login", payload);
-    if (data.user.role !== "ADMIN") {
+    if (data.user.role !== "ADMIN" && data.user.role !== "STAFF") {
       throw new Error("Tài khoản không có quyền ADMIN");
     }
     return data;
   },
 
   async register(payload: RegisterPayload) {
-    const { data } = await api.post<RegisterResponse>("/register", { ...payload, role: "ADMIN" });
+    const { data } = await api.post<RegisterResponse>("/register", {
+      ...payload,
+      role: "ADMIN",
+    });
     return data;
   },
 
@@ -47,5 +64,3 @@ export const adminAuthService = {
     window.location.href = "/admin/login";
   },
 };
-
-

@@ -13,6 +13,7 @@ import { adminTenantService } from "../services/tenant";
 import { adminRoomService } from "../services/room";
 import BillDetailDrawer from "../components/BillDetailDrawer";
 import "../../../assets/styles/roomAd.css";
+import { isAdmin } from "../../../utils/roleChecker";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -185,11 +186,11 @@ const BillsAD: React.FC = () => {
         }
 
         // Nếu backend đã populate contract data trong bill, không cần tìm trong contracts list
-        const bill = bills.find(b => 
+        const bill = bills.find(b =>
             (typeof b.contractId === 'object' && b.contractId?._id === contractId) ||
             (typeof b.contractId === 'string' && b.contractId === contractId)
         );
-        
+
         if (bill && typeof bill.contractId === 'object') {
             return bill.contractId._id.substring(0, 8) + '...';
         }
@@ -211,7 +212,7 @@ const BillsAD: React.FC = () => {
     const openDetail = async (bill: Bill) => {
         // Load tenants và rooms khi mở drawer detail (nếu chưa load)
         await Promise.all([loadTenantsIfNeeded(), loadRoomsIfNeeded()]);
-        
+
         setSelectedBillId(bill._id);
         setDetailVisible(true);
     };
@@ -313,11 +314,13 @@ const BillsAD: React.FC = () => {
                             onClick={(e) => { e.stopPropagation(); openModal(record); }}
                         />
                     </Tooltip>
-                    <Tooltip title={(record.status === 'PAID' || record.status === 'PARTIALLY_PAID') ? "Không thể xóa hóa đơn đã thanh toán/1 phần" : "Xóa"}>
-                        <Popconfirm title="Xóa hóa đơn này?" okText="Xóa" cancelText="Hủy" onConfirm={() => handleDelete(record._id)} disabled={record.status === 'PAID' || record.status === 'PARTIALLY_PAID'}>
-                            <Button shape="circle" type="primary" danger icon={<DeleteOutlined />} className="btn-hover" onClick={(e) => e.stopPropagation()} disabled={record.status === 'PAID' || record.status === 'PARTIALLY_PAID'} />
-                        </Popconfirm>
-                    </Tooltip>
+                    {isAdmin() && (
+                        <Tooltip title={(record.status === 'PAID' || record.status === 'PARTIALLY_PAID') ? "Không thể xóa hóa đơn đã thanh toán/1 phần" : "Xóa"}>
+                            <Popconfirm title="Xóa hóa đơn này?" okText="Xóa" cancelText="Hủy" onConfirm={() => handleDelete(record._id)} disabled={record.status === 'PAID' || record.status === 'PARTIALLY_PAID'}>
+                                <Button shape="circle" type="primary" danger icon={<DeleteOutlined />} className="btn-hover" onClick={(e) => e.stopPropagation()} disabled={record.status === 'PAID' || record.status === 'PARTIALLY_PAID'} />
+                            </Popconfirm>
+                        </Tooltip>
+                    )}
                 </Space>
             ),
         },

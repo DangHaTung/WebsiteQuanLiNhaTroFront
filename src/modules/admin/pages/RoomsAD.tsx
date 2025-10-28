@@ -27,6 +27,7 @@ import { adminRoomService } from "../services/room";
 import type { Room } from "../../../types/room";
 import "../../../assets/styles/roomAd.css";
 import RoomDetailDrawer from "../components/RoomDetailDrawer";
+import { isAdmin } from "../../../utils/roleChecker";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -324,19 +325,21 @@ const RoomsAD: React.FC = () => {
             }}
             className="btn-hover"
           />
-          <Tooltip title="Xóa">
-            <Button
-              type="primary"
-              danger
-              icon={<DeleteOutlined />}
-              shape="circle"
-              onClick={(e) => {
-                e?.stopPropagation();
-                onDelete(record);
-              }}
-              className="btn-hover"
-            />
-          </Tooltip>
+          {isAdmin() && (
+            <Tooltip title="Xóa">
+              <Button
+                type="primary"
+                danger
+                icon={<DeleteOutlined />}
+                shape="circle"
+                onClick={(e) => {
+                  e?.stopPropagation();
+                  onDelete(record);
+                }}
+                className="btn-hover"
+              />
+            </Tooltip>
+          )}
         </Space>
       ),
     },

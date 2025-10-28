@@ -10,18 +10,40 @@ import BillsAD from "../modules/admin/pages/BillsAD";
 import Users from "../modules/admin/pages/Users";
 import ContractsAD from "../modules/admin/pages/ContractsAD";
 
-const RequireAdmin = ({ children }: { children: React.ReactElement }) =>
-  adminAuthService.isAuthenticated() ? children : <Navigate to="/admin/login" replace />;
+const RequireAdmin = ({ children }: { children: React.ReactElement }) => {
+  const user = adminAuthService.getCurrentUser();
+
+  if (!user) {
+    return <Navigate to="/admin/login" replace />;
+  }
+  return children;
+};
+
+const RequireAdminOnly = ({ children }: { children: React.ReactElement }) => {
+  const user = adminAuthService.getCurrentUser();
+
+  if (!user) {
+    return <Navigate to="/admin/login" replace />;
+  }
+
+  if (user.role !== "ADMIN") {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+  return children;
+};
 
 const adminRoutes = [
   { path: "login", element: <AdminLogin /> },
   { path: "register", element: <AdminRegister /> },
+
   { path: "dashboard", element: <RequireAdmin><Dashboard /></RequireAdmin> },
   { path: "profile", element: <RequireAdmin><Profile /></RequireAdmin> },
   { path: "bills", element: <RequireAdmin><BillsAD /></RequireAdmin> },
-  { path: "users", element: <RequireAdmin><Users /></RequireAdmin> },
   { path: "contracts", element: <RequireAdmin><ContractsAD /></RequireAdmin> },
   { path: "roomsad", element: <RequireAdmin><RoomsAD /></RequireAdmin> },
+
+  // ADMIN
+  { path: "users", element: <RequireAdminOnly><Users /></RequireAdminOnly> },
 ];
 
 export default adminRoutes;

@@ -1,7 +1,28 @@
 import React, { useState } from "react";
-import { Avatar, Badge, Dropdown, Layout, Menu, type MenuProps, Tooltip } from "antd";
+import {
+  Avatar,
+  Badge,
+  Dropdown,
+  Layout,
+  Menu,
+  type MenuProps,
+  Tooltip,
+} from "antd";
 import { Outlet, useNavigate } from "react-router-dom";
-import { MenuFoldOutlined, MenuUnfoldOutlined, DashboardOutlined, UserOutlined, BellOutlined, SettingOutlined, LogoutOutlined, HomeOutlined, LoginOutlined, UserAddOutlined } from "@ant-design/icons";
+import {
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  DashboardOutlined,
+  UserOutlined,
+  BellOutlined,
+  SettingOutlined,
+  LogoutOutlined,
+  HomeOutlined,
+  LoginOutlined,
+  UserAddOutlined,
+  FileTextOutlined,
+  FileDoneOutlined,
+} from "@ant-design/icons";
 import "../../assets/styles/layoutAd.css";
 import SearchBar from "./SearchBar";
 import { adminAuthService } from "../../modules/admin/services/auth";
@@ -17,7 +38,7 @@ const AdminLayout: React.FC = () => {
   const isAuthenticated = adminAuthService.isAuthenticated();
   const currentUser = adminAuthService.getCurrentUser();
 
-  const handleMenuClick: MenuProps['onClick'] = (e) => {
+  const handleMenuClick: MenuProps["onClick"] = (e) => {
     if (e.key === "settings") {
       navigate("/admin/profile");
     } else if (e.key === "logout") {
@@ -28,6 +49,40 @@ const AdminLayout: React.FC = () => {
       navigate("/admin/register");
     }
   };
+
+  // Danh sách menu chính (ẩn Users nếu là STAFF)
+  const menuItems = [
+    {
+      key: "/admin/dashboard",
+      icon: <DashboardOutlined style={{ fontSize: 20 }} />,
+      label: "Dashboard",
+    },
+    {
+      key: "/admin/roomsad",
+      icon: <HomeOutlined style={{ fontSize: 20 }} />,
+      label: "Quản lý phòng",
+    },
+    {
+      key: "/admin/contracts",
+      icon: <FileTextOutlined style={{ fontSize: 20 }} />,
+      label: "Hợp đồng",
+    },
+    {
+      key: "/admin/bills",
+      icon: <FileDoneOutlined style={{ fontSize: 20 }} />,
+      label: "Hóa đơn",
+    },
+    // Chỉ hiển thị nếu là ADMIN
+    ...(currentUser?.role === "ADMIN"
+      ? [
+        {
+          key: "/admin/users",
+          icon: <UserOutlined style={{ fontSize: 20 }} />,
+          label: "Người dùng",
+        },
+      ]
+      : []),
+  ];
 
   return (
     <Layout style={{ minHeight: "100vh" }}>
@@ -64,33 +119,7 @@ const AdminLayout: React.FC = () => {
           mode="inline"
           selectedKeys={[window.location.pathname]}
           onClick={({ key }: { key: string }) => navigate(key)}
-          items={[
-            {
-              key: "/admin/dashboard",
-              icon: <DashboardOutlined style={{ fontSize: 20 }} />,
-              label: "Dashboard",
-            },
-            {
-              key: "/admin/roomsad",
-              icon: <HomeOutlined style={{ fontSize: 20 }} />,
-              label: "Quản lý phòng",
-            },
-            {
-              key: "/admin/contracts",
-              icon: <SettingOutlined style={{ fontSize: 20 }} />,
-              label: "Hợp đồng",
-            },
-            {
-              key: "/admin/bills",
-              icon: <SettingOutlined style={{ fontSize: 20 }} />,
-              label: "Hóa đơn",
-            },
-            {
-              key: "/admin/users",
-              icon: <UserOutlined style={{ fontSize: 20 }} />,
-              label: "Users",
-            },
-          ]}
+          items={menuItems}
           style={{
             background: "transparent",
             fontSize: 16,
@@ -129,7 +158,6 @@ const AdminLayout: React.FC = () => {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-
             {/* Notification Icon */}
             <Badge count={5} offset={[0, 0]}>
               <BellOutlined className="icon-light-sweep" />
@@ -141,19 +169,45 @@ const AdminLayout: React.FC = () => {
                 onClick: handleMenuClick,
                 items: isAuthenticated
                   ? [
-                    { key: "settings", icon: <SettingOutlined />, label: "Cài đặt" },
-                    { key: "logout", icon: <LogoutOutlined />, label: "Đăng xuất" },
+                    {
+                      key: "settings",
+                      icon: <SettingOutlined />,
+                      label: "Cài đặt",
+                    },
+                    {
+                      key: "logout",
+                      icon: <LogoutOutlined />,
+                      label: "Đăng xuất",
+                    },
                   ]
                   : [
-                    { key: "login", icon: <LoginOutlined />, label: "Đăng nhập" },
-                    { key: "register", icon: <UserAddOutlined />, label: "Đăng ký" },
+                    {
+                      key: "login",
+                      icon: <LoginOutlined />,
+                      label: "Đăng nhập",
+                    },
+                    {
+                      key: "register",
+                      icon: <UserAddOutlined />,
+                      label: "Đăng ký",
+                    },
                   ],
               }}
               placement="bottomRight"
               trigger={["click"]}
             >
-              <Tooltip title={currentUser?.fullName || currentUser?.username || "Tài khoản"}>
-                <Avatar size={40} className="avatar-light-sweep" icon={<UserOutlined />} />
+              <Tooltip
+                title={
+                  currentUser?.fullName ||
+                  currentUser?.username ||
+                  "Tài khoản"
+                }
+              >
+                <Avatar
+                  size={40}
+                  className="avatar-light-sweep"
+                  icon={<UserOutlined />}
+                />
               </Tooltip>
             </Dropdown>
           </div>
