@@ -11,6 +11,7 @@ import { adminTenantService } from "../services/tenant";
 import { adminRoomService } from "../services/room";
 import ContractDetailDrawer from "../components/ContractDetailDrawer";
 import "../../../assets/styles/roomAd.css";
+import { isAdmin } from "../../../utils/roleChecker";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -163,11 +164,11 @@ const ContractsAD: React.FC = () => {
     }
 
     // Nếu backend đã populate tenant data trong contract, không cần tìm trong tenants list
-    const contract = contracts.find(c => 
+    const contract = contracts.find(c =>
       (typeof c.tenantId === 'object' && c.tenantId?._id === tenantId) ||
       (typeof c.tenantId === 'string' && c.tenantId === tenantId)
     );
-    
+
     if (contract && typeof contract.tenantId === 'object') {
       return contract.tenantId.fullName || "N/A";
     }
@@ -182,11 +183,11 @@ const ContractsAD: React.FC = () => {
     }
 
     // Nếu backend đã populate room data trong contract, không cần tìm trong rooms list
-    const contract = contracts.find(c => 
+    const contract = contracts.find(c =>
       (typeof c.roomId === 'object' && c.roomId?._id === roomId) ||
       (typeof c.roomId === 'string' && c.roomId === roomId)
     );
-    
+
     if (contract && typeof contract.roomId === 'object') {
       return contract.roomId.roomNumber || "N/A";
     }
@@ -318,11 +319,13 @@ const ContractsAD: React.FC = () => {
               onClick={(e) => { e.stopPropagation(); openModal(record); }}
             />
           </Tooltip>
-          <Tooltip title="Xóa">
-            <Popconfirm title="Xóa hợp đồng này?" okText="Xóa" cancelText="Hủy" onConfirm={() => handleDelete(record._id)}>
-              <Button shape="circle" type="primary" danger icon={<DeleteOutlined />} className="btn-hover" onClick={(e) => e.stopPropagation()} />
-            </Popconfirm>
-          </Tooltip>
+          {isAdmin() && (
+            <Tooltip title="Xóa">
+              <Popconfirm title="Xóa hợp đồng này?" okText="Xóa" cancelText="Hủy" onConfirm={() => handleDelete(record._id)}>
+                <Button shape="circle" type="primary" danger icon={<DeleteOutlined />} className="btn-hover" onClick={(e) => e.stopPropagation()} />
+              </Popconfirm>
+            </Tooltip>
+          )}
         </Space>
       ),
     },

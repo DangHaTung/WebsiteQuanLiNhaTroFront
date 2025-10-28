@@ -7,7 +7,7 @@ import type { IUserToken, User } from "../../../types/user";
  * userId nếu hợp lệ, null nếu token hết hạn / invalid
  */
 const getUserIdFromToken = (): string | null => {
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("admin_token");
   if (!token) return null;
 
   try {
@@ -16,7 +16,7 @@ const getUserIdFromToken = (): string | null => {
     return decoded.id;
   } catch (err) {
     console.error("Token không hợp lệ hoặc hết hạn:", err);
-    localStorage.removeItem("token"); // xóa token hỏng
+    localStorage.removeItem("admin_token"); // xóa token hỏng
     return null;
   }
 };
@@ -31,11 +31,10 @@ export const getProfileForForm = async (): Promise<User | null> => {
 
   try {
     const res = await api.get(`/users/${userId}`);
-    const userData = res.data.data; // đây mới là object user thật
-    console.log("User data từ backend:", userData);
+    const userData = res.data.data; 
 
-    if (userData.role !== "ADMIN") {
-      console.warn("Người dùng không phải ADMIN:", userData.role);
+    if (userData.role !== "ADMIN" && userData.role !== "STAFF") {
+      console.warn("Người dùng không có quyền hợp lệ:", userData.role);
       return null;
     }
 
