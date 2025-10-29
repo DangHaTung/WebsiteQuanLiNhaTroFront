@@ -9,7 +9,7 @@ import clientRoutes from "./routes/ClientRoutes";
 import adminRoutes from "./routes/AdminRoutes";
 
 // ✅ Pages (các trang bổ sung)
-import Notifications from "./modules/client/pages/Notifications";
+// notifications removed
 import Contracts from "./modules/client/pages/Contracts";
 import Invoices from "./modules/client/pages/Invoices";
 import Login from "./modules/client/pages/Login";
@@ -27,7 +27,7 @@ const App = () => {
           <Route key={route.path} path={route.path} element={route.element} />
         ))}
 
-        <Route path="notifications" element={<Notifications />} />
+        {/** notifications route removed */}
         <Route path="contracts" element={<Contracts />} />
         <Route path="invoices" element={<Invoices />} />
       </Route>

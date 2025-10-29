@@ -214,6 +214,9 @@ const Navbar: React.FC = () => {
           <Link className="nav-link" to="/contact">
             Liên hệ
           </Link>
+          <Link className="nav-link" to="/complaint">
+            Khiếu nại
+          </Link>
         </div>
       </div>
 
@@ -240,6 +243,9 @@ const Navbar: React.FC = () => {
           </Link>
           <Link to="/contact" onClick={() => setOpenDrawer(false)}>
             Liên hệ
+          </Link>
+          <Link to="/complaint" onClick={() => setOpenDrawer(false)}>
+            Khiếu nại
           </Link>
 
           {/* User menu in drawer */}

@@ -97,3 +97,54 @@
   border-left: 4px solid #1677ff;
 }
 
+/* Disable row hover highlight/effects inside complaints table */
+.no-row-hover .ant-table-tbody > tr:hover > td,
+.no-row-hover .ant-table-tbody > tr.ant-table-row:hover > td,
+.no-row-hover .ant-table-tbody > tr.ant-table-row-hover > td,
+.no-row-hover .ant-table-container .ant-table-tbody > tr:hover > td,
+.no-row-hover .ant-table-container .ant-table-tbody > tr.ant-table-row:hover > td,
+.no-row-hover .ant-table-container .ant-table-tbody > tr.ant-table-row-hover > td {
+  background-color: inherit !important;
+}
+.no-row-hover .ant-table-tbody > tr:hover,
+.no-row-hover .ant-table-tbody > tr.ant-table-row:hover,
+.no-row-hover .ant-table-tbody > tr.ant-table-row-hover,
+.no-row-hover .ant-table-container .ant-table-tbody > tr:hover,
+.no-row-hover .ant-table-container .ant-table-tbody > tr.ant-table-row:hover,
+.no-row-hover .ant-table-container .ant-table-tbody > tr.ant-table-row-hover {
+  transform: none !important;
+  box-shadow: none !important;
+  background-color: inherit !important;
+  cursor: default;
+}
+
+/* Disable hover effects on all elements except buttons in complaints table */
+.no-row-hover .ant-table-tbody > tr:hover *:not(.ant-btn):not(.ant-btn *),
+.no-row-hover .ant-table-tbody > tr.ant-table-row:hover *:not(.ant-btn):not(.ant-btn *),
+.no-row-hover .ant-table-tbody > tr.ant-table-row-hover *:not(.ant-btn):not(.ant-btn *) {
+  background-color: inherit !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Disable hover on Select components */
+.no-row-hover .ant-select:hover .ant-select-selector,
+.no-row-hover .ant-select-focused .ant-select-selector {
+  background-color: inherit !important;
+  border-color: #d9d9d9 !important;
+}
+
+/* Disable hover on Tag components */
+.no-row-hover .ant-tag:hover {
+  background-color: inherit !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Only allow hover effects on buttons */
+.no-row-hover .ant-btn:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15) !important;
+  transition: all 0.3s ease !important;
+}
+

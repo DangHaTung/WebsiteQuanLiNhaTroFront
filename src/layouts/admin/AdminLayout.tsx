@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import {
   Avatar,
-  Badge,
   Dropdown,
   Layout,
   Menu,
@@ -14,7 +13,6 @@ import {
   MenuUnfoldOutlined,
   DashboardOutlined,
   UserOutlined,
-  BellOutlined,
   SettingOutlined,
   LogoutOutlined,
   HomeOutlined,
@@ -22,10 +20,12 @@ import {
   UserAddOutlined,
   FileTextOutlined,
   FileDoneOutlined,
+  ExclamationCircleOutlined,
 } from "@ant-design/icons";
 import "../../assets/styles/layoutAd.css";
 import SearchBar from "./SearchBar";
 import { adminAuthService } from "../../modules/admin/services/auth";
+// notifications removed
 
 const { Header, Sider, Content, Footer } = Layout;
 
@@ -71,6 +71,11 @@ const AdminLayout: React.FC = () => {
       key: "/admin/bills",
       icon: <FileDoneOutlined style={{ fontSize: 20 }} />,
       label: "Hóa đơn",
+    },
+    {
+      key: "/admin/complaints",
+      icon: <ExclamationCircleOutlined style={{ fontSize: 20 }} />,
+      label: "Khiếu nại",
     },
     // Chỉ hiển thị nếu là ADMIN
     ...(currentUser?.role === "ADMIN"
@@ -158,10 +163,6 @@ const AdminLayout: React.FC = () => {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-            {/* Notification Icon */}
-            <Badge count={5} offset={[0, 0]}>
-              <BellOutlined className="icon-light-sweep" />
-            </Badge>
 
             {/* User Dropdown */}
             <Dropdown
