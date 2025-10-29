@@ -10,11 +10,19 @@ import Settings from "../modules/client/pages/Settings";
 import Contracts from "../modules/client/pages/Contracts";
 import PaymentSuccess from "../modules/client/pages/PaymentSuccess";
 import Complaint from "../modules/client/pages/Complaint";
+import News from "../modules/client/pages/News";
+import NewsDetail from "../modules/client/pages/NewsDetail";
+import About from "../modules/client/pages/About";
+import Contact from "../modules/client/pages/Contact";
 
 const clientRoutes = [
   { path: "/", element: <Home /> },
   { path: "rooms", element: <Rooms /> },
   { path: "rooms/:id", element: <RoomsDetail /> },
+  { path: "news", element: <News /> },
+  { path: "news/:id", element: <NewsDetail /> },
+  { path: "about", element: <About /> },
+  { path: "contact", element: <Contact /> },
   { path: "checkin", element: <Checkin /> },
   { path: "login", element: <Login /> },
   { path: "register", element: <Register /> },

@@ -1,237 +1,308 @@
-import React from 'react';
-import {
-  Typography,
-  Row,
-  Col,
-  Card,
-  Form,
-  Input,
-  Button,
-  Space,
+import React, { useState } from "react";
+import { 
+  Row, 
+  Col, 
+  Card, 
+  Typography, 
+  Form, 
+  Input, 
+  Button, 
+  Select, 
   message,
-  Divider,
-} from 'antd';
-import {
-  PhoneOutlined,
-  MailOutlined,
-  HomeOutlined,
+  Space,
+  Divider
+} from "antd";
+import { 
+  PhoneOutlined, 
+  MailOutlined, 
+  EnvironmentOutlined, 
+  ClockCircleOutlined,
   SendOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons';
+  CustomerServiceOutlined,
+  QuestionCircleOutlined,
+  ExclamationCircleOutlined
+} from "@ant-design/icons";
+import "../../../assets/styles/contact.css";
 
-const { Title, Paragraph, Text } = Typography;
+const { Title, Text, Paragraph } = Typography;
+const { TextArea } = Input;
+const { Option } = Select;
 
 const Contact: React.FC = () => {
   const [form] = Form.useForm();
+  const [loading, setLoading] = useState(false);
 
-  const onFinish = async (values: { name: string; email: string; phone: string; message: string }) => {
-    console.log('Contact form submit:', values);
-    message.success('🎉 Gửi liên hệ thành công! Chúng tôi sẽ phản hồi sớm nhất.');
-    form.resetFields();
+  React.useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  const onFinish = async (values: any) => {
+    setLoading(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      message.success('Cảm ơn bạn đã liên hệ! Chúng tôi sẽ phản hồi trong vòng 24 giờ.');
+      form.resetFields();
+    } catch (error) {
+      message.error('Có lỗi xảy ra. Vui lòng thử lại sau.');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  const contactInfo = [
+    {
+      icon: <PhoneOutlined />,
+      title: "Điện thoại",
+      content: "0123 456 789",
+      description: "Hỗ trợ 24/7"
+    },
+    {
+      icon: <MailOutlined />,
+      title: "Email",
+      content: "support@tro360.com",
+      description: "Phản hồi trong 2 giờ"
+    },
+    {
+      icon: <EnvironmentOutlined />,
+      title: "Địa chỉ",
+      content: "123 Đường ABC, Quận 1, TP.HCM",
+      description: "Văn phòng chính"
+    },
+    {
+      icon: <ClockCircleOutlined />,
+      title: "Giờ làm việc",
+      content: "8:00 - 22:00",
+      description: "Thứ 2 - Chủ nhật"
+    }
+  ];
+
+  const faqData = [
+    {
+      question: "Làm thế nào để đăng tin cho thuê phòng?",
+      answer: "Bạn có thể đăng tin miễn phí bằng cách nhấn nút 'Đăng tin cho thuê' ở góc trên bên phải trang web, sau đó điền đầy đủ thông tin phòng trọ."
+    },
+    {
+      question: "Phí dịch vụ của Tro360 là bao nhiêu?",
+      answer: "Đăng tin cho thuê phòng hoàn toàn miễn phí. Chúng tôi chỉ thu phí khi có giao dịch thành công."
+    },
+    {
+      question: "Làm sao để báo cáo phòng trọ không đúng thông tin?",
+      answer: "Bạn có thể sử dụng chức năng 'Khiếu nại' trên trang web hoặc gọi hotline để báo cáo. Chúng tôi sẽ xử lý trong vòng 24 giờ."
+    },
+    {
+      question: "Có hỗ trợ thanh toán online không?",
+      answer: "Có, chúng tôi hỗ trợ thanh toán qua VNPay, MoMo, ZaloPay và các ví điện tử khác."
+    }
+  ];
+
   return (
-    <div
-      style={{
-        padding: '48px 24px',
-        maxWidth: 1200,
-        margin: '0 auto',
-        background: '#f9fbff',
-        minHeight: '100vh',
-      }}
-    >
-      {/* Header */}
-      <div style={{ textAlign: 'center', marginBottom: 48 }}>
-        <Title level={2} style={{ color: '#1677ff', marginBottom: 8 }}>
-          Liên hệ với Tro360°
-        </Title>
-        <Paragraph style={{ fontSize: 16, color: '#666' }}>
-          Chúng tôi luôn sẵn sàng lắng nghe và hỗ trợ bạn 24/7.  
-          Hãy để lại thông tin để Tro360° có thể giúp bạn nhanh nhất.
-        </Paragraph>
+    <div className="contact-container">
+      {/* Hero Section */}
+      <div className="contact-hero">
+        <div className="contact-hero-content">
+          <Title level={1} className="contact-hero-title">
+            Liên hệ với chúng tôi
+          </Title>
+          <Paragraph className="contact-hero-subtitle">
+            Chúng tôi luôn sẵn sàng lắng nghe và hỗ trợ bạn
+          </Paragraph>
+        </div>
       </div>
 
-      {/* Main content */}
-      <Row gutter={[32, 32]}>
-        {/* Form liên hệ */}
-        <Col xs={24} lg={14}>
-          <Card
-            bordered={false}
-            style={{
-              boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
-              borderRadius: 16,
-            }}
-          >
-            <Title level={4} style={{ marginBottom: 16 }}>
-              Gửi thông tin liên hệ
-            </Title>
+      {/* Contact Info Section */}
+      <div className="contact-info">
+        <div className="contact-info-content">
+          <Title level={2} className="contact-section-title">
+            Thông tin liên hệ
+          </Title>
+          <Row gutter={[24, 24]}>
+            {contactInfo.map((info, index) => (
+              <Col xs={24} sm={12} lg={6} key={index}>
+                <Card className="contact-info-card">
+                  <div className="contact-info-icon">
+                    {info.icon}
+                  </div>
+                  <Title level={4} className="contact-info-title">
+                    {info.title}
+                  </Title>
+                  <Text className="contact-info-content-text">
+                    {info.content}
+                  </Text>
+                  <Text type="secondary" className="contact-info-description">
+                    {info.description}
+                  </Text>
+                </Card>
+              </Col>
+            ))}
+          </Row>
+        </div>
+      </div>
 
-            <Form
-              form={form}
-              layout="vertical"
-              onFinish={onFinish}
-              requiredMark={false}
-            >
-              <Row gutter={16}>
-                <Col xs={24} md={12}>
+      {/* Contact Form Section */}
+      <div className="contact-form-section">
+        <div className="contact-form-content">
+          <Row gutter={[48, 48]}>
+            <Col xs={24} lg={12}>
+              <Card className="contact-form-card">
+                <Title level={3} className="contact-form-title">
+                  Gửi tin nhắn cho chúng tôi
+                </Title>
+                <Paragraph className="contact-form-subtitle">
+                  Điền thông tin bên dưới và chúng tôi sẽ liên hệ lại với bạn sớm nhất
+                </Paragraph>
+                
+                <Form
+                  form={form}
+                  layout="vertical"
+                  onFinish={onFinish}
+                  className="contact-form"
+                >
+                  <Row gutter={16}>
+                    <Col xs={24} sm={12}>
+                      <Form.Item
+                        name="name"
+                        label="Họ và tên"
+                        rules={[{ required: true, message: 'Vui lòng nhập họ và tên' }]}
+                      >
+                        <Input placeholder="Nhập họ và tên" />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={12}>
+                      <Form.Item
+                        name="email"
+                        label="Email"
+                        rules={[
+                          { required: true, message: 'Vui lòng nhập email' },
+                          { type: 'email', message: 'Email không hợp lệ' }
+                        ]}
+                      >
+                        <Input placeholder="Nhập email" />
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
+                  <Row gutter={16}>
+                    <Col xs={24} sm={12}>
+                      <Form.Item
+                        name="phone"
+                        label="Số điện thoại"
+                        rules={[{ required: true, message: 'Vui lòng nhập số điện thoại' }]}
+                      >
+                        <Input placeholder="Nhập số điện thoại" />
+                      </Form.Item>
+                    </Col>
+                    <Col xs={24} sm={12}>
+                      <Form.Item
+                        name="subject"
+                        label="Chủ đề"
+                        rules={[{ required: true, message: 'Vui lòng chọn chủ đề' }]}
+                      >
+                        <Select placeholder="Chọn chủ đề">
+                          <Option value="general">Tư vấn chung</Option>
+                          <Option value="rent">Thuê phòng</Option>
+                          <Option value="rental">Cho thuê phòng</Option>
+                          <Option value="payment">Thanh toán</Option>
+                          <Option value="complaint">Khiếu nại</Option>
+                          <Option value="other">Khác</Option>
+                        </Select>
+                      </Form.Item>
+                    </Col>
+                  </Row>
+
                   <Form.Item
-                    label="Họ và tên"
-                    name="fullName"
-                    rules={[{ required: true, message: 'Vui lòng nhập họ và tên' }]}
+                    name="message"
+                    label="Nội dung tin nhắn"
+                    rules={[{ required: true, message: 'Vui lòng nhập nội dung tin nhắn' }]}
                   >
-                    <Input
-                      placeholder="VD: Nguyễn Văn A"
-                      size="large"
-                      allowClear
+                    <TextArea 
+                      rows={6} 
+                      placeholder="Nhập nội dung tin nhắn của bạn..."
                     />
                   </Form.Item>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    label="Email"
-                    name="email"
-                    rules={[
-                      { required: true, message: 'Vui lòng nhập email' },
-                      { type: 'email', message: 'Email không hợp lệ' },
-                    ]}
-                  >
-                    <Input placeholder="you@example.com" size="large" allowClear />
+
+                  <Form.Item>
+                    <Button 
+                      type="primary" 
+                      htmlType="submit" 
+                      loading={loading}
+                      icon={<SendOutlined />}
+                      size="large"
+                      className="contact-submit-btn"
+                    >
+                      Gửi tin nhắn
+                    </Button>
                   </Form.Item>
-                </Col>
-              </Row>
+                </Form>
+              </Card>
+            </Col>
 
-              <Row gutter={16}>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    label="Số điện thoại"
-                    name="phone"
-                    rules={[
-                      { required: true, message: 'Vui lòng nhập số điện thoại' },
-                      { pattern: /^\+?\d{9,12}$/, message: 'Số điện thoại không hợp lệ' },
-                    ]}
-                  >
-                    <Input placeholder="0123 456 789" size="large" allowClear />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    label="Chủ đề"
-                    name="subject"
-                    rules={[{ required: true, message: 'Vui lòng nhập chủ đề' }]}
-                  >
-                    <Input placeholder="VD: Hỗ trợ thuê phòng" size="large" allowClear />
-                  </Form.Item>
-                </Col>
-              </Row>
-
-              <Form.Item
-                label="Nội dung"
-                name="message"
-                rules={[{ required: true, message: 'Vui lòng nhập nội dung' }]}
-              >
-                <Input.TextArea
-                  rows={6}
-                  placeholder="Mô tả chi tiết vấn đề bạn cần hỗ trợ..."
-                  allowClear
-                />
-              </Form.Item>
-
-              <Space>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  icon={<SendOutlined />}
-                  size="large"
-                >
-                  Gửi liên hệ
-                </Button>
-                <Button
-                  onClick={() => form.resetFields()}
-                  icon={<ReloadOutlined />}
-                  size="large"
-                >
-                  Làm mới
-                </Button>
-              </Space>
-            </Form>
-          </Card>
-        </Col>
-
-        {/* Thông tin liên hệ + Bản đồ */}
-        <Col xs={24} lg={10}>
-          <Space direction="vertical" size={20} style={{ width: '100%' }}>
-            <Card
-              bordered={false}
-              style={{
-                boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
-                borderRadius: 16,
-              }}
-              title={
-                <Title level={4} style={{ marginBottom: 0 }}>
-                  Thông tin liên hệ
-                </Title>
-              }
-            >
-              <Space direction="vertical" size="middle">
-                <Space>
-                  <PhoneOutlined style={{ color: '#1677ff' }} />
-                  <Text strong>Hotline:</Text>
-                  <Text>0123 456 789</Text>
-                </Space>
-                <Space>
-                  <MailOutlined style={{ color: '#1677ff' }} />
-                  <Text strong>Email:</Text>
-                  <Text>support@tro360.com</Text>
-                </Space>
-                <Space align="start">
-                  <HomeOutlined style={{ color: '#1677ff', marginTop: 4 }} />
-                  <div>
-                    <Text strong>Địa chỉ:</Text>
-                    <div>123 Đường ABC, Quận XYZ, Hà Nội</div>
+            <Col xs={24} lg={12}>
+              <div className="contact-sidebar">
+                <Card className="contact-help-card">
+                  <div className="contact-help-icon">
+                    <CustomerServiceOutlined />
                   </div>
-                </Space>
-              </Space>
-            </Card>
+                  <Title level={4} className="contact-help-title">
+                    Cần hỗ trợ ngay?
+                  </Title>
+                  <Paragraph className="contact-help-text">
+                    Gọi hotline để được tư vấn trực tiếp với đội ngũ chuyên viên
+                  </Paragraph>
+                  <Button 
+                    type="primary" 
+                    size="large"
+                    icon={<PhoneOutlined />}
+                    className="contact-call-btn"
+                  >
+                    0123 456 789
+                  </Button>
+                </Card>
 
-            <Card
-              bordered={false}
-              style={{
-                boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
-                borderRadius: 16,
-              }}
-              title={
-                <Title level={4} style={{ marginBottom: 0 }}>
-                  Vị trí trên bản đồ
-                </Title>
-              }
-            >
-              <div
-                style={{
-                  height: 300,
-                  width: '100%',
-                  overflow: 'hidden',
-                  borderRadius: 12,
-                }}
-              >
-                <iframe
-                  title="Tro360 Map"
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3724.125892225124!2d105.834159815406!3d21.02776408599817!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3135abfd12b0d3a1%3A0x9c639c3a35d87693!2zSGFub2ksIFZpZXRuYW0!5e0!3m2!1svi!2s!4v1700000000000"
-                  width="100%"
-                  height="100%"
-                  style={{ border: 0 }}
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                />
+                <Card className="contact-faq-card">
+                  <Title level={4} className="contact-faq-title">
+                    Câu hỏi thường gặp
+                  </Title>
+                  <div className="contact-faq-list">
+                    {faqData.map((faq, index) => (
+                      <div key={index} className="contact-faq-item">
+                        <div className="contact-faq-question">
+                          <QuestionCircleOutlined className="contact-faq-icon" />
+                          <Text strong>{faq.question}</Text>
+                        </div>
+                        <div className="contact-faq-answer">
+                          <Text type="secondary">{faq.answer}</Text>
+                        </div>
+                        {index < faqData.length - 1 && <Divider />}
+                      </div>
+                    ))}
+                  </div>
+                </Card>
               </div>
-            </Card>
-          </Space>
-        </Col>
-      </Row>
+            </Col>
+          </Row>
+        </div>
+      </div>
 
-      <Divider style={{ marginTop: 64 }} />
-      <Paragraph style={{ textAlign: 'center', color: '#888' }}>
-        © {new Date().getFullYear()} Tro360° - Mạng lưới phòng trọ thông minh Việt Nam
-      </Paragraph>
+      {/* Map Section */}
+      <div className="contact-map">
+        <div className="contact-map-content">
+          <Title level={2} className="contact-section-title">
+            Vị trí văn phòng
+          </Title>
+          <div className="contact-map-container">
+            <iframe
+              src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3919.3253113000003!2d106.70042331533333!3d10.776611992315!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x31752f4b90bde3bd%3A0x15e8a216c816dc1!2zVHLGsOG7nW5nIMSQ4bqhaSBo4buNYyBD4bqndSBHaeG6pXkgVGjDoG5oIHBo4buRIEj5bq1!5e0!3m2!1svi!2s!4v1640000000000!5m2!1svi!2s"
+              width="100%"
+              height="400"
+              style={{ border: 0, borderRadius: '12px' }}
+              allowFullScreen
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
