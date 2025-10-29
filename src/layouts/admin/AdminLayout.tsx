@@ -26,6 +26,7 @@ import {
 import "../../assets/styles/layoutAd.css";
 import SearchBar from "./SearchBar";
 import { adminAuthService } from "../../modules/admin/services/auth";
+// notifications removed
 
 const { Header, Sider, Content, Footer } = Layout;
 

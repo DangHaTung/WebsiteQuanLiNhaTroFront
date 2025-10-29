@@ -9,6 +9,8 @@ import { adminAuthService } from "../modules/admin/services/auth";
 import BillsAD from "../modules/admin/pages/BillsAD";
 import Users from "../modules/admin/pages/Users";
 import ContractsAD from "../modules/admin/pages/ContractsAD";
+import Complaints from "../modules/admin/pages/Complaints";
+// notifications removed
 
 const RequireAdmin = ({ children }: { children: React.ReactElement }) => {
   const user = adminAuthService.getCurrentUser();
