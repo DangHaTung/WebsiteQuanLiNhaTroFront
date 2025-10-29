@@ -315,9 +315,21 @@ const BillsAD: React.FC = () => {
                         />
                     </Tooltip>
                     {isAdmin() && (
-                        <Tooltip title={(record.status === 'PAID' || record.status === 'PARTIALLY_PAID') ? "Không thể xóa hóa đơn đã thanh toán/1 phần" : "Xóa"}>
-                            <Popconfirm title="Xóa hóa đơn này?" okText="Xóa" cancelText="Hủy" onConfirm={() => handleDelete(record._id)} disabled={record.status === 'PAID' || record.status === 'PARTIALLY_PAID'}>
-                                <Button shape="circle" type="primary" danger icon={<DeleteOutlined />} className="btn-hover" onClick={(e) => e.stopPropagation()} disabled={record.status === 'PAID' || record.status === 'PARTIALLY_PAID'} />
+                        <Tooltip title="Xóa">
+                            <Popconfirm
+                                title="Xóa hóa đơn này?"
+                                okText="Xóa"
+                                cancelText="Hủy"
+                                onConfirm={() => handleDelete(record._id)}
+                            >
+                                <Button
+                                    shape="circle"
+                                    type="primary"
+                                    danger
+                                    icon={<DeleteOutlined />}
+                                    className="btn-hover"
+                                    onClick={(e) => e.stopPropagation()}
+                                />
                             </Popconfirm>
                         </Tooltip>
                     )}

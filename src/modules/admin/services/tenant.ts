@@ -21,7 +21,7 @@ interface SingleTenantResponse {
 
 export const adminTenantService = {
   async getAll(params?: { page?: number; limit?: number; role?: string }): Promise<Tenant[]> {
-    const res = await api.get<TenantResponse>("/users", { params: { ...params, role: "TENANT" } });
+    const res = await api.get<TenantResponse>("/tennant", { params: { ...params } });
     return res.data.data;
   },
 

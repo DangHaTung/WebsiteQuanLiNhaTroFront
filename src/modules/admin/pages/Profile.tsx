@@ -1,39 +1,6 @@
 import { useEffect, useState } from "react";
-import {
-    Row,
-    Col,
-    Card,
-    Avatar,
-    Button,
-    Tag,
-    Typography,
-    Space,
-    List,
-    Divider,
-    Tabs,
-    Badge,
-    Input,
-    Form,
-    message,
-    Spin,
-    Upload,
-    Modal,
-    type UploadFile,
-} from "antd";
-import {
-    MailOutlined,
-    PhoneOutlined,
-    CalendarOutlined,
-    EditOutlined,
-    LockOutlined,
-    KeyOutlined,
-    EyeInvisibleOutlined,
-    EyeTwoTone,
-    SettingOutlined,
-    ClockCircleOutlined,
-    UploadOutlined,
-} from "@ant-design/icons";
-
+import { Row, Col, Card, Avatar, Button, Tag, Typography, Space, List, Divider, Tabs, Badge, Input, Form, message, Spin, Upload, Modal, type UploadFile } from "antd";
+import { MailOutlined, PhoneOutlined, CalendarOutlined, EditOutlined, LockOutlined, KeyOutlined, EyeInvisibleOutlined, EyeTwoTone, SettingOutlined, ClockCircleOutlined, UploadOutlined } from "@ant-design/icons";
 import "../../../assets/styles/profileAd.css";
 import type { User } from "../../../types/user";
 import { getProfileForForm, updatePassword, updateProfile } from "../services/profile";
@@ -65,7 +32,7 @@ const Profile = () => {
                     return;
                 }
 
-                if (data.role !== "ADMIN") {
+                if (data.role !== "ADMIN" && data.role !== "STAFF") {
                     message.error("Bạn không có quyền truy cập trang này");
                     return;
                 }
@@ -101,7 +68,7 @@ const Profile = () => {
         }
     };
 
-    // Khi mở Modal, setFieldsValue ở đây → tránh warning
+    // Khi mở Modal, setFieldsValue ở đây -> tránh warning
     const handleOpenModal = () => {
         form.setFieldsValue({
             fullName: user?.fullName,
