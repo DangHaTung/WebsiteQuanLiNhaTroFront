@@ -144,6 +144,9 @@ const Checkin: React.FC = () => {
         if (!selectedRoom) throw new Error("Vui lòng chọn phòng");
 
         try {
+          // Mở tab trống ngay lập tức để tránh popup bị chặn
+          const vnpPopup = window.open("about:blank", "_blank");
+
           // Tạo tenant
           const tenantData = {
             fullName: values.fullName,
@@ -182,7 +185,7 @@ const Checkin: React.FC = () => {
           // Tạo checkin và nhận billId + amount
           const checkinRes = await clientCheckinService.createCashCheckin(checkinPayload);
           const billId = checkinRes?.data?.billId;
-          const amount = checkinRes?.data?.amount || Number(depositValue);
+          const amount = Number(selectedRoom.pricePerMonth || 0) + Number(depositValue || 0);
           if (!billId) throw new Error("Không tạo được hóa đơn.");
 
           // Tạo payment VNPay
@@ -194,13 +197,93 @@ const Checkin: React.FC = () => {
           // Lưu billId để poll trạng thái
           localStorage.setItem("currentBillId", billId);
 
-          // Mở popup thanh toán
-          const popup = window.open(paymentRes.url, "_blank", "width=500,height=700");
-          if (!popup) throw new Error("Không thể mở cửa sổ thanh toán. Vui lòng cho phép popup.");
+          // Điều hướng tab đã mở sẵn (giảm khả năng bị chặn)
+          if (vnpPopup) {
+            try { vnpPopup.location.href = paymentRes.url; } catch {}
+          } else {
+            // Fallback nếu bị chặn
+            window.location.href = paymentRes.url;
+          }
 
         } catch (err: any) {
           console.error("Thanh toán VNPAY thất bại:", err);
           message.error(err.message || "Có lỗi xảy ra khi thanh toán VNPAY");
+        }
+      }
+      // Thanh toán MoMo
+      else if (values.paymentMethod === "MOMO") {
+        if (!selectedRoom) throw new Error("Vui lòng chọn phòng");
+
+        try {
+          // Mở tab trống ngay lập tức để tránh popup bị chặn
+          const momoPopup = window.open("about:blank", "_blank");
+
+          // Tạo tenant
+          const tenantData = {
+            fullName: values.fullName,
+            phone: values.phone,
+            email: values.email,
+            identityNo: values.idCard,
+          };
+          const tenantRes = await clientTenantService.create(tenantData);
+          const tenant = tenantRes?.data || tenantRes;
+          if (!tenant?._id) throw new Error("Không tạo được thông tin khách thuê.");
+
+          // Chuẩn hóa ngày checkin
+          const checkinDate = (() => {
+            const d: any = values.checkinDate;
+            try {
+              if (!d) return new Date().toISOString();
+              if (typeof d === "string") return new Date(d).toISOString();
+              if (typeof d?.toDate === "function") return d.toDate().toISOString();
+              if (typeof d?.toISOString === "function") return d.toISOString();
+              return new Date(d).toISOString();
+            } catch {
+              return new Date().toISOString();
+            }
+          })();
+
+          // Tạo payload checkin
+          const checkinPayload = {
+            tenantId: tenant._id,
+            roomId: String(selectedRoom._id),
+            checkinDate,
+            duration: Number(values.duration),
+            deposit: Number(depositValue) || 0,
+            notes: values.notes,
+          };
+
+          // Tạo checkin và nhận billId + amount
+          const checkinRes = await clientCheckinService.createCashCheckin(checkinPayload);
+          const billId = checkinRes?.data?.billId as string;
+          const amount = Number(selectedRoom.pricePerMonth || 0) + Number(depositValue || 0);
+          if (!billId) throw new Error("Không tạo được hóa đơn.");
+
+          // Gọi tạo thanh toán MoMo
+          const momoRes = await clientCheckinService.createMomoPayment({
+            billId,
+            amount,
+            orderInfo: `Thanh toán check-in bill ${billId}`,
+          });
+
+          const payUrl = momoRes?.payUrl || momoRes?.data?.payUrl || momoRes?.data?.deeplink || momoRes?.data?.qrCodeUrl;
+          if (!payUrl) throw new Error("Không tạo được link thanh toán MoMo");
+
+          // Mở cổng thanh toán MoMo
+          message.info("Đang mở cổng thanh toán MoMo...");
+          if (momoPopup) {
+            try { momoPopup.location.href = String(payUrl); } catch {}
+          } else {
+            // Fallback nếu popup bị chặn
+            window.location.href = String(payUrl);
+          }
+
+          // Lưu billId để use-case khác có thể tham chiếu
+          localStorage.setItem("currentBillId", billId);
+
+        } catch (err: any) {
+          console.error("Thanh toán MoMo thất bại:", err);
+          message.error(err.message || "Có lỗi xảy ra khi thanh toán MoMo");
         }
       }
 
@@ -423,9 +506,9 @@ const Checkin: React.FC = () => {
                     >
                       <Radio.Group size="large">
                         <Radio value="CASH">Tiền mặt</Radio>
-                        <Radio value="BANK">Chuyển khoản</Radio>
-                        <Radio value="CARD">Thẻ tín dụng</Radio>
                         <Radio value="VNPAY">VNPAY</Radio>
+                        <Radio value="MOMO">MoMo</Radio>
+                        <Radio value="ZALO">ZALOPAY</Radio>
                       </Radio.Group>
                     </Form.Item>
                   </Col>

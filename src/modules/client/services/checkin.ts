@@ -28,4 +28,14 @@ export const clientCheckinService = {
     const res = await api.get(`/payment/vnpay/return?${params}`);
     return res.data;
   },
+
+  // Tạo payment MoMo
+  createMomoPayment: async (data: {
+    billId: string;
+    amount: number;
+    orderInfo?: string;
+  }) => {
+    const res = await api.post("/payment/momo/create", data);
+    return res.data;
+  },
 };
