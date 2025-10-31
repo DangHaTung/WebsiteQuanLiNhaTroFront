@@ -1,30 +1,44 @@
-import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 
+// ✅ Layouts
 import ClientLayout from "./layouts/client/ClientLayout";
 import AdminLayout from "./layouts/admin/AdminLayout";
 
-import clientRoutes from "./routes/clientRoutes";
-import adminRoutes from "./routes/adminRoutes";
+// ✅ Routes
+import clientRoutes from "./routes/ClientRoutes";
+import adminRoutes from "./routes/AdminRoutes";
+
+// ✅ Pages (các trang bổ sung)
+// notifications removed
+import Contracts from "./modules/client/pages/Contracts";
+import Invoices from "./modules/client/pages/Invoices";
+import Login from "./modules/client/pages/Login";
+import Register from "./modules/client/pages/Register"; 
 
 const App = () => {
   return (
     <Routes>
-      {/* Client routes */}
+      {/* Authentication Routes */}
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+
       <Route path="/" element={<ClientLayout />}>
         {clientRoutes.map((route) => (
           <Route key={route.path} path={route.path} element={route.element} />
         ))}
+
+        {/** notifications route removed */}
+        <Route path="contracts" element={<Contracts />} />
+        <Route path="invoices" element={<Invoices />} />
       </Route>
 
-      {/* Admin routes */}
       <Route path="/admin/*" element={<AdminLayout />}>
         {adminRoutes.map((route) => (
           <Route key={route.path} path={route.path} element={route.element} />
         ))}
       </Route>
 
-      {/* 404 redirect */}
+      {/* 404 Redirect */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
