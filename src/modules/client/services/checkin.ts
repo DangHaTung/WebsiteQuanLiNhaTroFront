@@ -38,4 +38,12 @@ export const clientCheckinService = {
     const res = await api.post("/payment/momo/create", data);
     return res.data;
   },
+
+  // Tạo payment ZaloPay
+  createZaloPayment: async (data: {
+    billId: string;
+  }) => {
+    const res = await api.post("/payment/zalopay/create", data);
+    return res.data;
+  },
 };

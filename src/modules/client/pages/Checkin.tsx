@@ -286,6 +286,78 @@ const Checkin: React.FC = () => {
           message.error(err.message || "Có lỗi xảy ra khi thanh toán MoMo");
         }
       }
+      // Thanh toán ZaloPay
+      else if (values.paymentMethod === "ZALO" || values.paymentMethod === "ZALOPAY") {
+        if (!selectedRoom) throw new Error("Vui lòng chọn phòng");
+
+        try {
+          // Mở tab trống ngay lập tức để tránh popup bị chặn
+          const zaloPopup = window.open("about:blank", "_blank");
+
+          // Tạo tenant
+          const tenantData = {
+            fullName: values.fullName,
+            phone: values.phone,
+            email: values.email,
+            identityNo: values.idCard,
+          };
+          const tenantRes = await clientTenantService.create(tenantData);
+          const tenant = tenantRes?.data || tenantRes;
+          if (!tenant?._id) throw new Error("Không tạo được thông tin khách thuê.");
+
+          // Chuẩn hóa ngày checkin
+          const checkinDate = (() => {
+            const d: any = values.checkinDate;
+            try {
+              if (!d) return new Date().toISOString();
+              if (typeof d === "string") return new Date(d).toISOString();
+              if (typeof d?.toDate === "function") return d.toDate().toISOString();
+              if (typeof d?.toISOString === "function") return d.toISOString();
+              return new Date(d).toISOString();
+            } catch {
+              return new Date().toISOString();
+            }
+          })();
+
+          // Tạo payload checkin
+          const checkinPayload = {
+            tenantId: tenant._id,
+            roomId: String(selectedRoom._id),
+            checkinDate,
+            duration: Number(values.duration),
+            deposit: Number(depositValue) || 0,
+            notes: values.notes,
+          };
+
+          // Tạo checkin và nhận billId
+          const checkinRes = await clientCheckinService.createCashCheckin(checkinPayload);
+          const billId = checkinRes?.data?.billId as string;
+          if (!billId) throw new Error("Không tạo được hóa đơn.");
+
+          // Gọi tạo thanh toán ZaloPay
+          const zaloRes = await clientCheckinService.createZaloPayment({ billId });
+          
+          // ZaloPay trả về payUrl hoặc order_url trong zaloData
+          const payUrl = zaloRes?.payUrl || zaloRes?.zaloData?.order_url || zaloRes?.zaloData?.orderurl || zaloRes?.data?.order_url;
+          if (!payUrl) throw new Error("Không tạo được link thanh toán ZaloPay");
+
+          // Mở cổng thanh toán ZaloPay
+          message.info("Đang mở cổng thanh toán ZaloPay...");
+          if (zaloPopup) {
+            try { zaloPopup.location.href = String(payUrl); } catch {}
+          } else {
+            // Fallback nếu popup bị chặn
+            window.location.href = String(payUrl);
+          }
+
+          // Lưu billId để use-case khác có thể tham chiếu
+          localStorage.setItem("currentBillId", billId);
+
+        } catch (err: any) {
+          console.error("Thanh toán ZaloPay thất bại:", err);
+          message.error(err.message || "Có lỗi xảy ra khi thanh toán ZaloPay");
+        }
+      }
 
       // Dọn form
       form.resetFields();
