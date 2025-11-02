@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, DatePicker, Form, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message, Row, Col, Statistic } from "antd";
+import { Button, DatePicker, Form, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message, Row, Col, Statistic, Card } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined, FileTextOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { Bill, BillStatus } from "../../../types/bill";
@@ -14,6 +14,7 @@ import { adminRoomService } from "../services/room";
 import BillDetailDrawer from "../components/BillDetailDrawer";
 import "../../../assets/styles/roomAd.css";
 import { isAdmin } from "../../../utils/roleChecker";
+import ExpandableSearch from "../components/ExpandableSearch";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -36,6 +37,7 @@ const BillsAD: React.FC = () => {
     const [editing, setEditing] = useState<Bill | null>(null);
     const [form] = Form.useForm<BillFormValues>();
     const [statusFilter, setStatusFilter] = useState<BillStatus | "ALL">("ALL");
+    const [keyword, setKeyword] = useState<string>("");
 
     // Drawer detail
     const [detailVisible, setDetailVisible] = useState(false);
@@ -201,9 +203,27 @@ const BillsAD: React.FC = () => {
 
     const filteredBills = useMemo(() => {
         let data = [...bills];
-        if (statusFilter && statusFilter !== "ALL") data = data.filter((b) => b.status === statusFilter);
+
+        // Lọc theo status
+        if (statusFilter && statusFilter !== "ALL") {
+            data = data.filter((b) => b.status === statusFilter);
+        }
+
+        // Lọc theo keyword
+        if (keyword.trim()) {
+            const k = keyword.toLowerCase();
+            data = data.filter((b) => {
+                const contractInfo = getContractInfo(b.contractId).toLowerCase();
+                const billId = b._id.toLowerCase();
+                return (
+                    billId.includes(k) ||
+                    contractInfo.includes(k)
+                );
+            });
+        }
+
         return data;
-    }, [bills, statusFilter]);
+    }, [bills, statusFilter, keyword]);
 
     const paidCount = useMemo(() => bills.filter((b) => b.status === "PAID").length, [bills]);
     const unpaidCount = useMemo(() => bills.filter((b) => b.status === "UNPAID").length, [bills]);
@@ -261,13 +281,26 @@ const BillsAD: React.FC = () => {
             onFilter: (val, record) => record.status === val,
             render: (s: BillStatus) => {
                 const map: Record<BillStatus, { color: string; text: string }> = {
-                    PAID: { color: "green", text: "Đã thanh toán" },
-                    UNPAID: { color: "red", text: "Chưa thanh toán" },
-                    PARTIALLY_PAID: { color: "orange", text: "Một phần" },
-                    VOID: { color: "default", text: "Đã hủy" },
+                    PAID: { color: "#52c41a", text: "Đã thanh toán" },
+                    UNPAID: { color: "#f5222d", text: "Chưa thanh toán" },
+                    PARTIALLY_PAID: { color: "#fa8c16", text: "Một phần" },
+                    VOID: { color: "#8c8c8c", text: "Đã hủy" },
                 };
                 const m = map[s];
-                return <Tag color={m.color} className="tag-hover">{m.text}</Tag>;
+                return (
+                    <Tag
+                        style={{
+                            fontWeight: 600,
+                            borderRadius: 12,
+                            color: "#fff",
+                            backgroundColor: m.color,
+                            boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
+                            transition: "all 0.3s",
+                        }}
+                    >
+                        {m.text}
+                    </Tag>
+                );
             },
         },
         {
@@ -339,7 +372,7 @@ const BillsAD: React.FC = () => {
     ];
 
     return (
-        <div style={{ padding: 24, background: "#f0f2f5", minHeight: "100vh" }}>
+        <div style={{ padding: 24, minHeight: "100vh" }}>
             <div style={{ background: "#fff", padding: 24, borderRadius: 16, boxShadow: "0 8px 24px rgba(0,0,0,0.08)" }}>
                 {/* Header */}
                 <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
@@ -354,6 +387,7 @@ const BillsAD: React.FC = () => {
                             icon={<PlusOutlined />}
                             size="large"
                             onClick={() => openModal()}
+                            className="btn-hover-gradient"
                         >
                             Thêm hóa đơn
                         </Button>
@@ -362,82 +396,53 @@ const BillsAD: React.FC = () => {
 
                 {/* Statistic */}
                 <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-                    <Col xs={24} sm={12} md={6}>
-                        <div style={{
-                            background: "#fff",
-                            padding: 20,
-                            borderRadius: 12,
-                            textAlign: "center",
-                            cursor: "pointer",
-                            border: "1px solid #e8e8e8",
-                            boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
-                        }} onClick={() => setStatusFilter("PAID")}>
-                            <FileTextOutlined style={{ fontSize: 28, color: "#52c41a", marginBottom: 8 }} />
-                            <Statistic title="Đã thanh toán" value={paidCount} valueStyle={{ color: "#52c41a", fontWeight: 600 }} />
-                        </div>
-                    </Col>
-                    <Col xs={24} sm={12} md={6}>
-                        <div style={{
-                            background: "#fff",
-                            padding: 20,
-                            borderRadius: 12,
-                            textAlign: "center",
-                            cursor: "pointer",
-                            border: "1px solid #e8e8e8",
-                            boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
-                        }} onClick={() => setStatusFilter("UNPAID")}>
-                            <FileTextOutlined style={{ fontSize: 28, color: "#ff4d4f", marginBottom: 8 }} />
-                            <Statistic title="Chưa thanh toán" value={unpaidCount} valueStyle={{ color: "#ff4d4f", fontWeight: 600 }} />
-                        </div>
-                    </Col>
-                    <Col xs={24} sm={12} md={6}>
-                        <div style={{
-                            background: "#fff",
-                            padding: 20,
-                            borderRadius: 12,
-                            textAlign: "center",
-                            cursor: "pointer",
-                            border: "1px solid #e8e8e8",
-                            boxShadow: "0 2px 8px rgba(0,0,0,0.06)"
-                        }} onClick={() => setStatusFilter("PARTIALLY_PAID")}>
-                            <FileTextOutlined style={{ fontSize: 28, color: "#fa8c16", marginBottom: 8 }} />
-                            <Statistic title="Một phần" value={partiallyPaidCount} valueStyle={{ color: "#fa8c16", fontWeight: 600 }} />
-                        </div>
-                    </Col>
-                    <Col xs={24} sm={12} md={6}>
-                        <div style={{
-                            background: "#fff",
-                            padding: 20,
-                            borderRadius: 12,
-                            border: "1px solid #e8e8e8",
-                            boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center"
-                        }}>
-                            <span style={{ fontWeight: 600, marginBottom: 8 }}>Tình trạng:</span>
-                            {["PAID", "UNPAID", "PARTIALLY_PAID"].map((status) => (
-                                <Tag
-                                    key={status}
-                                    color={statusFilter === status ? "blue" : "default"}
-                                    onClick={() => setStatusFilter(status as BillStatus)}
-                                    style={{ cursor: "pointer", marginBottom: 6 }}
-                                >
-                                    {status === "PAID" ? "Đã thanh toán" :
-                                        status === "UNPAID" ? "Chưa thanh toán" : "Một phần"}
-                                </Tag>
-                            ))}
-                            <Tag
-                                color={statusFilter === "ALL" ? "blue" : "default"}
-                                onClick={() => setStatusFilter("ALL")}
-                                style={{ cursor: "pointer", marginBottom: 6 }}
-                            >
-                                Tất cả
-                            </Tag>
-                        </div>
+                    <Col span={24}>
+                        <Row gutter={[16, 16]} align="middle" justify="space-between">
+                            {/* Search box */}
+                            <Col xs={24} sm={12} md={8}>
+                                <ExpandableSearch
+                                    value={keyword}
+                                    onChange={(e) => setKeyword(e.target.value)}
+                                    placeholder="Tìm theo mã hóa đơn / hợp đồng / tên người thuê / số phòng"
+                                />
+                            </Col>
+
+                            {/* Thẻ thống kê tình trạng hóa đơn */}
+                            <Col xs={24} sm={24} md={16}>
+                                <Row gutter={[16, 16]} justify="end">
+                                    {[
+                                        { title: "Đã thanh toán", color: "#52c41a", value: paidCount },
+                                        { title: "Chưa thanh toán", color: "#ff4d4f", value: unpaidCount },
+                                        { title: "Một phần", color: "#fa8c16", value: partiallyPaidCount },
+                                    ].map((item, idx) => (
+                                        <Col xs={24} sm={12} md={7} key={idx}>
+                                            <Card
+                                                size="small"
+                                                bordered={false}
+                                                style={{
+                                                    textAlign: "center",
+                                                    borderRadius: 16,
+                                                    background: "white",
+                                                    boxShadow: "0 3px 10px rgba(0,0,0,0.06)",
+                                                    padding: 12,
+                                                }}
+                                            >
+                                                <FileTextOutlined
+                                                    style={{ fontSize: 24, color: item.color, marginBottom: 4 }}
+                                                />
+                                                <Statistic
+                                                    title={item.title}
+                                                    value={item.value}
+                                                    valueStyle={{ color: item.color, fontWeight: 600, fontSize: 18 }}
+                                                />
+                                            </Card>
+                                        </Col>
+                                    ))}
+                                </Row>
+                            </Col>
+                        </Row>
                     </Col>
                 </Row>
-
 
                 {/* Table */}
                 <Table<Bill>
