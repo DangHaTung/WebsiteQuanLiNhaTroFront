@@ -13,7 +13,6 @@ import {
   MenuUnfoldOutlined,
   DashboardOutlined,
   UserOutlined,
-  SettingOutlined,
   LogoutOutlined,
   HomeOutlined,
   LoginOutlined,
@@ -25,7 +24,6 @@ import {
 import "../../assets/styles/layoutAd.css";
 import SearchBar from "./SearchBar";
 import { adminAuthService } from "../../modules/admin/services/auth";
-// notifications removed
 
 const { Header, Sider, Content, Footer } = Layout;
 
@@ -39,7 +37,7 @@ const AdminLayout: React.FC = () => {
   const currentUser = adminAuthService.getCurrentUser();
 
   const handleMenuClick: MenuProps["onClick"] = (e) => {
-    if (e.key === "settings") {
+    if (e.key === "profile") {
       navigate("/admin/profile");
     } else if (e.key === "logout") {
       adminAuthService.logout();
@@ -64,12 +62,12 @@ const AdminLayout: React.FC = () => {
     },
     {
       key: "/admin/contracts",
-      icon: <FileTextOutlined style={{ fontSize: 20 }} />,
+      icon: <FileDoneOutlined style={{ fontSize: 20 }} />,
       label: "Hợp đồng",
     },
     {
       key: "/admin/bills",
-      icon: <FileDoneOutlined style={{ fontSize: 20 }} />,
+      icon: <FileTextOutlined style={{ fontSize: 20 }} />,
       label: "Hóa đơn",
     },
     {
@@ -171,9 +169,9 @@ const AdminLayout: React.FC = () => {
                 items: isAuthenticated
                   ? [
                     {
-                      key: "settings",
-                      icon: <SettingOutlined />,
-                      label: "Cài đặt",
+                      key: "profile",
+                      icon: <UserOutlined />,
+                      label: "Profile",
                     },
                     {
                       key: "logout",
