@@ -1,36 +1,7 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Card,
-  Typography,
-  Collapse,
-  Divider,
-  Space,
-  Row,
-  Col,
-  Tag,
-  Alert,
-  Button,
-  Timeline,
-  List,
-  message,
-} from "antd";
-import {
-  FileTextOutlined,
-  CheckCircleOutlined,
-  ExclamationCircleOutlined,
-  DollarOutlined,
-  HomeOutlined,
-  SafetyOutlined,
-  PhoneOutlined,
-  CalendarOutlined,
-  TeamOutlined,
-  ToolOutlined,
-  BankOutlined,
-  FileProtectOutlined,
-  ArrowRightOutlined,
-  EnvironmentOutlined,
-} from "@ant-design/icons";
+import { Card, Typography, Collapse, Divider, Space, Row, Col, Tag, Alert, Button, Timeline, List, message } from "antd";
+import { FileTextOutlined, CheckCircleOutlined, ExclamationCircleOutlined, DollarOutlined, HomeOutlined, SafetyOutlined, PhoneOutlined, CalendarOutlined, TeamOutlined, ToolOutlined, BankOutlined, FileProtectOutlined, ArrowRightOutlined, EnvironmentOutlined } from "@ant-design/icons";
 import "../../../assets/styles/contracts.css";
 
 const { Title, Text, Paragraph } = Typography;

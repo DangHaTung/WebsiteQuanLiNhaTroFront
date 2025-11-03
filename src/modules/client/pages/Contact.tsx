@@ -1,23 +1,6 @@
 import React from 'react';
-import {
-  Typography,
-  Row,
-  Col,
-  Card,
-  Form,
-  Input,
-  Button,
-  Space,
-  message,
-  Divider,
-} from 'antd';
-import {
-  PhoneOutlined,
-  MailOutlined,
-  HomeOutlined,
-  SendOutlined,
-  ReloadOutlined,
-} from '@ant-design/icons';
+import { Typography, Row, Col, Card, Form, Input, Button, Space, message, Divider } from 'antd';
+import { PhoneOutlined, MailOutlined, HomeOutlined, SendOutlined, ReloadOutlined } from '@ant-design/icons';
 
 const { Title, Paragraph, Text } = Typography;
 

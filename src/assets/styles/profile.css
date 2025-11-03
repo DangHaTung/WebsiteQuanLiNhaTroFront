@@ -1,147 +1,128 @@
-/* Tổng thể */
-.profile-container {
-  padding: 40px;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f0f5ff, #e6f7ff);
+.cp-profile-wrap {
+    padding: 24px;
+    background: var(--cp-soft);
+    min-height: 100vh;
+    background: #f6f9ffff;
+}
+
+.cp-side-card {
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+    text-align: center;
+}
+
+.cp-mini {
+    border-radius: 10px;
+    background: #fff;
+    padding: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+}
+
+/* content card */
+.cp-content-body {
+    margin-top: 16px;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.04);
+    padding: 18px;
+}
+
+/* banners */
+.cp-banner-block {
+    height: 96px;
+    border-radius: 10px;
+    background: linear-gradient(90deg, rgba(229,27,35,0.06), rgba(0,0,0,0.02));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--cp-primary);
+    font-weight: 600;
+}
+
+/* Shine effect on buttons */
+.cp-profile-wrap .ant-btn {
+    position: relative;
+    overflow: hidden;
+    border: none;
+    color: #fff;
+    background: linear-gradient(135deg, #0d6efd, #0dcaf0);
+    transition: all 0.3s ease;
+    font-weight: 500;
+}
+
+/* shine overlay */
+.cp-profile-wrap .ant-btn::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -75%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(
+        120deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.4) 50%,
+        rgba(255, 255, 255, 0) 100%
+    );
+    transform: skewX(-20deg);
+    transition: all 0.5s ease-in-out;
+}
+
+/* shine animation on hover */
+.cp-profile-wrap .ant-btn:hover::after {
+    left: 125%;
+    transition: all 0.7s ease-in-out;
+}
+
+/* optional: nâng nhẹ button khi hover */
+.cp-profile-wrap .ant-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+}
+
+/* Menu item cơ bản */
+.profile-menu .ant-menu-item {
+  border-radius: 8px;
+  margin: 4px 0;
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  animation: fadeIn 0.6s ease;
+  align-items: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Card hiện đại */
-.profile-card {
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.05);
-  transition: all 0.35s ease;
+/* Hover effect mượt */
+.profile-menu .ant-menu-item:hover {
+  background-color: #e6f7ff !important; 
+  color: #1890ff !important;            
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
 }
 
-.profile-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.08);
+/* Icon phóng to + đổi màu khi hover */
+.profile-menu .ant-menu-item:hover .anticon {
+  color: #1890ff !important;
+  transform: scale(1.2); 
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s;
 }
 
-/* Avatar viền phát sáng động */
-.avatar-wrapper {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 20px;
-  position: relative;
-}
-
-.avatar-wrapper .ant-avatar {
-  border: 3px solid transparent;
-  background: linear-gradient(white, white) padding-box,
-    linear-gradient(90deg, #1677ff, #69c0ff, #1677ff) border-box;
-  border-radius: 50%;
-  animation: gradient-rotate 4s linear infinite;
-}
-
-@keyframes gradient-rotate {
-  0% {
-    background: linear-gradient(90deg, #1677ff, #69c0ff, #1677ff) border-box;
-  }
-  100% {
-    background: linear-gradient(450deg, #69c0ff, #1677ff, #69c0ff) border-box;
-  }
-}
-
-/* Nút hiệu ứng ánh sáng quét */
-.glow-button {
-  position: relative;
-  overflow: hidden;
-  border-radius: 10px !important;
+/* Item đang active */
+.profile-menu .ant-menu-item-selected {
+  background-color: #bae7ff !important;
+  color: #096dd9 !important;
   font-weight: 500;
-  box-shadow: 0 4px 15px rgba(22, 119, 255, 0.2);
-  transition: all 0.3s ease;
 }
 
-.glow-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(22, 119, 255, 0.4);
+/* Icon item active */
+.profile-menu .ant-menu-item-selected .anticon {
+  color: #096dd9 !important;
+  transform: none;
+  transition: none;
 }
 
-.glow-button::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -120%;
-  width: 120%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.45),
-    transparent
-  );
-  transition: all 0.45s ease;
-}
 
-.glow-button:hover::after {
-  left: 120%;
-}
-
-/* Tabs hiện đại */
-.modern-tabs .ant-tabs-tab {
-  font-weight: 600;
-  transition: all 0.3s ease;
-  position: relative;
-}
-
-.modern-tabs .ant-tabs-tab:hover {
-  color: #1677ff;
-  transform: translateY(-2px);
-}
-
-.modern-tabs .ant-tabs-tab-active::after {
-  content: "";
-  position: absolute;
-  bottom: -4px;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #1677ff, #69c0ff);
-  border-radius: 2px;
-  animation: lineSlide 0.3s ease;
-}
-
-@keyframes lineSlide {
-  from {
-    width: 0;
-  }
-  to {
-    width: 100%;
-  }
-}
-
-/* List item hover */
-.list-item-hover {
-  transition: all 0.3s ease;
-  border-radius: 12px;
-  padding: 8px 12px;
-}
-
-.list-item-hover:hover {
-  background: #f0f5ff;
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
-}
-
-.list-item-hover:hover .ant-avatar {
-  transform: scale(1.1);
-  transition: transform 0.3s ease;
-}
-
-/* Animation tổng thể */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* smaller responsive fixes */
+@media (max-width: 768px) {
+    .cp-sidebar {
+        margin-bottom: 12px;
+    }
 }

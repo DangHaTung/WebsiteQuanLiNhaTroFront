@@ -1,20 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Input, Badge, Drawer, Button, Dropdown, Avatar, Typography } from "antd";
-import {
-  PhoneOutlined,
-  MailOutlined,
-  HeartOutlined,
-  SearchOutlined,
-  HomeOutlined,
-  UserOutlined,
-  MenuOutlined,
-  CloseOutlined,
-  CustomerServiceOutlined,
-  SettingOutlined,
-  LogoutOutlined,
-  UserSwitchOutlined,
-} from "@ant-design/icons";
+import { PhoneOutlined, MailOutlined, HeartOutlined, SearchOutlined, UserOutlined, MenuOutlined, CloseOutlined, CustomerServiceOutlined, SettingOutlined, LogoutOutlined, UserSwitchOutlined, MessageOutlined } from "@ant-design/icons";
 import Logo from "../../assets/images/logo.png";
 import "../../assets/styles/nav.css";
 
@@ -23,6 +10,7 @@ const { Text } = Typography;
 
 const Navbar: React.FC = () => {
   const [openDrawer, setOpenDrawer] = useState(false);
+  const [isActive, setIsActive] = useState(false);
   const navigate = useNavigate();
   // Mock trạng thái đăng nhập - trong thực tế sẽ lấy từ context/auth
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -117,8 +105,8 @@ const Navbar: React.FC = () => {
           </div>
 
           <div className="nav-top-menu">
-            <Link to="/post-room" className="nav-top-link highlight">
-              <HomeOutlined /> Đăng tin cho thuê
+            <Link to="/complaint" className="nav-top-link highlight">
+              <MessageOutlined /> Khiếu nại
             </Link>
             <Link to="/support" className="nav-top-link highlight">
               <CustomerServiceOutlined className="icon" /> Hỗ trợ
@@ -138,18 +126,19 @@ const Navbar: React.FC = () => {
           </div>
 
           {/* Ô tìm kiếm */}
-          <div className="nav-search">
+          <div className={`nav-search ${isActive ? "active" : ""}`}>
             <Search
               placeholder="Tìm phòng trọ, căn hộ, nhà nguyên căn..."
               enterButton={<SearchOutlined />}
               size="large"
               allowClear
+              onFocus={() => setIsActive(true)}
+              onBlur={(e) => {
+                if (!e.target.value.trim()) setIsActive(false);
+              }}
               onSearch={(value) => {
-                if (value.trim()) {
-                  navigate(`/rooms?q=${encodeURIComponent(value)}`);
-                } else {
-                  navigate("/rooms");
-                }
+                if (value.trim()) navigate(`/rooms?q=${encodeURIComponent(value)}`);
+                else navigate("/rooms");
               }}
             />
           </div>
@@ -204,18 +193,6 @@ const Navbar: React.FC = () => {
           </Link>
           <Link className="nav-link" to="/rooms">
             Danh sách phòng
-          </Link>
-          <Link className="nav-link" to="/news">
-            Tin tức & Mẹo thuê trọ
-          </Link>
-          <Link className="nav-link" to="/about">
-            Giới thiệu
-          </Link>
-          <Link className="nav-link" to="/contact">
-            Liên hệ
-          </Link>
-          <Link className="nav-link" to="/complaint">
-            Khiếu nại
           </Link>
         </div>
       </div>

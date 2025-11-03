@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Row, Col, Card, Typography, Tag, Button, Rate, Divider, Space, Descriptions, Skeleton, message } from "antd";
+import { Row, Col, Card, Typography, Tag, Button, Rate, Divider, Space, Descriptions, Skeleton, message, Empty } from "antd";
 import { EnvironmentOutlined, FullscreenOutlined, CheckCircleOutlined, PhoneOutlined, AppstoreOutlined } from "@ant-design/icons";
-
 import type { Room } from "../../../types/room";
 import RoomCard from "../components/RoomCard";
 import { getRoomById, getAllRooms } from "../services/room";
+import { FaCommentDots, FaFacebook, FaFacebookMessenger } from "react-icons/fa6";
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -332,43 +332,198 @@ const RoomsDetail: React.FC = () => {
         <Col xs={24} md={8}>
           <Card
             style={{
-              borderRadius: 12,
+              borderRadius: 16,
               position: "sticky",
               top: 16,
-              boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+              padding: 20,
             }}
           >
-            <Space direction="vertical" style={{ width: "100%" }} size={16}>
+            <Space direction="vertical" style={{ width: "100%" }} size={20}>
+              {/* --- Giá thuê --- */}
               <div style={{ textAlign: "center" }}>
-                <Text type="secondary">Giá thuê</Text>
-                <Title level={2} style={{ margin: 0, color: "#1677ff" }}>
+                <Text type="secondary" style={{ fontSize: 14 }}>
+                  Giá thuê
+                </Text>
+                <Title
+                  level={2}
+                  style={{
+                    margin: 0,
+                    color: "#1677ff",
+                    fontWeight: 700,
+                  }}
+                >
                   {price}₫ / tháng
                 </Title>
               </div>
 
+              {/* --- Liên hệ --- */}
               <div
                 style={{
+                  background: "#fafafa",
+                  border: "1px solid #f0f0f0",
+                  borderRadius: 16,
+                  padding: "18px 20px",
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  background: "#f6ffed",
-                  border: "1px solid #b7eb8f",
-                  borderRadius: 8,
-                  padding: "10px 16px",
+                  flexDirection: "column",
+                  gap: 12,
                 }}
               >
-                <PhoneOutlined style={{ color: "#52c41a" }} />
-                <a href="tel:0901458000" style={{ fontWeight: 600, color: "#52c41a" }}>
-                  012.345.6789
+                <div style={{ textAlign: "center", marginBottom: 4 }}>
+                  <Text strong style={{ fontSize: 16, color: "#333" }}>
+                    Liên hệ chủ trọ
+                  </Text>
+                </div>
+
+                {/* --- Gọi ngay (nút chính) --- */}
+                <a
+                  href="tel:0123456789"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    padding: "12px 16px",
+                    backgroundColor: "#52c41a",
+                    color: "#fff",
+                    fontWeight: 600,
+                    borderRadius: 10,
+                    textDecoration: "none",
+                    boxShadow: "0 2px 6px rgba(82,196,26,0.4)",
+                    transition: "transform 0.2s ease, opacity 0.2s ease",
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.opacity = "0.9";
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.opacity = "1";
+                    e.currentTarget.style.transform = "translateY(0)";
+                  }}
+                >
+                  <PhoneOutlined style={{ fontSize: 18 }} /> Gọi ngay: 012.345.6789
+                </a>
+
+                {/* --- Liên hệ qua mạng xã hội --- */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(2, 1fr)",
+                    gap: 10,
+                    marginTop: 4,
+                  }}
+                >
+                  {/* Zalo */}
+                  <a
+                    href="https://zalo.me/0123456789"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                      backgroundColor: "#0068ff",
+                      color: "#fff",
+                      padding: "10px 0",
+                      borderRadius: 8,
+                      textDecoration: "none",
+                      fontWeight: 500,
+                      transition: "transform 0.2s ease, opacity 0.2s ease",
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.opacity = "0.9";
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.opacity = "1";
+                      e.currentTarget.style.transform = "translateY(0)";
+                    }}
+                  >
+                    <FaCommentDots /> Zalo
+                  </a>
+
+                  {/* Facebook */}
+                  <a
+                    href="https://facebook.com/NhomWD-04"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 6,
+                      backgroundColor: "#1877f2",
+                      color: "#fff",
+                      padding: "10px 0",
+                      borderRadius: 8,
+                      textDecoration: "none",
+                      fontWeight: 500,
+                      transition: "transform 0.2s ease, opacity 0.2s ease",
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.opacity = "0.9";
+                      e.currentTarget.style.transform = "translateY(-2px)";
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.opacity = "1";
+                      e.currentTarget.style.transform = "translateY(0)";
+                    }}
+                  >
+                    <FaFacebook /> Facebook
+                  </a>
+                </div>
+
+                {/* Messenger (riêng dòng) */}
+                <a
+                  href="https://m.me/NhomWD-04"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    marginTop: 4,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 6,
+                    backgroundColor: "#0099ff",
+                    color: "#fff",
+                    padding: "10px 0",
+                    borderRadius: 8,
+                    textDecoration: "none",
+                    fontWeight: 500,
+                    transition: "transform 0.2s ease, opacity 0.2s ease",
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.opacity = "0.9";
+                    e.currentTarget.style.transform = "translateY(-2px)";
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.opacity = "1";
+                    e.currentTarget.style.transform = "translateY(0)";
+                  }}
+                >
+                  <FaFacebookMessenger /> Messenger
                 </a>
               </div>
 
-              <Divider style={{ margin: "0" }} />
+              <Divider style={{ margin: "4px 0" }} />
 
+              {/* --- Nút đặt phòng --- */}
               {room.status === "AVAILABLE" ? (
-                <Button htmlType="submit" type="primary" size="large" block onClick={handleBook}>
-                  Đặt phòng
+                <Button
+                  htmlType="submit"
+                  type="primary"
+                  size="large"
+                  className="btn-animated"
+                  block
+                  style={{
+                    borderRadius: 10,
+                    height: 48,
+                    fontWeight: 600,
+                  }}
+                  onClick={handleBook}
+                >
+                  Đặt phòng ngay
                 </Button>
               ) : (
                 <Button
@@ -377,10 +532,13 @@ const RoomsDetail: React.FC = () => {
                   block
                   disabled
                   style={{
+                    borderRadius: 10,
                     backgroundColor: "#f5f5f5",
                     color: "#999",
                     border: "1px solid #d9d9d9",
                     cursor: "not-allowed",
+                    height: 48,
+                    fontWeight: 600,
                   }}
                 >
                   {room.status === "OCCUPIED" ? "Đã thuê" : "Bảo trì"}
@@ -392,25 +550,87 @@ const RoomsDetail: React.FC = () => {
       </Row>
 
       {/* Phòng liên quan */}
-      <div style={{ padding: "0 24px 24px 24px" }}>
-        <Divider orientation="left">Phòng liên quan</Divider>
-        <Row gutter={[16, 16]}>
-          {loadingRelated ? (
-            Array.from({ length: 4 }).map((_, idx) => (
+      <div
+        style={{
+          padding: "0 24px 48px 24px",
+          background: "#fafafa",
+          borderRadius: 16,
+          boxShadow: "0 4px 16px rgba(0,0,0,0.05)",
+          marginTop: 32,
+        }}
+      >
+        <Divider
+          orientation="left"
+          style={{
+            fontSize: 18,
+            fontWeight: 600,
+            color: "#1677ff",
+            borderColor: "#1677ff20",
+          }}
+        >
+          <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <AppstoreOutlined style={{ color: "#1677ff" }} />
+            Phòng liên quan
+          </span>
+        </Divider>
+
+        {loadingRelated ? (
+          <Row gutter={[16, 16]}>
+            {Array.from({ length: 4 }).map((_, idx) => (
               <Col xs={24} sm={12} md={8} lg={6} key={idx}>
-                <Skeleton.Image style={{ width: "100%", height: 180 }} active />
+                <div
+                  style={{
+                    borderRadius: 12,
+                    overflow: "hidden",
+                    background: "#fff",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                  }}
+                >
+                  <Skeleton.Image
+                    style={{ width: "100%", height: 200 }}
+                    active
+                  />
+                  <div style={{ padding: 12 }}>
+                    <Skeleton.Input active size="small" style={{ width: "80%" }} />
+                    <Skeleton.Input
+                      active
+                      size="small"
+                      style={{ width: "50%", marginTop: 8 }}
+                    />
+                  </div>
+                </div>
               </Col>
-            ))
-          ) : related.length ? (
-            related.map((r) => (
+            ))}
+          </Row>
+        ) : related.length ? (
+          <Row gutter={[20, 20]}>
+            {related.map((r) => (
               <Col xs={24} sm={12} md={8} lg={6} key={r._id}>
-                <RoomCard room={r} />
+                <div
+                  style={{
+                    transition: "transform 0.3s ease, box-shadow 0.3s ease",
+                  }}
+                  className="hover:shadow-xl hover:scale-[1.02]"
+                >
+                  <RoomCard room={r} />
+                </div>
               </Col>
-            ))
-          ) : (
-            <Text>Không có phòng liên quan</Text>
-          )}
-        </Row>
+            ))}
+          </Row>
+        ) : (
+          <div
+            style={{
+              textAlign: "center",
+              padding: "40px 0",
+              color: "#999",
+            }}
+          >
+            <Empty
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+              description="Không có phòng liên quan"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

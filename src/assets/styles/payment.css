@@ -1,0 +1,113 @@
+.payment-success-page {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 80vh;
+  background: linear-gradient(135deg, #5eb8ff, #8defff);
+  padding: 24px;
+  overflow: hidden;
+}
+
+.payment-success-card {
+  position: relative;
+  background: #fff;
+  padding: 48px 32px;
+  border-radius: 24px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.08);
+  text-align: center;
+  max-width: 500px;
+  width: 100%;
+  z-index: 10;
+}
+
+.success-icon {
+  font-size: 72px;
+  color: #0d6efd;
+  margin-bottom: 24px;
+  animation: bounceIn 0.8s;
+}
+
+.success-title {
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: #0d6efd;
+}
+
+.success-subtitle {
+  font-size: 16px;
+  color: #555;
+  margin-bottom: 32px;
+}
+
+.btn-animated {
+  background: linear-gradient(135deg, #0d6efd, #0dcaf0);
+  border: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  color: #fff;
+}
+
+.btn-animated:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+}
+
+/* Animation */
+@keyframes bounceIn {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.8s ease forwards;
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* ==== Floating icons ==== */
+.animated-icons {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 5;
+}
+
+.floating-icon {
+  position: absolute;
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.7);
+  top: -20px;
+  left: calc(5% + 90% * var(--i));
+  animation: floatDown linear infinite;
+  animation-duration: calc(5s + 3s * var(--i));
+  animation-delay: calc(var(--i) * 0.2s);
+}
+
+.floating-icon:nth-child(n) {
+  --i: calc((n - 1)/20);
+}
+
+@keyframes floatDown {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+
