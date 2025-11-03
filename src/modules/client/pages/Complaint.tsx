@@ -6,18 +6,19 @@ import { clientAuthService } from "../services/auth";
 
 const { TextArea } = Input;
 
+// Trạng thái + màu sắc
 const statusColor = (status?: string) => {
   switch ((status || "").toLowerCase()) {
     case "pending":
       return "gold";
     case "in_progress":
     case "processing":
-      return "blue";
+      return "cyan";
     case "resolved":
     case "done":
       return "green";
     case "rejected":
-      return "red";
+      return "volcano";
     default:
       return "default";
   }
@@ -52,12 +53,10 @@ const Complaint: React.FC = () => {
     const raw = currentUser?.id || "";
     return raw.replace(/\?+$/g, "");
   }, [currentUser]);
-
-  // Thông báo cho khách hàng chưa đăng nhập
   const isLoggedIn = currentUser && tenantId;
 
   const loadData = async (p = page, l = limit) => {
-    if (!isLoggedIn) return; // Chỉ load data khi đã đăng nhập
+    if (!isLoggedIn) return;
     setLoading(true);
     try {
       const res = await complaintService.getByTenantId(tenantId!, p, l);
@@ -71,41 +70,27 @@ const Complaint: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!isLoggedIn) return; // Chỉ load data khi đã đăng nhập
+    if (!isLoggedIn) return;
     loadData(1, limit);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoggedIn]);
 
-  const onFinish = async (values: { 
-    title: string; 
-    description: string; 
-    contactName?: string; 
-    contactPhone?: string; 
-    contactEmail?: string; 
-  }) => {
+  const onFinish = async (values: any) => {
     setSubmitting(true);
     try {
       let payload: any = {
         title: (values.title || "").trim(),
         description: (values.description || "").trim(),
       };
-
-      if (isLoggedIn) {
-        // User đã đăng nhập - gửi với tenantId
-        payload.tenantId = tenantId;
-      } else {
-        // Khách hàng chưa đăng nhập - gửi với thông tin liên hệ
+      if (isLoggedIn) payload.tenantId = tenantId;
+      else {
         payload.tenantId = null;
         payload.contactName = values.contactName?.trim();
         payload.contactPhone = values.contactPhone?.trim();
         payload.contactEmail = values.contactEmail?.trim();
       }
-
       await complaintService.create(payload);
       message.success("Gửi khiếu nại thành công");
       form.resetFields();
-      
-      // Chỉ reload danh sách nếu user đã đăng nhập
       if (isLoggedIn) {
         setPage(1);
         await loadData(1, limit);
@@ -122,7 +107,6 @@ const Complaint: React.FC = () => {
     try {
       await complaintService.remove(id);
       message.success("Đã xóa khiếu nại");
-      // reload current page, but if last item removed and page > 1, adjust
       const remaining = total - 1;
       const maxPage = Math.max(1, Math.ceil(remaining / limit));
       const nextPage = Math.min(page, maxPage);
@@ -142,96 +126,79 @@ const Complaint: React.FC = () => {
 
   return (
     <div style={{ maxWidth: 900, margin: "24px auto", padding: "0 16px" }}>
-      <Card title="Gửi khiếu nại" style={{ marginBottom: 16 }}>
+
+      {/* Form gửi khiếu nại */}
+      <Card
+        title="Gửi khiếu nại"
+        style={{
+          marginBottom: 16,
+          borderRadius: 16,
+          boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
+        }}
+      >
         {!isLoggedIn && (
-          <div style={{ 
-            background: "#e6f7ff", 
-            border: "1px solid #91d5ff", 
-            borderRadius: "6px", 
-            padding: "12px 16px", 
-            marginBottom: "16px" 
+          <div style={{
+            background: "linear-gradient(90deg, #e6f7ff, #bae7ff)",
+            borderRadius: 8,
+            padding: "12px 16px",
+            marginBottom: 16,
+            color: "#096dd9",
           }}>
-            <p style={{ margin: 0, color: "#1890ff" }}>
-              <strong>Lưu ý:</strong> Bạn đang gửi khiếu nại với tư cách khách hàng. 
-              Vui lòng cung cấp thông tin liên hệ để chúng tôi có thể phản hồi.
-            </p>
+            <strong>Lưu ý:</strong> Bạn đang gửi khiếu nại với tư cách khách hàng. Vui lòng cung cấp thông tin liên hệ để chúng tôi có thể phản hồi.
           </div>
         )}
-        
+
         <Form form={form} layout="vertical" onFinish={onFinish}>
           {!isLoggedIn && (
             <>
-              <Form.Item
-                name="contactName"
-                label="Họ và tên"
-                rules={[
-                  { required: true, message: "Vui lòng nhập họ tên" },
-                  { min: 2, message: "Họ tên phải có ít nhất 2 ký tự" },
-                ]}
-              > 
-                <Input placeholder="Nhập họ và tên của bạn" />
+              <Form.Item name="contactName" label="Họ và tên" rules={[{ required: true }]}>
+                <Input placeholder="Nhập họ và tên" />
               </Form.Item>
-              <Form.Item
-                name="contactPhone"
-                label="Số điện thoại"
-                rules={[
-                  { required: true, message: "Vui lòng nhập số điện thoại" },
-                  { pattern: /^[0-9]{10,11}$/, message: "Số điện thoại không hợp lệ" },
-                ]}
-              > 
-                <Input placeholder="Nhập số điện thoại liên hệ" />
+              <Form.Item name="contactPhone" label="Số điện thoại" rules={[{ required: true }]}>
+                <Input placeholder="Nhập số điện thoại" />
               </Form.Item>
-              <Form.Item
-                name="contactEmail"
-                label="Email"
-                rules={[
-                  { required: true, message: "Vui lòng nhập email" },
-                  { type: "email", message: "Email không hợp lệ" },
-                ]}
-              > 
-                <Input placeholder="Nhập email liên hệ" />
+              <Form.Item name="contactEmail" label="Email" rules={[{ required: true, type: "email" }]}>
+                <Input placeholder="Nhập email" />
               </Form.Item>
             </>
           )}
-          
-          <Form.Item
-            name="title"
-            label="Tiêu đề"
-            rules={[
-              { required: true, message: "Vui lòng nhập tiêu đề" },
-              { min: 3, message: "Tiêu đề phải có ít nhất 3 ký tự" },
-              { max: 200, message: "Tiêu đề không vượt quá 200 ký tự" },
-            ]}
-          > 
+          <Form.Item name="title" label="Tiêu đề" rules={[{ required: true }]}>
             <Input placeholder="Ví dụ: Hỏng vòi nước phòng 203" />
           </Form.Item>
-          <Form.Item
-            name="description"
-            label="Mô tả chi tiết"
-            rules={[
-              { required: true, message: "Vui lòng nhập mô tả" },
-              { min: 10, message: "Mô tả phải có ít nhất 10 ký tự" },
-              { max: 1000, message: "Mô tả không vượt quá 1000 ký tự" },
-            ]}
-          > 
-            <TextArea rows={4} placeholder="Mô tả vấn đề gặp phải, thời gian, mức độ khẩn cấp..." />
+          <Form.Item name="description" label="Mô tả chi tiết" rules={[{ required: true }]}>
+            <TextArea rows={4} placeholder="Mô tả vấn đề, thời gian, mức độ khẩn cấp..." />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={submitting}>
+            <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={submitting} className="btn-animated">
               Gửi khiếu nại
             </Button>
           </Form.Item>
         </Form>
       </Card>
 
+      {/* Danh sách khiếu nại */}
       {isLoggedIn && (
-        <Card title="Danh sách khiếu nại của bạn">
+        <Card
+          title="Danh sách khiếu nại của bạn"
+          style={{ borderRadius: 16, boxShadow: "0 6px 18px rgba(0,0,0,0.08)" }}
+        >
           <List
             loading={loading}
             locale={{ emptyText: <Empty description="Chưa có khiếu nại" /> }}
             dataSource={items}
             renderItem={(item) => (
               <List.Item
+                style={{
+                  marginBottom: 12,
+                  borderRadius: 12,
+                  padding: 16,
+                  background: "#fff",
+                  boxShadow: "0 3px 12px rgba(0,0,0,0.08)",
+                  transition: "all 0.3s",
+                  cursor: "pointer",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.02)")}
+                onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
                 actions={[
                   <Popconfirm
                     key="del"
@@ -240,7 +207,7 @@ const Complaint: React.FC = () => {
                     cancelText="Hủy"
                     onConfirm={() => handleDelete(item._id)}
                   >
-                    <Button danger size="small" icon={<DeleteOutlined />}>Xóa</Button>
+                    <Button danger shape="circle" type="primary" icon={<DeleteOutlined />} className="btn-hover"></Button>
                   </Popconfirm>,
                 ]}
               >
@@ -248,18 +215,20 @@ const Complaint: React.FC = () => {
                   title={
                     <Space size={8} wrap>
                       <span style={{ fontWeight: 600 }}>{item.title}</span>
-                      <Tag color={statusColor(item.status)}>{statusText(item.status)}</Tag>
+                      <Tag color={statusColor(item.status)} style={{ fontWeight: 500, textTransform: "uppercase" }}>
+                        {statusText(item.status)}
+                      </Tag>
                     </Space>
                   }
-                  description={<span style={{ whiteSpace: "pre-line" }}>{item.description}</span>}
+                  description={<span style={{ whiteSpace: "pre-line", color: "#555" }}>{item.description}</span>}
                 />
-                <div style={{ color: "#999" }}>{item.createdAt ? new Date(item.createdAt).toLocaleString("vi-VN") : ""}</div>
+                <div style={{ color: "#999", fontSize: 12 }}>{item.createdAt ? new Date(item.createdAt).toLocaleString("vi-VN") : ""}</div>
               </List.Item>
             )}
           />
 
           {total > 0 && (
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
+            <div style={{ display: "flex", justifyContent: "center", marginTop: 16 }}>
               <Pagination
                 current={page}
                 pageSize={limit}
@@ -268,20 +237,20 @@ const Complaint: React.FC = () => {
                 pageSizeOptions={[5, 10, 20, 50]}
                 onChange={onChangePage}
                 showTotal={(t) => `${t} khiếu nại`}
+                style={{ borderRadius: 8 }}
               />
             </div>
           )}
         </Card>
       )}
-      
+
       {!isLoggedIn && (
-        <Card title="Thông tin bổ sung">
+        <Card title="Thông tin bổ sung" style={{ borderRadius: 16, boxShadow: "0 6px 18px rgba(0,0,0,0.08)", marginTop: 16 }}>
           <div style={{ textAlign: "center", padding: "20px" }}>
             <p style={{ color: "#666", marginBottom: 16 }}>
-              Để theo dõi trạng thái khiếu nại và quản lý lịch sử khiếu nại, 
-              vui lòng đăng nhập vào tài khoản của bạn.
+              Để theo dõi trạng thái khiếu nại và quản lý lịch sử khiếu nại, vui lòng đăng nhập vào tài khoản của bạn.
             </p>
-            <Button type="primary" onClick={() => window.location.href = "/login"}>
+            <Button type="primary" onClick={() => window.location.href = "/login"} style={{ borderRadius: 8 }}>
               Đăng nhập ngay
             </Button>
           </div>
