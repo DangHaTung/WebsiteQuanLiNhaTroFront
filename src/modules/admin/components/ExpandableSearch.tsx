@@ -2,12 +2,14 @@ import { useState, useRef, useEffect } from "react";
 import { Input, Button } from "antd";
 import type { InputRef } from "antd";
 import { SearchOutlined, CloseOutlined } from "@ant-design/icons";
+import { useSearchParams, useLocation } from "react-router-dom";
 
 interface ExpandableSearchProps {
     value: string;
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     placeholder?: string;
     maxWidth?: number;
+    defaultOpen?: boolean;
 }
 
 const ExpandableSearch = ({
@@ -20,6 +22,20 @@ const ExpandableSearch = ({
     const [hover, setHover] = useState(false);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<InputRef>(null);
+    const [searchParams] = useSearchParams();
+    const location = useLocation();
+
+    useEffect(() => {
+        // Lấy giá trị search từ URL khi component được mount
+        const searchValue = searchParams.get('search');
+        if (searchValue) {
+            const event = {
+                target: { value: searchValue }
+            } as React.ChangeEvent<HTMLInputElement>;
+            onChange(event);
+            setOpen(true);
+        }
+    }, [location.search]);
 
     useEffect(() => {
         if (open && inputRef.current) {

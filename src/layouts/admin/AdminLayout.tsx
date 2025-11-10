@@ -145,6 +145,9 @@ const AdminLayout: React.FC = () => {
             boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
             borderRadius: "0 0 12px 12px",
             transition: "all 0.3s",
+            position: "sticky",
+            top: 0,
+            zIndex: 1000,
           }}
         >
           {React.createElement(
