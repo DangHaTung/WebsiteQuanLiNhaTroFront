@@ -135,7 +135,7 @@ const ContractsAD: React.FC = () => {
         message.success("Cập nhật hợp đồng thành công!");
       } else {
         await adminContractService.create(payload);
-        message.success("Thêm hợp đồng thành công!");
+        message.success("Thêm phiếu thu thành công!");
       }
       closeModal();
       loadContracts();
@@ -348,7 +348,7 @@ const ContractsAD: React.FC = () => {
               size="large"
               onClick={() => openModal()}
             >
-              Thêm hợp đồng
+              Thêm phiếu thu
             </Button>
           </Col>
         </Row>
@@ -447,7 +447,7 @@ const ContractsAD: React.FC = () => {
 
       {/* Modal (Add/Edit) */}
       <Modal
-        title={editing ? "Chỉnh sửa hợp đồng" : "Thêm hợp đồng"}
+        title={editing ? "Chỉnh sửa phiếu thu" : "Thêm phiếu thu"}
         open={isModalOpen}
         onCancel={closeModal}
         onOk={handleSave}

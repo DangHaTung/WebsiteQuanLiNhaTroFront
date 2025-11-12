@@ -257,16 +257,18 @@ const BillsAD: React.FC = () => {
                 { text: "Đã thanh toán", value: "PAID" },
                 { text: "Chưa thanh toán", value: "UNPAID" },
                 { text: "Thanh toán một phần", value: "PARTIALLY_PAID" },
+                { text: "Chờ xác nhận tiền mặt", value: "PENDING_CASH_CONFIRM" },
             ],
             onFilter: (val, record) => record.status === val,
             render: (s: BillStatus) => {
-                const map: Record<BillStatus, { color: string; text: string }> = {
+                const map: Record<string, { color: string; text: string }> = {
                     PAID: { color: "green", text: "Đã thanh toán" },
                     UNPAID: { color: "red", text: "Chưa thanh toán" },
                     PARTIALLY_PAID: { color: "orange", text: "Một phần" },
                     VOID: { color: "default", text: "Đã hủy" },
+                    PENDING_CASH_CONFIRM: { color: "gold", text: "Chờ xác nhận tiền mặt" },
                 };
-                const m = map[s];
+                const m = map[s] || { color: "default", text: s || "Trạng thái" };
                 return <Tag color={m.color} className="tag-hover">{m.text}</Tag>;
             },
         },
@@ -416,7 +418,7 @@ const BillsAD: React.FC = () => {
                             alignItems: "center"
                         }}>
                             <span style={{ fontWeight: 600, marginBottom: 8 }}>Tình trạng:</span>
-                            {["PAID", "UNPAID", "PARTIALLY_PAID"].map((status) => (
+                            {["PAID", "UNPAID", "PARTIALLY_PAID", "PENDING_CASH_CONFIRM"].map((status) => (
                                 <Tag
                                     key={status}
                                     color={statusFilter === status ? "blue" : "default"}
@@ -424,7 +426,9 @@ const BillsAD: React.FC = () => {
                                     style={{ cursor: "pointer", marginBottom: 6 }}
                                 >
                                     {status === "PAID" ? "Đã thanh toán" :
-                                        status === "UNPAID" ? "Chưa thanh toán" : "Một phần"}
+                                        status === "UNPAID" ? "Chưa thanh toán" :
+                                        status === "PARTIALLY_PAID" ? "Một phần" :
+                                        "Chờ xác nhận tiền mặt"}
                                 </Tag>
                             ))}
                             <Tag

@@ -21,6 +21,7 @@ import {
   FileTextOutlined,
   FileDoneOutlined,
   ExclamationCircleOutlined,
+  SafetyCertificateOutlined,
 } from "@ant-design/icons";
 import "../../assets/styles/layoutAd.css";
 import SearchBar from "./SearchBar";
@@ -63,9 +64,14 @@ const AdminLayout: React.FC = () => {
       label: "Quản lý phòng",
     },
     {
+      key: "/admin/final-contracts",
+      icon: <SafetyCertificateOutlined style={{ fontSize: 20 }} />,
+      label: "Hợp đồng chính thức",
+    },
+    {
       key: "/admin/contracts",
       icon: <FileTextOutlined style={{ fontSize: 20 }} />,
-      label: "Hợp đồng",
+      label: "Phiếu thu",
     },
     {
       key: "/admin/bills",

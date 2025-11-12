@@ -1,6 +1,6 @@
 import type { Contract } from "./contract";
 
-export type BillStatus = "PAID" | "UNPAID" | "PARTIALLY_PAID" | "VOID";
+export type BillStatus = "PAID" | "UNPAID" | "PARTIALLY_PAID" | "VOID" | "PENDING_CASH_CONFIRM";
 
 export interface CheckinFormData {
   fullName: string;
