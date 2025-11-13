@@ -10,6 +10,9 @@ import BillsAD from "../modules/admin/pages/BillsAD";
 import Users from "../modules/admin/pages/Users";
 import ContractsAD from "../modules/admin/pages/ContractsAD";
 import Complaints from "../modules/admin/pages/Complaints";
+import FinalContracts from "../modules/admin/pages/FinalContracts";
+import DraftBills from "../modules/admin/pages/DraftBills";
+import UtilityFees from "../modules/admin/pages/UtilityFees";
 
 const RequireAdmin = ({ children }: { children: React.ReactElement }) => {
   const user = adminAuthService.getCurrentUser();
@@ -40,6 +43,9 @@ const adminRoutes = [
   { path: "dashboard", element: <RequireAdmin><Dashboard /></RequireAdmin> },
   { path: "profile", element: <RequireAdmin><Profile /></RequireAdmin> },
   { path: "bills", element: <RequireAdmin><BillsAD /></RequireAdmin> },
+  { path: "draft-bills", element: <RequireAdmin><DraftBills /></RequireAdmin> },
+  { path: "utility-fees", element: <RequireAdmin><UtilityFees /></RequireAdmin> },
+  { path: "final-contracts", element: <RequireAdmin><FinalContracts /></RequireAdmin> },
   { path: "contracts", element: <RequireAdmin><ContractsAD /></RequireAdmin> },
   { path: "roomsad", element: <RequireAdmin><RoomsAD /></RequireAdmin> },
   { path: "complaints", element: <RequireAdmin><Complaints /></RequireAdmin> },

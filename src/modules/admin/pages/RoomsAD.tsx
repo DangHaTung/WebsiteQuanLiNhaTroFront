@@ -1,6 +1,33 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Table, Button, Space, Tag, Modal, Form, Input, InputNumber, Select, message, Row, Col, Typography, Avatar, Statistic, Tooltip, Card } from "antd";
-import { PlusOutlined, EditOutlined, DeleteOutlined, ApartmentOutlined } from "@ant-design/icons";
+import {
+  Table,
+  Button,
+  Space,
+  Tag,
+  Modal,
+  Form,
+  Input,
+  InputNumber,
+  Select,
+  message,
+  Row,
+  Col,
+  Typography,
+  Avatar,
+  Statistic,
+  Tooltip,
+  Card,
+} from "antd";
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  ApartmentOutlined,
+  SettingOutlined,
+  AppstoreOutlined,
+} from "@ant-design/icons";
+import RoomFeesModal from "../components/RoomFeesModal";
+import RoomUtilitiesModal from "../components/RoomUtilitiesModal";
 import { adminRoomService } from "../services/room";
 import type { Room } from "../../../types/room";
 import "../../../assets/styles/roomAd.css";
@@ -27,7 +54,15 @@ const RoomsAD: React.FC = () => {
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
 
   const [existingImages, setExistingImages] = useState<{ url: string; publicId?: string; keep?: boolean }[]>([]);
-  const [removedImages, setRemovedImages] = useState<{ url: string; publicId?: string }[]>([]);
+  const [removedImages, setRemovedImages] = useState<Array<{ url: string; publicId?: string }>>([]);
+
+  // Room Fees Modal
+  const [roomFeesModalVisible, setRoomFeesModalVisible] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+
+  // Room Utilities Modal
+  const [roomUtilitiesModalVisible, setRoomUtilitiesModalVisible] = useState(false);
+  const [selectedRoomForUtils, setSelectedRoomForUtils] = useState<Room | null>(null);
 
   // Drawer detail
   const [detailVisible, setDetailVisible] = useState(false);
@@ -322,16 +357,43 @@ const RoomsAD: React.FC = () => {
       key: "action",
       render: (_: any, record: Room) => (
         <Space>
-          <Button
-            type="primary"
-            icon={<EditOutlined />}
-            shape="circle"
-            onClick={(e) => {
-              e?.stopPropagation();
-              onEdit(record);
-            }}
-            className="btn-hover"
-          />
+          <Tooltip title="Đồ đạc">
+            <Button
+              icon={<AppstoreOutlined />}
+              shape="circle"
+              onClick={(e) => {
+                e?.stopPropagation();
+                setSelectedRoomForUtils(record);
+                setRoomUtilitiesModalVisible(true);
+              }}
+              className="btn-hover"
+              style={{ color: "#52c41a", borderColor: "#52c41a" }}
+            />
+          </Tooltip>
+          <Tooltip title="Phí dịch vụ">
+            <Button
+              icon={<SettingOutlined />}
+              shape="circle"
+              onClick={(e) => {
+                e?.stopPropagation();
+                setSelectedRoom(record);
+                setRoomFeesModalVisible(true);
+              }}
+              className="btn-hover"
+            />
+          </Tooltip>
+          <Tooltip title="Sửa">
+            <Button
+              type="primary"
+              icon={<EditOutlined />}
+              shape="circle"
+              onClick={(e) => {
+                e?.stopPropagation();
+                onEdit(record);
+              }}
+              className="btn-hover"
+            />
+          </Tooltip>
           {isAdmin() && (
             <Tooltip title="Xóa">
               <Button
@@ -584,6 +646,29 @@ const RoomsAD: React.FC = () => {
         open={detailVisible}
         onClose={() => setDetailVisible(false)}
         roomId={selectedRoomId}
+      />
+
+      {/* Room Utilities Modal */}
+      <RoomUtilitiesModal
+        visible={roomUtilitiesModalVisible}
+        room={selectedRoomForUtils}
+        onClose={() => {
+          setRoomUtilitiesModalVisible(false);
+          setSelectedRoomForUtils(null);
+        }}
+      />
+
+      {/* Room Fees Modal */}
+      <RoomFeesModal
+        visible={roomFeesModalVisible}
+        room={selectedRoom}
+        onClose={() => {
+          setRoomFeesModalVisible(false);
+          setSelectedRoom(null);
+        }}
+        onSuccess={() => {
+          message.success("Cấu hình tiện ích thành công!");
+        }}
       />
     </div>
   );

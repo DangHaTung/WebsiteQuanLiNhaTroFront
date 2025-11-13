@@ -1,6 +1,7 @@
 import type { Contract } from "./contract";
 
-export type BillStatus = "PAID" | "UNPAID" | "PARTIALLY_PAID" | "VOID";
+export type BillStatus = "DRAFT" | "PAID" | "UNPAID" | "PARTIALLY_PAID" | "VOID" | "PENDING_CASH_CONFIRM";
+export type BillType = "RECEIPT" | "CONTRACT" | "MONTHLY";
 
 export interface CheckinFormData {
   fullName: string;
@@ -37,6 +38,7 @@ export interface Bill {
     _id: string;
     contractId: string | Contract;  // Can be populated
     billingDate: string; // ISO string
+    billType: BillType;
     status: BillStatus;
     lineItems: BillLineItem[];
     amountDue: number; // number for API calls

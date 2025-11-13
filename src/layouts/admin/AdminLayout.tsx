@@ -20,6 +20,7 @@ import {
   FileTextOutlined,
   FileDoneOutlined,
   ExclamationCircleOutlined,
+  SafetyCertificateOutlined,
 } from "@ant-design/icons";
 import "../../assets/styles/layoutAd.css";
 import SearchBar from "./SearchBar";
@@ -61,19 +62,39 @@ const AdminLayout: React.FC = () => {
       label: "Quản lý phòng",
     },
     {
-      key: "/admin/contracts",
-      icon: <FileDoneOutlined style={{ fontSize: 20 }} />,
-      label: "Hợp đồng",
+      key: "/admin/final-contracts",
+      icon: <SafetyCertificateOutlined style={{ fontSize: 20 }} />,
+      label: "Hợp đồng chính thức",
     },
     {
-      key: "/admin/bills",
+      key: "/admin/contracts",
       icon: <FileTextOutlined style={{ fontSize: 20 }} />,
+      label: "Phiếu thu",
+    },
+    {
+      key: "bills-menu",
+      icon: <FileDoneOutlined style={{ fontSize: 20 }} />,
       label: "Hóa đơn",
+      children: [
+        {
+          key: "/admin/bills",
+          label: "Tất cả hóa đơn",
+        },
+        {
+          key: "/admin/draft-bills",
+          label: "Hóa đơn nháp",
+        },
+      ],
     },
     {
       key: "/admin/complaints",
       icon: <ExclamationCircleOutlined style={{ fontSize: 20 }} />,
       label: "Khiếu nại",
+    },
+    {
+      key: "/admin/utility-fees",
+      icon: <SettingOutlined style={{ fontSize: 20 }} />,
+      label: "Cấu hình tiện ích",
     },
     // Chỉ hiển thị nếu là ADMIN
     ...(currentUser?.role === "ADMIN"

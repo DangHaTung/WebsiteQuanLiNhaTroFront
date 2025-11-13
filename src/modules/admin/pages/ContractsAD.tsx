@@ -137,7 +137,7 @@ const ContractsAD: React.FC = () => {
         message.success("Cập nhật hợp đồng thành công!");
       } else {
         await adminContractService.create(payload);
-        message.success("Thêm hợp đồng thành công!");
+        message.success("Thêm phiếu thu thành công!");
       }
       closeModal();
       loadContracts();
@@ -367,7 +367,7 @@ const ContractsAD: React.FC = () => {
         <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
           <Col>
             <Title level={3} style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-              <FileDoneOutlined style={{ color: "#1890ff", fontSize: 28 }} /> Quản lý Hợp đồng
+              <FileTextOutlined style={{ color: "#1890ff", fontSize: 28 }} /> Quản lý phiếu thu
             </Title>
           </Col>
           <Col>
@@ -378,7 +378,7 @@ const ContractsAD: React.FC = () => {
               onClick={() => openModal()}
               className="btn-hover-gradient"
             >
-              Thêm hợp đồng
+              Thêm phiếu thu
             </Button>
           </Col>
         </Row>
@@ -450,7 +450,7 @@ const ContractsAD: React.FC = () => {
 
       {/* Modal (Add/Edit) */}
       <Modal
-        title={editing ? "Chỉnh sửa hợp đồng" : "Thêm hợp đồng"}
+        title={editing ? "Chỉnh sửa phiếu thu" : "Thêm phiếu thu"}
         open={isModalOpen}
         onCancel={closeModal}
         onOk={handleSave}

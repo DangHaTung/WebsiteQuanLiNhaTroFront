@@ -20,8 +20,13 @@ interface SingleBillResponse {
 }
 
 export const adminBillService = {
-  async getAll(params?: { page?: number; limit?: number }): Promise<Bill[]> {
+  async getAll(params?: { page?: number; limit?: number; status?: string; billType?: string }): Promise<Bill[]> {
     const res = await api.get<BillResponse>("/bills", { params });
+    return res.data.data;
+  },
+
+  async getDrafts(params?: { page?: number; limit?: number }): Promise<Bill[]> {
+    const res = await api.get<BillResponse>("/bills/drafts", { params });
     return res.data.data;
   },
 
@@ -40,9 +45,32 @@ export const adminBillService = {
     return res.data.data;
   },
 
+  async publishDraft(id: string, payload: { electricityKwh: number; waterM3?: number; occupantCount?: number }): Promise<Bill> {
+    const res = await api.put<SingleBillResponse>(`/bills/${id}/publish`, payload);
+    return res.data.data;
+  },
+
+  async publishBatch(bills: Array<{ billId: string; electricityKwh: number; occupantCount?: number }>): Promise<any> {
+    const res = await api.post("/bills/publish-batch", { bills });
+    return res.data;
+  },
+
   async remove(id: string): Promise<{ message: string }> {
     const res = await api.delete(`/bills/${id}`);
     return res.data;
+  },
+};
+
+// Tenant bill service
+export const tenantBillService = {
+  async getPendingPayment(): Promise<Bill[]> {
+    const res = await api.get<BillResponse>("/public/bills/pending-payment");
+    return res.data.data;
+  },
+
+  async getMyBills(params?: { page?: number; limit?: number }): Promise<Bill[]> {
+    const res = await api.get<BillResponse>("/public/bills/my-bills", { params });
+    return res.data.data;
   },
 };
 
