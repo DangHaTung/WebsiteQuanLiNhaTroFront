@@ -338,7 +338,7 @@ const ContractsAD: React.FC = () => {
         <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
           <Col>
             <Title level={3} style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-              <FileTextOutlined style={{ color: "#1890ff", fontSize: 28 }} /> Quản lý Hợp đồng
+              <FileTextOutlined style={{ color: "#1890ff", fontSize: 28 }} /> Quản lý phiếu thu
             </Title>
           </Col>
           <Col>

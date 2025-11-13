@@ -74,14 +74,29 @@ const AdminLayout: React.FC = () => {
       label: "Phiếu thu",
     },
     {
-      key: "/admin/bills",
+      key: "bills-menu",
       icon: <FileDoneOutlined style={{ fontSize: 20 }} />,
       label: "Hóa đơn",
+      children: [
+        {
+          key: "/admin/bills",
+          label: "Tất cả hóa đơn",
+        },
+        {
+          key: "/admin/draft-bills",
+          label: "Hóa đơn nháp",
+        },
+      ],
     },
     {
       key: "/admin/complaints",
       icon: <ExclamationCircleOutlined style={{ fontSize: 20 }} />,
       label: "Khiếu nại",
+    },
+    {
+      key: "/admin/utility-fees",
+      icon: <SettingOutlined style={{ fontSize: 20 }} />,
+      label: "Cấu hình tiện ích",
     },
     // Chỉ hiển thị nếu là ADMIN
     ...(currentUser?.role === "ADMIN"
