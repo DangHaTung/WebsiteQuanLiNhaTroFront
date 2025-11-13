@@ -10,6 +10,8 @@ import Settings from "../modules/client/pages/Settings";
 import Contracts from "../modules/client/pages/Contracts";
 import PaymentSuccess from "../modules/client/pages/PaymentSuccess";
 import Complaint from "../modules/client/pages/Complaint";
+import Invoices from "../modules/client/pages/Invoices";
+import MyContractsDetail from "../modules/client/pages/MyContractsDetail";
 
 const clientRoutes = [
   { path: "/", element: <Home /> },
@@ -28,6 +30,8 @@ const clientRoutes = [
   { path: "complaint", element: <Complaint /> },
   { path: "payment-success", element: <PaymentSuccess /> },
   { path: "thanh-toan-thanh-cong", element: <PaymentSuccess /> },
+  { path: "invoices", element: <Invoices /> },
+  { path: "my-contracts", element: <MyContractsDetail /> },
 ];
 
 export default clientRoutes;

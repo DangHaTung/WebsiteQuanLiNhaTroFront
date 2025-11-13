@@ -312,7 +312,18 @@ const RoomsAD: React.FC = () => {
       title: "Diện tích (m²)",
       dataIndex: "areaM2",
       key: "areaM2",
-      render: (area: number) => <span>{area} m²</span>,
+      render: (area: number) => <span>{area}</span>,
+    },
+    {
+      title: "Số người ở",
+      dataIndex: "occupantCount",
+      key: "occupantCount",
+      align: "center",
+      render: (count: number) => (
+        <Tag color={count > 0 ? "green" : "default"} style={{ fontWeight: 600 }}>
+          {count || 0} người
+        </Tag>
+      ),
     },
     {
       title: "Tình trạng",

@@ -2,8 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Table, Tag, Card, Button, message, Space, Alert, Row, Col, Statistic } from "antd";
 import { DollarOutlined, FileTextOutlined, CreditCardOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { tenantBillService } from "../../admin/services/bill";
-import type { Bill } from "../../../types/bill";
+import { clientBillService, type Bill } from "../services/bill";
 
 const Invoices: React.FC = () => {
   const [bills, setBills] = useState<Bill[]>([]);
@@ -18,8 +17,8 @@ const Invoices: React.FC = () => {
   const loadBills = async () => {
     try {
       setLoading(true);
-      const data = await tenantBillService.getMyBills({ limit: 50 });
-      setBills(data);
+      const response = await clientBillService.getMyBills({ limit: 50 });
+      setBills(response.data || []);
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Lỗi khi tải hóa đơn");
     } finally {
@@ -29,7 +28,7 @@ const Invoices: React.FC = () => {
 
   const loadPendingBills = async () => {
     try {
-      const data = await tenantBillService.getPendingPayment();
+      const data = await clientBillService.getPendingPayment();
       setPendingBills(data);
     } catch (error: any) {
       console.error("Lỗi khi tải hóa đơn chưa thanh toán:", error);

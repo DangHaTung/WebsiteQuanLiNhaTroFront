@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Table, Button, Tag, Modal, Upload, message, Space, Popconfirm, Image, Tooltip, Select, Descriptions, Divider, Form, Input } from "antd";
+import { Table, Button, Tag, Modal, Upload, message, Space, Popconfirm, Image, Tooltip, Select, Descriptions, Divider, Form, Input, Card } from "antd";
 import { UploadOutlined, EyeOutlined, DeleteOutlined, FilePdfOutlined, IdcardOutlined, PlusOutlined, DollarOutlined } from "@ant-design/icons";
 import type { UploadFile } from "antd";
 import dayjs from "dayjs";
@@ -91,6 +91,52 @@ const FinalContracts = () => {
   const [assignTenantModalVisible, setAssignTenantModalVisible] = useState(false);
   const [assigningContract, setAssigningContract] = useState<FinalContract | null>(null);
   const [tenantForm] = Form.useForm();
+  
+  // PDF viewer modal
+  const [pdfViewerVisible, setPdfViewerVisible] = useState(false);
+  const [pdfViewerUrl, setPdfViewerUrl] = useState<string>("");
+
+  const handleViewFile = async (file: FileInfo, type: "images" | "cccdFiles", index: number) => {
+    const isPdf = file.resource_type === "raw" || 
+                  file.format === "pdf" || 
+                  file.secure_url?.includes(".pdf") || 
+                  file.secure_url?.includes("/raw/");
+    
+    if (isPdf && selectedContract?._id) {
+      try {
+        // Fetch PDF với Authorization header
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+        const token = localStorage.getItem("admin_token");
+        const typeParam = type === "cccdFiles" ? "cccd" : "contract";
+        
+        const response = await fetch(`${apiUrl}/api/final-contracts/${selectedContract._id}/view/${typeParam}/${index}`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+        
+        if (!response.ok) {
+          message.error("Không thể tải PDF");
+          return;
+        }
+        
+        // Convert response sang blob và tạo URL
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        
+        // Mở PDF trong modal viewer
+        setPdfViewerUrl(blobUrl);
+        setPdfViewerVisible(true);
+      } catch (error) {
+        console.error("Load PDF error:", error);
+        message.error("Lỗi khi tải PDF");
+      }
+    } else {
+      // Mở ảnh trong tab mới
+      const url = file.viewUrl || file.inlineUrl || file.secure_url || file.url;
+      window.open(url, "_blank");
+    }
+  };
 
   const fetchContracts = async (page = 1, limit = 10) => {
     setLoading(true);
@@ -895,52 +941,129 @@ const FinalContracts = () => {
             )}
 
             <Divider orientation="left">Files Hợp đồng ({selectedContract.images?.length || 0})</Divider>
-            <Space wrap>
-              {selectedContract.images?.map((file, idx) => (
-                <div key={idx} style={{ position: "relative" }}>
-                  {file.resource_type === "raw" || file.format === "pdf" ? (
-                    <a href={file.viewUrl || file.secure_url} target="_blank" rel="noopener noreferrer">
-                      <FilePdfOutlined style={{ fontSize: 48, color: "#ff4d4f" }} />
-                    </a>
-                  ) : (
-                    <Image src={file.secure_url} width={100} height={100} style={{ objectFit: "cover" }} />
-                  )}
-                  <Popconfirm title="Xóa file này?" onConfirm={() => handleDeleteFile(selectedContract._id, "images", idx)}>
-                    <Button
-                      size="small"
-                      danger
-                      icon={<DeleteOutlined />}
-                      style={{ position: "absolute", top: 0, right: 0 }}
-                    />
-                  </Popconfirm>
-                </div>
-              ))}
-            </Space>
+            {selectedContract.images && selectedContract.images.length > 0 ? (
+              <Space wrap direction="vertical" style={{ width: "100%" }}>
+                {selectedContract.images.map((file, idx) => {
+                  const isPdf = file.resource_type === "raw" || 
+                                file.format === "pdf" || 
+                                file.secure_url?.includes(".pdf") || 
+                                file.secure_url?.includes("/raw/");
+                  
+                  return (
+                    <Card key={idx} size="small" style={{ width: "100%" }}>
+                      <Space style={{ width: "100%", justifyContent: "space-between" }}>
+                        <Space>
+                          {isPdf ? (
+                            <>
+                              <FilePdfOutlined style={{ fontSize: 24, color: "#ff4d4f" }} />
+                              <span>Hợp đồng PDF {idx + 1}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Image src={file.secure_url} width={60} height={60} style={{ objectFit: "cover" }} />
+                              <span>Ảnh {idx + 1}</span>
+                            </>
+                          )}
+                        </Space>
+                        <Space>
+                          <Button
+                            type="primary"
+                            icon={<EyeOutlined />}
+                            onClick={() => handleViewFile(file, "images", idx)}
+                          >
+                            Xem
+                          </Button>
+                          <Popconfirm title="Xóa file này?" onConfirm={() => handleDeleteFile(selectedContract._id, "images", idx)}>
+                            <Button danger icon={<DeleteOutlined />}>
+                              Xóa
+                            </Button>
+                          </Popconfirm>
+                        </Space>
+                      </Space>
+                    </Card>
+                  );
+                })}
+              </Space>
+            ) : (
+              <p style={{ color: "#999", textAlign: "center" }}>Chưa có file hợp đồng</p>
+            )}
 
             <Divider orientation="left">Files CCCD ({selectedContract.cccdFiles?.length || 0})</Divider>
-            <Space wrap>
-              {selectedContract.cccdFiles?.map((file, idx) => (
-                <div key={idx} style={{ position: "relative" }}>
-                  {file.resource_type === "raw" || file.format === "pdf" ? (
-                    <a href={file.viewUrl || file.secure_url} target="_blank" rel="noopener noreferrer">
-                      <FilePdfOutlined style={{ fontSize: 48, color: "#52c41a" }} />
-                    </a>
-                  ) : (
-                    <Image src={file.secure_url} width={100} height={100} style={{ objectFit: "cover" }} />
-                  )}
-                  <Popconfirm title="Xóa file này?" onConfirm={() => handleDeleteFile(selectedContract._id, "cccdFiles", idx)}>
-                    <Button
-                      size="small"
-                      danger
-                      icon={<DeleteOutlined />}
-                      style={{ position: "absolute", top: 0, right: 0 }}
-                    />
-                  </Popconfirm>
-                </div>
-              ))}
-            </Space>
+            {selectedContract.cccdFiles && selectedContract.cccdFiles.length > 0 ? (
+              <Space wrap direction="vertical" style={{ width: "100%" }}>
+                {selectedContract.cccdFiles.map((file, idx) => {
+                  const isPdf = file.resource_type === "raw" || 
+                                file.format === "pdf" || 
+                                file.secure_url?.includes(".pdf") || 
+                                file.secure_url?.includes("/raw/");
+                  
+                  return (
+                    <Card key={idx} size="small" style={{ width: "100%" }}>
+                      <Space style={{ width: "100%", justifyContent: "space-between" }}>
+                        <Space>
+                          {isPdf ? (
+                            <>
+                              <FilePdfOutlined style={{ fontSize: 24, color: "#52c41a" }} />
+                              <span>CCCD PDF {idx + 1}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Image src={file.secure_url} width={60} height={60} style={{ objectFit: "cover" }} />
+                              <span>CCCD {idx + 1}</span>
+                            </>
+                          )}
+                        </Space>
+                        <Space>
+                          <Button
+                            type="primary"
+                            icon={<EyeOutlined />}
+                            onClick={() => handleViewFile(file, "cccdFiles", idx)}
+                          >
+                            Xem
+                          </Button>
+                          <Popconfirm title="Xóa file này?" onConfirm={() => handleDeleteFile(selectedContract._id, "cccdFiles", idx)}>
+                            <Button danger icon={<DeleteOutlined />}>
+                              Xóa
+                            </Button>
+                          </Popconfirm>
+                        </Space>
+                      </Space>
+                    </Card>
+                  );
+                })}
+              </Space>
+            ) : (
+              <p style={{ color: "#999", textAlign: "center" }}>Chưa có file CCCD</p>
+            )}
           </div>
         )}
+      </Modal>
+
+      {/* PDF Viewer Modal */}
+      <Modal
+        title="Xem PDF"
+        open={pdfViewerVisible}
+        onCancel={() => {
+          setPdfViewerVisible(false);
+          // Revoke blob URL để giải phóng memory
+          if (pdfViewerUrl.startsWith("blob:")) {
+            URL.revokeObjectURL(pdfViewerUrl);
+          }
+          setPdfViewerUrl("");
+        }}
+        width="90%"
+        style={{ top: 20 }}
+        footer={null}
+      >
+        <div style={{ height: "80vh" }}>
+          {pdfViewerUrl && (
+            <iframe
+              src={pdfViewerUrl}
+              style={{ width: "100%", height: "100%", border: "none" }}
+              title="PDF Viewer"
+            />
+          )}
+        </div>
       </Modal>
     </div>
   );
