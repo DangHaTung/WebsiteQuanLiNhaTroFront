@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Table, Button, Tag, Modal, Upload, message, Space, Popconfirm, Image, Tooltip, Select } from "antd";
-import { UploadOutlined, EyeOutlined, DeleteOutlined, FilePdfOutlined, IdcardOutlined, PlusOutlined } from "@ant-design/icons";
+import { Table, Button, Tag, Modal, Upload, message, Space, Popconfirm, Image, Tooltip, Select, Descriptions, Divider, Form, Input } from "antd";
+import { UploadOutlined, EyeOutlined, DeleteOutlined, FilePdfOutlined, IdcardOutlined, PlusOutlined, DollarOutlined } from "@ant-design/icons";
 import type { UploadFile } from "antd";
 import dayjs from "dayjs";
 
@@ -9,6 +9,8 @@ const { Option } = Select;
 // Import services
 import { adminFinalContractService } from "../services/finalContract";
 import { adminContractService } from "../services/contract";
+import { adminBillService } from "../services/bill";
+import type { Contract } from "../../../types/contract";
 
 // Define types locally to avoid import issues
 interface FileInfo {
@@ -38,7 +40,14 @@ interface FinalContract {
     pricePerMonth: number;
     type?: string;
   };
-  originContractId?: string;
+  originContractId?: string | {
+    _id: string;
+    tenantSnapshot?: {
+      fullName?: string;
+      phone?: string;
+      email?: string;
+    };
+  };
   startDate: string;
   endDate: string;
   deposit: number;
@@ -59,16 +68,7 @@ interface FinalContract {
   updatedAt: string;
 }
 
-interface Contract {
-  _id: string;
-  tenantId: any;
-  roomId: any;
-  startDate: string;
-  endDate: string;
-  deposit: number;
-  monthlyRent: number;
-  status: string;
-}
+
 
 const FinalContracts = () => {
   const [contracts, setContracts] = useState<FinalContract[]>([]);
@@ -79,12 +79,18 @@ const FinalContracts = () => {
   const [cccdModalVisible, setCccdModalVisible] = useState(false);
   const [viewModalVisible, setViewModalVisible] = useState(false);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [contractBills, setContractBills] = useState<any[]>([]);
   
   // New contract upload
   const [newContractModalVisible, setNewContractModalVisible] = useState(false);
   const [availableContracts, setAvailableContracts] = useState<Contract[]>([]);
   const [selectedContractId, setSelectedContractId] = useState<string>("");
   const [newContractFiles, setNewContractFiles] = useState<UploadFile[]>([]);
+  
+  // Assign tenant modal
+  const [assignTenantModalVisible, setAssignTenantModalVisible] = useState(false);
+  const [assigningContract, setAssigningContract] = useState<FinalContract | null>(null);
+  const [tenantForm] = Form.useForm();
 
   const fetchContracts = async (page = 1, limit = 10) => {
     setLoading(true);
@@ -101,6 +107,14 @@ const FinalContracts = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Helper to get originContractId as string
+  const getOriginContractId = (contract: FinalContract | null): string | undefined => {
+    if (!contract?.originContractId) return undefined;
+    return typeof contract.originContractId === 'string' 
+      ? contract.originContractId 
+      : contract.originContractId._id;
   };
 
   const loadAvailableContracts = async () => {
@@ -147,6 +161,239 @@ const FinalContracts = () => {
   useEffect(() => {
     fetchContracts();
   }, []);
+
+  const openDetail = async (contract: FinalContract) => {
+    setViewModalVisible(true);
+    
+    // Load full contract details with populated originContractId
+    try {
+      const fullContract = await adminFinalContractService.getById(contract._id);
+      setSelectedContract(fullContract);
+      
+      // Load bills của FinalContract này - CHỈ HIỂN THỈ BILLS CỦA FINALCONTRACT NÀY
+      console.log("Loading bills for FinalContract:", fullContract._id);
+      try {
+        // Gọi trực tiếp API để tránh TypeScript cache issue
+        const token = localStorage.getItem("admin_token");
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+        const response = await fetch(`${apiUrl}/api/bills/final-contract/${fullContract._id}`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+        const data = await response.json();
+        console.log("Bills API response:", data);
+        
+        const bills = data.data || [];
+        // Lọc chỉ lấy bill CONTRACT (tháng đầu) chưa thanh toán
+        const contractBills = bills.filter(
+          (bill: any) => bill.billType === "CONTRACT" && bill.status !== "PAID"
+        );
+        console.log("Filtered bills:", contractBills);
+        setContractBills(contractBills);
+      } catch (err) {
+        console.error("Load bills error:", err);
+        setContractBills([]);
+      }
+    } catch (error: any) {
+      console.error("Load contract details error:", error);
+      setSelectedContract(contract);
+      setContractBills([]);
+    }
+  };
+
+  const handleConfirmCashPayment = async (billId: string) => {
+    try {
+      await adminBillService.confirmPayment(billId);
+      message.success("Xác nhận thanh toán tiền mặt thành công!");
+      // Reload bills - CHỈ HIỂN THỊ BILL CONTRACT CHƯA THANH TOÁN
+      if (selectedContract?._id) {
+        try {
+          const token = localStorage.getItem("admin_token");
+          const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+          const response = await fetch(`${apiUrl}/api/bills/final-contract/${selectedContract._id}`, {
+            headers: {
+              "Authorization": `Bearer ${token}`,
+            },
+          });
+          const data = await response.json();
+          const bills = data.data || [];
+          const contractBills = bills.filter(
+            (bill: any) => bill.billType === "CONTRACT" && bill.status !== "PAID"
+          );
+          setContractBills(contractBills);
+        } catch (err) {
+          console.error("Reload bills error:", err);
+        }
+      }
+      fetchContracts(pagination.current, pagination.pageSize);
+    } catch (error: any) {
+      message.error(error.response?.data?.message || "Lỗi khi xác nhận thanh toán");
+    }
+  };
+
+  const handleOnlinePayment = async (billId: string, amount: number) => {
+    const createPayment = async (provider: "vnpay" | "momo" | "zalopay") => {
+      try {
+        const token = localStorage.getItem("admin_token");
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+        
+        const endpoint = provider === "zalopay" 
+          ? `${apiUrl}/api/payment/zalopay/create`
+          : `${apiUrl}/api/payment/${provider}/create`;
+
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ billId, amount }),
+        });
+        const data = await response.json();
+
+        let paymentUrl = null;
+        if (provider === "vnpay") {
+          // VNPAY trả về "url" hoặc "paymentUrl"
+          paymentUrl = data.url || data.paymentUrl;
+        } else if (provider === "momo") {
+          paymentUrl = data.payUrl;
+        } else if (provider === "zalopay") {
+          paymentUrl = data.order_url;
+        }
+
+        if (paymentUrl) {
+          window.open(paymentUrl, "_blank");
+          message.success(`Đã mở cổng thanh toán ${provider.toUpperCase()}`);
+        } else {
+          console.error("Payment error:", data);
+          message.error(data.message || data.error || "Lỗi tạo link thanh toán");
+        }
+      } catch (error: any) {
+        message.error("Lỗi kết nối payment gateway");
+      }
+    };
+
+    Modal.info({
+      title: "Chọn phương thức thanh toán online",
+      width: 500,
+      content: (
+        <div style={{ marginTop: 16 }}>
+          <p style={{ fontSize: 16, marginBottom: 16 }}>
+            Số tiền: <strong style={{ color: "#1890ff" }}>{amount.toLocaleString("vi-VN")} đ</strong>
+          </p>
+          <Space direction="vertical" style={{ width: "100%" }}>
+            <Button 
+              type="primary" 
+              block 
+              size="large"
+              onClick={() => {
+                Modal.destroyAll();
+                createPayment("vnpay");
+              }}
+              style={{ backgroundColor: "#1890ff" }}
+            >
+              💳 VNPAY
+            </Button>
+            <Button 
+              type="primary" 
+              block 
+              size="large"
+              onClick={() => {
+                Modal.destroyAll();
+                createPayment("momo");
+              }}
+              style={{ backgroundColor: "#a50064" }}
+            >
+              🟣 MOMO
+            </Button>
+            <Button 
+              type="primary" 
+              block 
+              size="large"
+              onClick={() => {
+                Modal.destroyAll();
+                createPayment("zalopay");
+              }}
+              style={{ backgroundColor: "#0068ff" }}
+            >
+              💙 ZaloPay
+            </Button>
+          </Space>
+        </div>
+      ),
+      okText: "Đóng",
+      onOk: () => Modal.destroyAll(),
+    });
+  };
+
+  const handleAssignTenant = async () => {
+    try {
+      const values = await tenantForm.validateFields();
+      
+      // Bước 1: Lấy thông tin Contract để lấy tenantSnapshot
+      let tenantSnapshot = null;
+      const originId = getOriginContractId(assigningContract);
+      if (originId) {
+        try {
+          const contract = await adminContractService.getById(originId) as any;
+          tenantSnapshot = contract.tenantSnapshot;
+        } catch (err) {
+          console.warn("Cannot load contract snapshot:", err);
+        }
+      }
+
+      // Bước 2: Tạo User (tài khoản TENANT)
+      console.log("Creating user with data:", {
+        fullName: values.fullName || tenantSnapshot?.fullName,
+        email: values.email,
+        phone: values.phone || tenantSnapshot?.phone,
+        role: "TENANT",
+      });
+      
+      const userResponse = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/users`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("admin_token")}`,
+        },
+        body: JSON.stringify({
+          fullName: values.fullName || tenantSnapshot?.fullName,
+          email: values.email,
+          phone: values.phone || tenantSnapshot?.phone,
+          password: values.password || "123456",
+          role: "TENANT",
+        }),
+      });
+      const userData = await userResponse.json();
+      console.log("User creation response:", userData);
+      
+      if (!userData.success) {
+        message.error(userData.message || "Lỗi tạo tài khoản");
+        return;
+      }
+
+      const newUserId = userData.data._id || userData.data.id;
+      console.log("New user ID:", newUserId);
+      
+      if (!newUserId) {
+        message.error("Không lấy được ID người dùng mới");
+        return;
+      }
+
+      // Bước 3: Gán User vào FinalContract
+      console.log("Assigning tenant to final contract:", assigningContract!._id, newUserId);
+      await adminFinalContractService.assignTenant(assigningContract!._id, newUserId);
+      
+      message.success("Đã tạo tài khoản và gán người thuê thành công!");
+      setAssignTenantModalVisible(false);
+      tenantForm.resetFields();
+      fetchContracts(pagination.current, pagination.pageSize);
+    } catch (error: any) {
+      console.error("handleAssignTenant error:", error);
+      message.error(error.response?.data?.message || error.message || "Có lỗi xảy ra");
+    }
+  };
 
   const handleUploadContract = async () => {
     if (!selectedContract || fileList.length === 0) {
@@ -229,7 +476,24 @@ const FinalContracts = () => {
       title: "Người thuê",
       dataIndex: ["tenantId", "fullName"],
       key: "tenant",
-      render: (_: any, record: FinalContract) => record.tenantId?.fullName || "Chưa gán",
+      render: (_: any, record: FinalContract) => {
+        if (record.tenantId?.fullName) {
+          return record.tenantId.fullName;
+        }
+        return (
+          <Button
+            size="small"
+            type="link"
+            onClick={(e) => {
+              e.stopPropagation();
+              setAssigningContract(record);
+              setAssignTenantModalVisible(true);
+            }}
+          >
+            + Gán người thuê
+          </Button>
+        );
+      },
     },
     {
       title: "Thời gian",
@@ -281,10 +545,7 @@ const FinalContracts = () => {
           <Button
             size="small"
             icon={<EyeOutlined />}
-            onClick={() => {
-              setSelectedContract(record);
-              setViewModalVisible(true);
-            }}
+            onClick={() => openDetail(record)}
           >
             Xem
           </Button>
@@ -412,9 +673,15 @@ const FinalContracts = () => {
                 const roomNumber = contract.roomId && typeof contract.roomId === "object" 
                   ? contract.roomId.roomNumber 
                   : contract.roomId || "N/A";
-                const tenantName = contract.tenantId && typeof contract.tenantId === "object" 
-                  ? contract.tenantId.fullName 
-                  : "N/A";
+                
+                // Ưu tiên lấy từ tenantId, nếu không có thì lấy từ tenantSnapshot
+                let tenantName = "N/A";
+                if (contract.tenantId && typeof contract.tenantId === "object") {
+                  tenantName = contract.tenantId.fullName;
+                } else if (contract.tenantSnapshot?.fullName) {
+                  tenantName = contract.tenantSnapshot.fullName;
+                }
+                
                 return (
                   <Option key={contract._id} value={contract._id}>
                     Phòng: {roomNumber} - Người thuê: {tenantName} - {dayjs(contract.startDate).format("DD/MM/YYYY")}
@@ -440,37 +707,194 @@ const FinalContracts = () => {
         </div>
       </Modal>
 
+      {/* Assign Tenant Modal */}
+      <Modal
+        title="Tạo tài khoản và gán người thuê"
+        open={assignTenantModalVisible}
+        onOk={handleAssignTenant}
+        onCancel={() => {
+          setAssignTenantModalVisible(false);
+          tenantForm.resetFields();
+        }}
+        okText="Tạo và gán"
+        cancelText="Hủy"
+        afterOpenChange={async (open) => {
+          if (open && assigningContract) {
+            const originId = getOriginContractId(assigningContract);
+            if (originId) {
+              try {
+                const contract = await adminContractService.getById(originId) as any;
+                if (contract.tenantSnapshot) {
+                  // Tự động tạo email từ số điện thoại nếu chưa có
+                  const suggestedEmail = contract.tenantSnapshot.email || 
+                    (contract.tenantSnapshot.phone ? `${contract.tenantSnapshot.phone}@gmail.com` : '');
+                  
+                  tenantForm.setFieldsValue({
+                    fullName: contract.tenantSnapshot.fullName,
+                    phone: contract.tenantSnapshot.phone,
+                    email: suggestedEmail,
+                  });
+                }
+              } catch (err) {
+                console.warn("Cannot load contract:", err);
+              }
+            }
+          }
+        }}
+      >
+        <Form form={tenantForm} layout="vertical">
+          <Form.Item
+            label="Họ tên"
+            name="fullName"
+            rules={[{ required: true, message: "Nhập họ tên" }]}
+          >
+            <Input placeholder="Từ thông tin check-in" />
+          </Form.Item>
+          <Form.Item
+            label="Email (dùng để đăng nhập)"
+            name="email"
+            rules={[
+              { required: true, message: "Nhập email" },
+              { type: "email", message: "Email không hợp lệ" },
+            ]}
+          >
+            <Input placeholder="example@email.com" />
+          </Form.Item>
+          <Form.Item
+            label="Số điện thoại"
+            name="phone"
+            rules={[{ required: true, message: "Nhập số điện thoại" }]}
+          >
+            <Input placeholder="Từ thông tin check-in" />
+          </Form.Item>
+          <Form.Item
+            label="Mật khẩu"
+            name="password"
+            initialValue="123456"
+            rules={[{ required: true, message: "Nhập mật khẩu" }]}
+          >
+            <Input.Password />
+          </Form.Item>
+          <p style={{ color: "#999", fontSize: 12 }}>
+            * Tài khoản sẽ được tạo với role TENANT để khách có thể đăng nhập và xem hóa đơn
+          </p>
+        </Form>
+      </Modal>
+
       {/* View Contract Modal */}
       <Modal
         title="Chi tiết Hợp đồng Chính thức"
         open={viewModalVisible}
-        onCancel={() => setViewModalVisible(false)}
-        width={800}
+        onCancel={() => {
+          setViewModalVisible(false);
+          setContractBills([]);
+        }}
+        width={900}
         footer={null}
       >
         {selectedContract && (
           <div>
-            <p>
-              <strong>Phòng:</strong> {selectedContract.roomId?.roomNumber}
-            </p>
-            <p>
-              <strong>Người thuê:</strong> {selectedContract.tenantId?.fullName || "Chưa gán"}
-            </p>
-            <p>
-              <strong>Trạng thái:</strong> {getStatusTag(selectedContract.status)}
-            </p>
-            <p>
-              <strong>Thời gian:</strong> {dayjs(selectedContract.startDate).format("DD/MM/YYYY")} →{" "}
-              {dayjs(selectedContract.endDate).format("DD/MM/YYYY")}
-            </p>
-            <p>
-              <strong>Tiền cọc:</strong> {selectedContract.deposit?.toLocaleString("vi-VN")} đ
-            </p>
-            <p>
-              <strong>Tiền thuê/tháng:</strong> {selectedContract.monthlyRent?.toLocaleString("vi-VN")} đ
-            </p>
+            <Descriptions bordered column={2} size="small">
+              <Descriptions.Item label="Phòng">{selectedContract.roomId?.roomNumber}</Descriptions.Item>
+              <Descriptions.Item label="Người thuê">
+                {selectedContract.tenantId?.fullName || 
+                 (typeof selectedContract.originContractId === 'object' && 
+                  selectedContract.originContractId?.tenantSnapshot?.fullName) ||
+                 "Chưa gán"}
+              </Descriptions.Item>
+              <Descriptions.Item label="Trạng thái">{getStatusTag(selectedContract.status)}</Descriptions.Item>
+              <Descriptions.Item label="Thời gian">
+                {dayjs(selectedContract.startDate).format("DD/MM/YYYY")} → {dayjs(selectedContract.endDate).format("DD/MM/YYYY")}
+              </Descriptions.Item>
+              <Descriptions.Item label="Tiền cọc">{selectedContract.deposit?.toLocaleString("vi-VN")} đ</Descriptions.Item>
+              <Descriptions.Item label="Tiền thuê/tháng">{selectedContract.monthlyRent?.toLocaleString("vi-VN")} đ</Descriptions.Item>
+            </Descriptions>
 
-            <h4>Files Hợp đồng ({selectedContract.images?.length || 0})</h4>
+            <Divider orientation="left">
+              <DollarOutlined /> Hóa đơn thanh toán
+            </Divider>
+            {contractBills.length > 0 ? (
+              <Table
+                size="small"
+                dataSource={contractBills}
+                rowKey="_id"
+                pagination={false}
+                columns={[
+                  {
+                    title: "Loại",
+                    dataIndex: "billType",
+                    render: (type: string) => {
+                      const typeMap: Record<string, { color: string; text: string }> = {
+                        RECEIPT: { color: "blue", text: "Phiếu thu (Cọc)" },
+                        CONTRACT: { color: "green", text: "Tháng đầu" },
+                        MONTHLY: { color: "orange", text: "Hàng tháng" },
+                      };
+                      const t = typeMap[type] || { color: "default", text: type };
+                      return <Tag color={t.color}>{t.text}</Tag>;
+                    },
+                  },
+                  {
+                    title: "Số tiền",
+                    dataIndex: "amountDue",
+                    render: (val: number) => `${val?.toLocaleString("vi-VN")} đ`,
+                  },
+                  {
+                    title: "Đã thanh toán",
+                    dataIndex: "amountPaid",
+                    render: (val: number) => `${val?.toLocaleString("vi-VN")} đ`,
+                  },
+                  {
+                    title: "Trạng thái",
+                    dataIndex: "status",
+                    render: (status: string) => {
+                      const statusMap: Record<string, { color: string; text: string }> = {
+                        PAID: { color: "success", text: "Đã thanh toán" },
+                        UNPAID: { color: "error", text: "Chưa thanh toán" },
+                        PENDING_CASH_CONFIRM: { color: "warning", text: "Chờ xác nhận TM" },
+                        PARTIALLY_PAID: { color: "processing", text: "Thanh toán 1 phần" },
+                      };
+                      const s = statusMap[status] || { color: "default", text: status };
+                      return <Tag color={s.color}>{s.text}</Tag>;
+                    },
+                  },
+                  {
+                    title: "Thao tác",
+                    key: "action",
+                    width: 200,
+                    render: (_: any, record: any) => {
+                      if (record.status === "PENDING_CASH_CONFIRM" || record.status === "UNPAID") {
+                        return (
+                          <Space>
+                            <Popconfirm
+                              title="Xác nhận đã nhận tiền mặt?"
+                              onConfirm={() => handleConfirmCashPayment(record._id)}
+                              okText="Xác nhận"
+                              cancelText="Hủy"
+                            >
+                              <Button size="small" type="primary" icon={<DollarOutlined />}>
+                                TM
+                              </Button>
+                            </Popconfirm>
+                            <Button 
+                              size="small" 
+                              type="default" 
+                              onClick={() => handleOnlinePayment(record._id, record.amountDue)}
+                            >
+                              Online
+                            </Button>
+                          </Space>
+                        );
+                      }
+                      return <Tag color="success">Đã thanh toán</Tag>;
+                    },
+                  },
+                ]}
+              />
+            ) : (
+              <p style={{ textAlign: "center", color: "#999" }}>Không có hóa đơn</p>
+            )}
+
+            <Divider orientation="left">Files Hợp đồng ({selectedContract.images?.length || 0})</Divider>
             <Space wrap>
               {selectedContract.images?.map((file, idx) => (
                 <div key={idx} style={{ position: "relative" }}>
@@ -493,7 +917,7 @@ const FinalContracts = () => {
               ))}
             </Space>
 
-            <h4 style={{ marginTop: 16 }}>Files CCCD ({selectedContract.cccdFiles?.length || 0})</h4>
+            <Divider orientation="left">Files CCCD ({selectedContract.cccdFiles?.length || 0})</Divider>
             <Space wrap>
               {selectedContract.cccdFiles?.map((file, idx) => (
                 <div key={idx} style={{ position: "relative" }}>

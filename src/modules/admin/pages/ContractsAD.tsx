@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Button, DatePicker, Form, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message, Row, Col, Statistic, Card } from "antd";
-import { PlusOutlined, EditOutlined, DeleteOutlined, FileDoneOutlined } from "@ant-design/icons";
+import { PlusOutlined, EditOutlined, DeleteOutlined, FileDoneOutlined, FileTextOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { Contract } from "../../../types/contract";
 import type { Tenant } from "../../../types/tenant";

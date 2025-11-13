@@ -21,6 +21,7 @@ import {
   FileDoneOutlined,
   ExclamationCircleOutlined,
   SafetyCertificateOutlined,
+  SettingOutlined,
 } from "@ant-design/icons";
 import "../../assets/styles/layoutAd.css";
 import SearchBar from "./SearchBar";
@@ -60,6 +61,11 @@ const AdminLayout: React.FC = () => {
       key: "/admin/roomsad",
       icon: <HomeOutlined style={{ fontSize: 20 }} />,
       label: "Quản lý phòng",
+    },
+    {
+      key: "/admin/checkins",
+      icon: <LoginOutlined style={{ fontSize: 20 }} />,
+      label: "Quản lý Check-in",
     },
     {
       key: "/admin/final-contracts",

@@ -13,6 +13,7 @@ import Complaints from "../modules/admin/pages/Complaints";
 import FinalContracts from "../modules/admin/pages/FinalContracts";
 import DraftBills from "../modules/admin/pages/DraftBills";
 import UtilityFees from "../modules/admin/pages/UtilityFees";
+import CheckinsAD from "../modules/admin/pages/CheckinsAD";
 
 const RequireAdmin = ({ children }: { children: React.ReactElement }) => {
   const user = adminAuthService.getCurrentUser();
@@ -47,6 +48,7 @@ const adminRoutes = [
   { path: "utility-fees", element: <RequireAdmin><UtilityFees /></RequireAdmin> },
   { path: "final-contracts", element: <RequireAdmin><FinalContracts /></RequireAdmin> },
   { path: "contracts", element: <RequireAdmin><ContractsAD /></RequireAdmin> },
+  { path: "checkins", element: <RequireAdmin><CheckinsAD /></RequireAdmin> },
   { path: "roomsad", element: <RequireAdmin><RoomsAD /></RequireAdmin> },
   { path: "complaints", element: <RequireAdmin><Complaints /></RequireAdmin> },
 

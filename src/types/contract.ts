@@ -17,6 +17,13 @@ export interface Contract {
     monthlyRent?: number; // converted from Decimal128
     deposit?: number; // converted from Decimal128
   };
+  tenantSnapshot?: {
+    fullName?: string;
+    phone?: string;
+    email?: string;
+    identityNo?: string;
+    note?: string;
+  };
   createdAt?: string;
   updatedAt?: string;
 }

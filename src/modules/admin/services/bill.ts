@@ -59,6 +59,21 @@ export const adminBillService = {
     const res = await api.delete(`/bills/${id}`);
     return res.data;
   },
+
+  async confirmCashPayment(id: string): Promise<Bill> {
+    const res = await api.post<SingleBillResponse>(`/bills/${id}/confirm-cash`, {});
+    return res.data.data;
+  },
+
+  async confirmPayment(id: string): Promise<Bill> {
+    const res = await api.post<SingleBillResponse>(`/bills/${id}/confirm-payment`, {});
+    return res.data.data;
+  },
+
+  async getByContractId(contractId: string): Promise<Bill[]> {
+    const res = await api.get<BillResponse>(`/bills?contractId=${contractId}`);
+    return res.data.data;
+  },
 };
 
 // Tenant bill service
@@ -72,5 +87,9 @@ export const tenantBillService = {
     const res = await api.get<BillResponse>("/public/bills/my-bills", { params });
     return res.data.data;
   },
-};
 
+  async getByFinalContractId(finalContractId: string): Promise<Bill[]> {
+    const res = await api.get<BillResponse>(`/bills/final-contract/${finalContractId}`);
+    return res.data.data;
+  },
+};
