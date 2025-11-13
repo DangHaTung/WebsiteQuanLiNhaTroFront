@@ -195,8 +195,35 @@
 /* ===== Search ===== */
 .nav-search {
   flex: 1;
-  max-width: 450px;
+  max-width: 320px; /* Mặc định nhỏ */
   margin-left: 100px;
+  transition: max-width 0.5s ease, transform 0.3s ease;
+  transform-origin: left center;
+  position: relative;
+}
+
+.nav-search.active {
+  max-width: 480px; /* Khi click -> mở rộng */
+  transform: scale(1.03);
+}
+
+/* Viền gradient động quanh input */
+.nav-search::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 999px;
+  background: linear-gradient(120deg, #0d6efd, #0dcaf0, #6f42c1);
+  background-size: 200% 200%;
+  animation: borderGlow 5s ease infinite;
+  opacity: 0.5;
+  z-index: 0;
+}
+
+@keyframes borderGlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 /* Khối input group */
@@ -206,61 +233,57 @@
   background: #fff;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
   transition: box-shadow 0.3s ease;
+  position: relative;
+  z-index: 1;
 }
 
 /* Thanh input */
 .nav-search .ant-input-affix-wrapper {
   border: none;
-  background: #eef3f7;
+  background: #f5f8fb;
   border-radius: 999px;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.nav-search .ant-input-affix-wrapper:hover {
-  box-shadow: 0 0 0 2px #e6f4ff;
-}
-
-.nav-search .ant-input-affix-wrapper-focused {
-  border-color: #0d6efd;
-  box-shadow: 0 0 15px rgba(13, 110, 253, 0.4);
-}
-
-.nav-search .ant-input {
+.nav-search.active .ant-input-affix-wrapper {
   background: #fff;
-  color: #333;
-  padding: 14px 24px;
-  font-size: 16px;
+  box-shadow: 0 0 12px rgba(13, 110, 253, 0.15);
 }
 
-.nav-search .ant-input::placeholder {
-  color: #999;
+/* Khi hover hoặc focus */
+.nav-search .ant-input-affix-wrapper:hover,
+.nav-search .ant-input-affix-wrapper-focused {
+  box-shadow: 0 0 0 2px #e6f4ff, 0 6px 18px rgba(13, 110, 253, 0.15);
 }
 
-/* Nút icon tròn gradient nổi bật */
+/* Nút icon tròn gradient */
 .nav-search .ant-btn {
-  border-radius: 50%;
+  border-radius: 12px;
   width: 44px;
   height: 44px;
-  background: linear-gradient(135deg, #0d6efd, #0dcaf0);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: linear-gradient(90deg, #0d6efd, #6f42c1, #0dcaf0);
+  background-size: 300% 100%;
+  color: #fff;
+  font-weight: 500;
   border: none;
-  transition: transform 0.25s ease, box-shadow 0.3s ease;
+  letter-spacing: 0.5px;
+  transition: all 0.4s ease;
+  animation: gradientMove 4s ease infinite;
+  box-shadow: 0 4px 14px rgba(13, 110, 253, 0.4);
+}
+
+@keyframes gradientMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 .nav-search .ant-btn:hover {
-  transform: scale(1.08);
+  transform: scale(1.1);
   box-shadow: 0 4px 14px rgba(13, 202, 240, 0.4);
 }
 
-/* Hiệu ứng ánh sáng quét khi hover nút */
-.nav-search .ant-btn {
-  position: relative;
-  overflow: hidden;
-}
-
+/* Ánh sáng quét */
 .nav-search .ant-btn::after {
   content: '';
   position: absolute;
@@ -271,11 +294,11 @@
   background: linear-gradient(
     120deg,
     rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.5) 50%,
+    rgba(255, 255, 255, 0.6) 50%,
     rgba(255, 255, 255, 0) 100%
   );
   transform: skewX(-20deg);
-  transition: left 0.5s;
+  transition: left 0.6s;
 }
 
 .nav-search .ant-btn:hover::after {
@@ -284,7 +307,7 @@
 
 .nav-search .ant-btn .anticon {
   color: #fff;
-  font-size: 18px;
+  font-size: 17px;
 }
 
 /* ===== Menu ===== */

@@ -16,6 +16,7 @@ import {
   Avatar,
   Statistic,
   Tooltip,
+  Card,
 } from "antd";
 import {
   PlusOutlined,
@@ -32,6 +33,8 @@ import type { Room } from "../../../types/room";
 import "../../../assets/styles/roomAd.css";
 import RoomDetailDrawer from "../components/RoomDetailDrawer";
 import { isAdmin } from "../../../utils/roleChecker";
+import ExpandableSearch from "../components/ExpandableSearch";
+import type { ColumnsType } from "antd/es/table";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -42,8 +45,8 @@ const RoomsAD: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRoom, setEditingRoom] = useState<Room | null>(null);
   const [form] = Form.useForm();
+  const [keyword, setKeyword] = useState<string>("");
 
-  const [filterType, setFilterType] = useState<Room["type"] | "ALL">("ALL");
   const [filterStatus, setFilterStatus] = useState<Room["status"] | "ALL">("ALL");
 
   // Image upload & preview
@@ -51,6 +54,7 @@ const RoomsAD: React.FC = () => {
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
 
   const [existingImages, setExistingImages] = useState<{ url: string; publicId?: string; keep?: boolean }[]>([]);
+  const [removedImages, setRemovedImages] = useState<Array<{ url: string; publicId?: string }>>([]);
 
   // Room Fees Modal
   const [roomFeesModalVisible, setRoomFeesModalVisible] = useState(false);
@@ -103,12 +107,12 @@ const RoomsAD: React.FC = () => {
         if (key !== "images") formData.append(key, (values as any)[key]);
       });
 
-      // chỉ gửi ảnh cũ được giữ
-      existingImages.filter((img) => img.keep).forEach((img) => {
-        if (img.url) formData.append("images", img.url);
+      // Gửi ảnh cũ còn giữ
+      existingImages.forEach((img) => {
+        if (img.url) formData.append("existingImages", img.url); // hoặc publicId nếu backend yêu cầu
       });
 
-      // thêm ảnh mới
+      // Gửi ảnh mới
       selectedFiles.forEach((file) => {
         formData.append("images", file);
       });
@@ -127,6 +131,7 @@ const RoomsAD: React.FC = () => {
       setSelectedFiles([]);
       setPreviewUrls([]);
       setExistingImages([]);
+      setRemovedImages([]);
       fetchRooms();
     } catch (error) {
       console.error(error);
@@ -155,18 +160,18 @@ const RoomsAD: React.FC = () => {
     });
     setIsModalOpen(true);
 
-    // load ảnh cũ
     if (room.images?.length) {
       const imgs = room.images.map((img) =>
-        typeof img === "string" ? { url: img, keep: true } : { ...(img as any), keep: true }
+        typeof img === "string" ? { url: img } : { ...(img as any) }
       );
       setExistingImages(imgs);
     } else {
       setExistingImages([]);
     }
 
-    setSelectedFiles([]); // reset ảnh mới
-    setPreviewUrls([]);   // reset preview ảnh mới
+    setSelectedFiles([]);
+    setPreviewUrls([]);
+    setRemovedImages([]);
   };
 
   const onDelete = (room: Room) => {
@@ -192,12 +197,25 @@ const RoomsAD: React.FC = () => {
   const availableCount = useMemo(() => rooms.filter((r) => r.status === "AVAILABLE").length, [rooms]);
 
   const filteredRooms = useMemo(() => {
-    return rooms.filter((r) => {
-      const statusMatch = filterStatus === "ALL" || r.status === filterStatus;
-      const typeMatch = filterType === "ALL" || r.type === filterType;
-      return statusMatch && typeMatch;
-    });
-  }, [rooms, filterStatus, filterType]);
+    let data = [...rooms];
+
+    // Filter theo trạng thái
+    if (filterStatus && filterStatus !== "ALL") {
+      data = data.filter((r) => r.status === filterStatus);
+    }
+
+    // Filter theo keyword
+    if (keyword.trim() !== "") {
+      const k = keyword.toLowerCase();
+      data = data.filter((r) => {
+        const roomNumber = r.roomNumber?.toString().toLowerCase() || "";
+        const type = r.type?.toLowerCase() || "";
+        return roomNumber.includes(k) || type.includes(k);
+      });
+    }
+
+    return data;
+  }, [rooms, filterStatus, keyword]);
 
   const openDetail = (room: Room) => {
     setSelectedRoomId(room._id || null);
@@ -205,7 +223,7 @@ const RoomsAD: React.FC = () => {
   };
 
   // Table columns
-  const columns = [
+  const columns: ColumnsType<Room> = [
     {
       title: "Ảnh",
       dataIndex: "image",
@@ -252,28 +270,34 @@ const RoomsAD: React.FC = () => {
       title: "Loại",
       dataIndex: "type",
       key: "type",
+      align: "center",
+      filters: [
+        { text: "Phòng đơn", value: "SINGLE" },
+        { text: "Phòng đôi", value: "DOUBLE" },
+      ],
+      onFilter: (val: any, record: { type: any; }) => record.type === val,
       render: (type: Room["type"]) => {
         const colors: Record<string, string> = {
           SINGLE: "linear-gradient(90deg,#95de64,#73d13d)",
           DOUBLE: "linear-gradient(90deg,#69c0ff,#40a9ff)",
-          DORM: "linear-gradient(90deg,#ffd666,#ffa940)",
-          STUDIO: "linear-gradient(90deg,#9254de,#722ed1)",
-          VIP: "linear-gradient(90deg,#ff4d4f,#cf1322)",
+        };
+        const textMap: Record<string, string> = {
+          SINGLE: "Phòng đơn",
+          DOUBLE: "Phòng đôi",
         };
         return (
           <Tag
             style={{
               fontWeight: 600,
               borderRadius: 12,
-              backgroundImage: colors[type],
+              backgroundImage: colors[type] || "linear-gradient(90deg,#d9d9d9,#bfbfbf)",
               color: "#fff",
               border: "none",
               boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
               transition: "all 0.3s",
             }}
-            className="tag-hover"
           >
-            {type}
+            {textMap[type] || type}
           </Tag>
         );
       },
@@ -294,6 +318,13 @@ const RoomsAD: React.FC = () => {
       title: "Tình trạng",
       dataIndex: "status",
       key: "status",
+      align: "center",
+      filters: [
+        { text: "Còn trống", value: "AVAILABLE" },
+        { text: "Đang thuê", value: "OCCUPIED" },
+        { text: "Bảo trì", value: "MAINTENANCE" },
+      ],
+      onFilter: (val: any, record: Room) => record.status === val,
       render: (status: Room["status"]) => {
         const colors: Record<string, string> = {
           AVAILABLE: "#52c41a",
@@ -315,7 +346,6 @@ const RoomsAD: React.FC = () => {
               boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
               transition: "all 0.3s",
             }}
-            className="tag-hover"
           >
             {labels[status]}
           </Tag>
@@ -385,7 +415,7 @@ const RoomsAD: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24, background: "#f0f2f5", minHeight: "100vh" }}>
+    <div style={{ padding: 24, minHeight: "100vh" }}>
       <div style={{ background: "#fff", padding: 24, borderRadius: 16, boxShadow: "0 8px 24px rgba(0,0,0,0.08)" }}>
         {/* Header */}
         <Row justify="space-between" align="middle" className="header-animate" style={{ marginBottom: 24 }}>
@@ -415,57 +445,64 @@ const RoomsAD: React.FC = () => {
 
         {/* Statistic */}
         <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-          <Col xs={24} sm={12} md={6}>
-            <div className="stat-card" onClick={() => setFilterStatus("AVAILABLE")}>
-              <ApartmentOutlined style={{ fontSize: 28, color: "#52c41a", marginBottom: 8 }} />
-              <Statistic title="Còn trống" value={availableCount} valueStyle={{ color: "#52c41a", fontWeight: 600 }} />
-            </div>
+          <Col span={24}>
+            <Row gutter={[16, 16]} align="middle" justify="space-between">
+              {/* Search box */}
+              <Col xs={24} sm={12} md={8}>
+                <ExpandableSearch
+                  value={keyword}
+                  onChange={(e) => setKeyword(e.target.value)}
+                  placeholder="Tìm theo số phòng, loại phòng"
+                />
+              </Col>
+
+              {/* Thẻ thống kê trạng thái phòng */}
+              <Col xs={24} sm={24} md={16}>
+                <Row gutter={[16, 16]} justify="end">
+                  {[
+                    { title: "Còn trống", status: "AVAILABLE", color: "#52c41a" },
+                    { title: "Đang thuê", status: "OCCUPIED", color: "#fa8c16" },
+                    { title: "Bảo trì", status: "MAINTENANCE", color: "#8c8c8c" },
+                  ].map((item, idx) => {
+                    const count =
+                      item.status === "AVAILABLE"
+                        ? availableCount
+                        : rooms.filter((r) => r.status === item.status).length;
+
+                    return (
+                      <Col xs={24} sm={12} md={7} key={idx}>
+                        <Card
+                          size="small"
+                          bordered={false}
+                          style={{
+                            textAlign: "center",
+                            borderRadius: 16,
+                            background: "white",
+                            boxShadow: "0 3px 10px rgba(0,0,0,0.06)",
+                            padding: 12,
+                          }}
+                        >
+                          <ApartmentOutlined
+                            style={{ fontSize: 24, color: item.color, marginBottom: 4 }}
+                          />
+                          <Statistic
+                            title={item.title}
+                            value={count}
+                            valueStyle={{
+                              color: item.color,
+                              fontWeight: 600,
+                              fontSize: 18,
+                            }}
+                          />
+                        </Card>
+                      </Col>
+                    );
+                  })}
+                </Row>
+              </Col>
+            </Row>
           </Col>
-          <Col xs={24} sm={12} md={6}>
-            <div className="stat-card" onClick={() => setFilterStatus("OCCUPIED")}>
-              <ApartmentOutlined style={{ fontSize: 28, color: "#fa8c16", marginBottom: 8 }} />
-              <Statistic
-                title="Đang thuê"
-                value={rooms.filter((r) => r.status === "OCCUPIED").length}
-                valueStyle={{ color: "#fa8c16", fontWeight: 600 }}
-              />
-            </div>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <div className="stat-card" onClick={() => setFilterStatus("MAINTENANCE")}>
-              <ApartmentOutlined style={{ fontSize: 28, color: "#8c8c8c", marginBottom: 8 }} />
-              <Statistic
-                title="Bảo trì"
-                value={rooms.filter((r) => r.status === "MAINTENANCE").length}
-                valueStyle={{ color: "#8c8c8c", fontWeight: 600 }}
-              />
-            </div>
-          </Col>
-          <Col xs={24} sm={12} md={6}>
-            <div className="filter-card filter-card-column">
-              <span style={{ fontWeight: 600, marginBottom: 8 }}>Loại phòng:</span>
-              {["SINGLE", "DOUBLE"].map((type) => (
-                <Tag
-                  key={type}
-                  color={filterType === type ? "blue" : "default"}
-                  onClick={() => setFilterType(type as Room["type"])}
-                  style={{ cursor: "pointer", marginBottom: 6 }}
-                >
-                  {type}
-                </Tag>
-              ))}
-              <Tag
-                color={filterType === "ALL" ? "blue" : "default"}
-                onClick={() => {
-                  setFilterType("ALL");
-                  setFilterStatus("ALL");
-                }}
-                style={{ cursor: "pointer", marginBottom: 6 }}
-              >
-                Tất cả
-              </Tag>
-            </div>
-          </Col>
+
         </Row>
 
         {/* Table */}
@@ -554,36 +591,51 @@ const RoomsAD: React.FC = () => {
 
           <Form.Item label="Ảnh phòng">
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+              {/* Ảnh cũ */}
               {existingImages.map((img, idx) => (
                 <div key={idx} style={{ position: "relative" }}>
                   <img
                     src={img.url}
                     alt={`old-${idx}`}
-                    style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8, opacity: img.keep ? 1 : 0.4 }}
+                    style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8 }}
                   />
                   <Button
                     size="small"
                     danger
                     style={{ position: "absolute", top: 2, right: 2 }}
                     onClick={() => {
-                      setExistingImages((prev) =>
-                        prev.map((e, i) => (i === idx ? { ...e, keep: !e.keep } : e))
-                      );
+                      setRemovedImages((prev) => [...prev, img]);
+                      setExistingImages((prev) => prev.filter((_, i) => i !== idx));
                     }}
                   >
-                    {img.keep ? "X" : "↺"}
+                    X
                   </Button>
                 </div>
               ))}
+
+              {/* Ảnh mới */}
               {previewUrls.map((url, idx) => (
-                <img
-                  key={idx}
-                  src={url}
-                  alt={`new-${idx}`}
-                  style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8 }}
-                />
+                <div key={idx} style={{ position: "relative" }}>
+                  <img
+                    src={url}
+                    alt={`new-${idx}`}
+                    style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 8 }}
+                  />
+                  <Button
+                    size="small"
+                    danger
+                    style={{ position: "absolute", top: 2, right: 2 }}
+                    onClick={() => {
+                      setPreviewUrls((prev) => prev.filter((_, i) => i !== idx));
+                      setSelectedFiles((prev) => prev.filter((_, i) => i !== idx));
+                    }}
+                  >
+                    X
+                  </Button>
+                </div>
               ))}
             </div>
+
             <input type="file" accept="image/*" multiple onChange={handleFileChange} />
           </Form.Item>
         </Form>

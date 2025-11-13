@@ -1,13 +1,6 @@
 import React from "react";
 import { Layout, Row, Col, Typography, Input, Button, Space } from "antd";
-import {
-    FacebookOutlined,
-    InstagramOutlined,
-    TwitterOutlined,
-    EnvironmentOutlined,
-    PhoneOutlined,
-    MailOutlined,
-} from "@ant-design/icons";
+import { FacebookOutlined, InstagramOutlined, TwitterOutlined, EnvironmentOutlined, PhoneOutlined, MailOutlined } from "@ant-design/icons";
 
 const { Footer: AntFooter } = Layout;
 const { Title, Text, Link } = Typography;
@@ -110,7 +103,7 @@ const Footer: React.FC = () => {
                         </Title>
                         <Space direction="vertical" size="middle">
                             <Text style={{ display: "flex", alignItems: "center", color: "#ccc", gap: 8 }}>
-                                <EnvironmentOutlined style={{ color: "#3B82F6" }} /> 123 Nguyễn Văn A, TP.HCM
+                                <EnvironmentOutlined style={{ color: "#3B82F6" }} /> 123 Nam Từ Liêm, TP. Hà Nội
                             </Text>
                             <Text style={{ display: "flex", alignItems: "center", color: "#ccc", gap: 8 }}>
                                 <PhoneOutlined style={{ color: "#3B82F6" }} /> 0123 456 789

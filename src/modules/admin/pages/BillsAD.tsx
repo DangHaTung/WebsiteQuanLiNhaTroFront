@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, DatePicker, Form, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message, Row, Col, Statistic } from "antd";
+import { Button, DatePicker, Form, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message, Row, Col, Statistic, Card } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined, FileTextOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { Bill, BillStatus, BillType } from "../../../types/bill";
@@ -14,6 +14,7 @@ import { adminRoomService } from "../services/room";
 import BillDetailDrawer from "../components/BillDetailDrawer";
 import "../../../assets/styles/roomAd.css";
 import { isAdmin } from "../../../utils/roleChecker";
+import ExpandableSearch from "../components/ExpandableSearch";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -372,7 +373,7 @@ const BillsAD: React.FC = () => {
     ];
 
     return (
-        <div style={{ padding: 24, background: "#f0f2f5", minHeight: "100vh" }}>
+        <div style={{ padding: 24, minHeight: "100vh" }}>
             <div style={{ background: "#fff", padding: 24, borderRadius: 16, boxShadow: "0 8px 24px rgba(0,0,0,0.08)" }}>
                 {/* Header */}
                 <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
@@ -387,6 +388,7 @@ const BillsAD: React.FC = () => {
                             icon={<PlusOutlined />}
                             size="large"
                             onClick={() => openModal()}
+                            className="btn-hover-gradient"
                         >
                             Thêm hóa đơn
                         </Button>
@@ -526,7 +528,6 @@ const BillsAD: React.FC = () => {
                         </div>
                     </Col>
                 </Row>
-
 
                 {/* Table */}
                 <Table<Bill>

@@ -38,7 +38,7 @@ const Checkin: React.FC = () => {
         if (payload && payload.phone) {
           form.setFieldsValue({ phone: payload.phone });
         }
-      } catch {}
+      } catch { }
     }
   }, [form]);
 
@@ -106,16 +106,17 @@ const Checkin: React.FC = () => {
   const onFinish = async (values: CheckinFormData) => {
     setLoading(true);
     try {
-      // Nếu thanh toán tiền mặt: LƯU vào DB (Contract + Bill) rồi chuyển trang
+      // Thanh toán TIỀN MẶT
       if (values.paymentMethod === "CASH") {
         if (!selectedRoom) throw new Error("Vui lòng chọn phòng");
+
         const checkinISO = (() => {
           const d: any = (values as any).checkinDate;
           try {
             if (!d) return new Date().toISOString();
             if (typeof d === "string") return new Date(d).toISOString();
-            if (typeof d?.toDate === "function") return d.toDate().toISOString(); // dayjs
-            if (typeof d?.toISOString === "function") return d.toISOString(); // Date
+            if (typeof d?.toDate === "function") return d.toDate().toISOString();
+            if (typeof d?.toISOString === "function") return d.toISOString();
             return new Date(d).toISOString();
           } catch {
             return new Date().toISOString();
@@ -131,31 +132,240 @@ const Checkin: React.FC = () => {
         };
 
         const res = await clientCheckinService.createCashCheckin(payload);
-        if (!res?.success) throw new Error(res?.message || "Tạo hợp đồng/hóa đơn (CASH) thất bại");
+        if (!res?.success)
+          throw new Error(res?.message || "Tạo hợp đồng/hóa đơn (CASH) thất bại");
+
         message.success("Thanh toán tiền mặt đã được ghi nhận. Hóa đơn và hợp đồng đã lưu.");
         navigate("/payment-success");
-      } else {
-        // Các phương thức khác: tạo tenant rồi điều hướng
-        const tenantData = {
-          fullName: values.fullName,
-          phone: values.phone,
-          email: values.email,
-          identityNo: values.idCard,
-        };
-        console.log("Creating tenant with data:", tenantData);
-        const tenant = await clientTenantService.create(tenantData);
-        console.log("Tenant created:", tenant);
-        message.success("Đăng ký check-in thành công! Chúng tôi sẽ liên hệ với bạn sớm nhất.");
-        navigate("/payment-success");
+      }
+
+      // Thanh toán VNPAY
+      else if (values.paymentMethod === "VNPAY") {
+        if (!selectedRoom) throw new Error("Vui lòng chọn phòng");
+
+        try {
+          // Mở tab trống ngay lập tức để tránh popup bị chặn
+          const vnpPopup = window.open("about:blank", "_blank");
+
+          // Tạo tenant
+          const tenantData = {
+            fullName: values.fullName,
+            phone: values.phone,
+            email: values.email,
+            identityNo: values.idCard,
+          };
+          const tenantRes = await clientTenantService.create(tenantData);
+          const tenant = tenantRes?.data || tenantRes;
+          if (!tenant?._id) throw new Error("Không tạo được thông tin khách thuê.");
+
+          // Chuẩn hóa ngày checkin
+          const checkinDate = (() => {
+            const d: any = values.checkinDate;
+            try {
+              if (!d) return new Date().toISOString();
+              if (typeof d === "string") return new Date(d).toISOString();
+              if (typeof d?.toDate === "function") return d.toDate().toISOString();
+              if (typeof d?.toISOString === "function") return d.toISOString();
+              return new Date(d).toISOString();
+            } catch {
+              return new Date().toISOString();
+            }
+          })();
+
+          // Tạo payload checkin
+          const checkinPayload = {
+            tenantId: tenant._id,
+            roomId: String(selectedRoom._id),
+            checkinDate,
+            duration: Number(values.duration),
+            deposit: Number(depositValue) || 0,
+            notes: values.notes,
+          };
+
+          // Tạo checkin và nhận billId + amount
+          const checkinRes = await clientCheckinService.createCashCheckin(checkinPayload);
+          const billId = checkinRes?.data?.billId;
+          const amount = Number(selectedRoom.pricePerMonth || 0) + Number(depositValue || 0);
+          if (!billId) throw new Error("Không tạo được hóa đơn.");
+
+          // Tạo payment VNPay
+          const paymentRes = await clientCheckinService.createPayment({ billId, amount });
+          if (!paymentRes?.url) throw new Error(paymentRes?.message || "Không thể tạo giao dịch VNPAY");
+
+          message.info("Đang mở cổng thanh toán VNPAY...");
+
+          // Lưu billId để poll trạng thái
+          localStorage.setItem("currentBillId", billId);
+
+          // Điều hướng tab đã mở sẵn (giảm khả năng bị chặn)
+          if (vnpPopup) {
+            try { vnpPopup.location.href = paymentRes.url; } catch {}
+          } else {
+            // Fallback nếu bị chặn
+            window.location.href = paymentRes.url;
+          }
+
+        } catch (err: any) {
+          console.error("Thanh toán VNPAY thất bại:", err);
+          message.error(err.message || "Có lỗi xảy ra khi thanh toán VNPAY");
+        }
+      }
+      // Thanh toán MoMo
+      else if (values.paymentMethod === "MOMO") {
+        if (!selectedRoom) throw new Error("Vui lòng chọn phòng");
+
+        try {
+          // Mở tab trống ngay lập tức để tránh popup bị chặn
+          const momoPopup = window.open("about:blank", "_blank");
+
+          // Tạo tenant
+          const tenantData = {
+            fullName: values.fullName,
+            phone: values.phone,
+            email: values.email,
+            identityNo: values.idCard,
+          };
+          const tenantRes = await clientTenantService.create(tenantData);
+          const tenant = tenantRes?.data || tenantRes;
+          if (!tenant?._id) throw new Error("Không tạo được thông tin khách thuê.");
+
+          // Chuẩn hóa ngày checkin
+          const checkinDate = (() => {
+            const d: any = values.checkinDate;
+            try {
+              if (!d) return new Date().toISOString();
+              if (typeof d === "string") return new Date(d).toISOString();
+              if (typeof d?.toDate === "function") return d.toDate().toISOString();
+              if (typeof d?.toISOString === "function") return d.toISOString();
+              return new Date(d).toISOString();
+            } catch {
+              return new Date().toISOString();
+            }
+          })();
+
+          // Tạo payload checkin
+          const checkinPayload = {
+            tenantId: tenant._id,
+            roomId: String(selectedRoom._id),
+            checkinDate,
+            duration: Number(values.duration),
+            deposit: Number(depositValue) || 0,
+            notes: values.notes,
+          };
+
+          // Tạo checkin và nhận billId + amount
+          const checkinRes = await clientCheckinService.createCashCheckin(checkinPayload);
+          const billId = checkinRes?.data?.billId as string;
+          const amount = Number(selectedRoom.pricePerMonth || 0) + Number(depositValue || 0);
+          if (!billId) throw new Error("Không tạo được hóa đơn.");
+
+          // Gọi tạo thanh toán MoMo
+          const momoRes = await clientCheckinService.createMomoPayment({
+            billId,
+            amount,
+            orderInfo: `Thanh toán check-in bill ${billId}`,
+          });
+
+          const payUrl = momoRes?.payUrl || momoRes?.data?.payUrl || momoRes?.data?.deeplink || momoRes?.data?.qrCodeUrl;
+          if (!payUrl) throw new Error("Không tạo được link thanh toán MoMo");
+
+          // Mở cổng thanh toán MoMo
+          message.info("Đang mở cổng thanh toán MoMo...");
+          if (momoPopup) {
+            try { momoPopup.location.href = String(payUrl); } catch {}
+          } else {
+            // Fallback nếu popup bị chặn
+            window.location.href = String(payUrl);
+          }
+
+          // Lưu billId để use-case khác có thể tham chiếu
+          localStorage.setItem("currentBillId", billId);
+
+        } catch (err: any) {
+          console.error("Thanh toán MoMo thất bại:", err);
+          message.error(err.message || "Có lỗi xảy ra khi thanh toán MoMo");
+        }
+      }
+      // Thanh toán ZaloPay
+      else if (values.paymentMethod === "ZALO" || values.paymentMethod === "ZALOPAY") {
+        if (!selectedRoom) throw new Error("Vui lòng chọn phòng");
+
+        try {
+          // Mở tab trống ngay lập tức để tránh popup bị chặn
+          const zaloPopup = window.open("about:blank", "_blank");
+
+          // Tạo tenant
+          const tenantData = {
+            fullName: values.fullName,
+            phone: values.phone,
+            email: values.email,
+            identityNo: values.idCard,
+          };
+          const tenantRes = await clientTenantService.create(tenantData);
+          const tenant = tenantRes?.data || tenantRes;
+          if (!tenant?._id) throw new Error("Không tạo được thông tin khách thuê.");
+
+          // Chuẩn hóa ngày checkin
+          const checkinDate = (() => {
+            const d: any = values.checkinDate;
+            try {
+              if (!d) return new Date().toISOString();
+              if (typeof d === "string") return new Date(d).toISOString();
+              if (typeof d?.toDate === "function") return d.toDate().toISOString();
+              if (typeof d?.toISOString === "function") return d.toISOString();
+              return new Date(d).toISOString();
+            } catch {
+              return new Date().toISOString();
+            }
+          })();
+
+          // Tạo payload checkin
+          const checkinPayload = {
+            tenantId: tenant._id,
+            roomId: String(selectedRoom._id),
+            checkinDate,
+            duration: Number(values.duration),
+            deposit: Number(depositValue) || 0,
+            notes: values.notes,
+          };
+
+          // Tạo checkin và nhận billId
+          const checkinRes = await clientCheckinService.createCashCheckin(checkinPayload);
+          const billId = checkinRes?.data?.billId as string;
+          if (!billId) throw new Error("Không tạo được hóa đơn.");
+
+          // Gọi tạo thanh toán ZaloPay
+          const zaloRes = await clientCheckinService.createZaloPayment({ billId });
+          
+          // ZaloPay trả về payUrl hoặc order_url trong zaloData
+          const payUrl = zaloRes?.payUrl || zaloRes?.zaloData?.order_url || zaloRes?.zaloData?.orderurl || zaloRes?.data?.order_url;
+          if (!payUrl) throw new Error("Không tạo được link thanh toán ZaloPay");
+
+          // Mở cổng thanh toán ZaloPay
+          message.info("Đang mở cổng thanh toán ZaloPay...");
+          if (zaloPopup) {
+            try { zaloPopup.location.href = String(payUrl); } catch {}
+          } else {
+            // Fallback nếu popup bị chặn
+            window.location.href = String(payUrl);
+          }
+
+          // Lưu billId để use-case khác có thể tham chiếu
+          localStorage.setItem("currentBillId", billId);
+
+        } catch (err: any) {
+          console.error("Thanh toán ZaloPay thất bại:", err);
+          message.error(err.message || "Có lỗi xảy ra khi thanh toán ZaloPay");
+        }
       }
 
       // Dọn form
       form.resetFields();
       setSelectedRoom(null);
       setAcceptedTerms(false);
-      
+
     } catch (error: any) {
-      console.error("Error creating tenant:", error);
+      console.error("VNPAY Error:", error);
       message.error(
         error?.response?.data?.message || "Có lỗi xảy ra khi đăng ký check-in. Vui lòng thử lại!"
       );
@@ -368,8 +578,9 @@ const Checkin: React.FC = () => {
                     >
                       <Radio.Group size="large">
                         <Radio value="CASH">Tiền mặt</Radio>
-                        <Radio value="BANK">Chuyển khoản</Radio>
-                        <Radio value="CARD">Thẻ tín dụng</Radio>
+                        <Radio value="VNPAY">VNPAY</Radio>
+                        <Radio value="MOMO">MoMo</Radio>
+                        <Radio value="ZALO">ZALOPAY</Radio>
                       </Radio.Group>
                     </Form.Item>
                   </Col>

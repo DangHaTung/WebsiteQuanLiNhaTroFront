@@ -1,9 +1,19 @@
 import React, { useEffect, useState } from "react";
-import { Card, Table, Tag, Space, Select, Popconfirm, Button, message } from "antd";
+import {
+  Table,
+  Tag,
+  Space,
+  Select,
+  Popconfirm,
+  Button,
+  message,
+  Col,
+  Row,
+  Tooltip,
+} from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { DeleteOutlined, ReloadOutlined } from "@ant-design/icons";
+import { DeleteOutlined, ExclamationCircleOutlined } from "@ant-design/icons";
 import { adminComplaintService, type Complaint } from "../services/complaint";
-import "../../../assets/styles/dashboard.css";
 
 const statusOptions = [
   { label: "Chờ xử lý", value: "PENDING" },
@@ -29,16 +39,15 @@ const getStatusValue = (status?: string): string => {
 const statusColor = (status?: string) => {
   switch ((status || "").toLowerCase()) {
     case "pending":
-      return "gold";
+      return "#facc15";
     case "in_progress":
-    case "processing":
-      return "blue";
+      return "#3b82f6"; 
     case "resolved":
-      return "green";
+      return "#22c55e"; 
     case "rejected":
-      return "red";
+      return "#ef4444";
     default:
-      return "default";
+      return "#d1d5db"; 
   }
 };
 
@@ -79,25 +88,25 @@ const Complaints: React.FC = () => {
 
   useEffect(() => {
     fetchData(1, limit);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleStatusChange = async (id: string, status: string) => {
-    // Kiểm tra xem complaint hiện tại có trạng thái gì
-    const currentComplaint = data.find(c => c._id === id);
+    const currentComplaint = data.find((c) => c._id === id);
     const currentStatus = (currentComplaint?.status || "").toUpperCase();
-    
-    // Nếu đã RESOLVED, không cho chuyển về trạng thái cũ
+
     if (currentStatus === "RESOLVED" && status !== "RESOLVED") {
-      message.error("Khiếu nại đã được xử lý, không thể chuyển về trạng thái trước đó");
+      message.error(
+        "Khiếu nại đã được xử lý, không thể chuyển về trạng thái trước đó"
+      );
       return;
     }
-    // Không cho chuyển từ IN_PROGRESS -> PENDING
     if (currentStatus === "IN_PROGRESS" && status === "PENDING") {
-      message.error("Khiếu nại đang xử lý, không thể chuyển về trạng thái Chờ xử lý");
+      message.error(
+        "Khiếu nại đang xử lý, không thể chuyển về trạng thái Chờ xử lý"
+      );
       return;
     }
-    
+
     try {
       await adminComplaintService.updateStatus(id, status);
       message.success("Cập nhật trạng thái thành công");
@@ -126,10 +135,8 @@ const Complaints: React.FC = () => {
       title: "Tiêu đề",
       dataIndex: "title",
       key: "title",
-      render: (text, record) => (
-        <span style={{ fontWeight: 600 }}>
-          {(text || "").trim() || "(Không có tiêu đề)"}
-        </span>
+      render: (text) => (
+        <span style={{ fontWeight: 600 }}>{(text || "").trim() || "(Không có tiêu đề)"}</span>
       ),
     },
     {
@@ -144,7 +151,6 @@ const Complaints: React.FC = () => {
       key: "createdBy",
       width: 240,
       render: (v, record) => {
-        // Ưu tiên hiển thị tài khoản client đã gửi khiếu nại
         const user = v || record.tenantId;
         if (!user) return <span>-</span>;
         if (typeof user === "string") return <code>{user}</code>;
@@ -162,27 +168,31 @@ const Complaints: React.FC = () => {
         const currentValue = getStatusValue(value);
         const currentStatus = (value || "").toUpperCase();
         const isResolved = currentStatus === "RESOLVED";
-        
+
         return (
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <Tag color={statusColor(value)} style={{ margin: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <Tag
+              color={statusColor(value)}
+              style={{
+                margin: 0,
+                fontWeight: 600,
+                minWidth: 90,
+                textAlign: "center",
+                borderRadius: 8,
+              }}
+            >
               {statusText(value)}
             </Tag>
             <Select
               size="small"
-              style={{ width: "100%" }}
+              style={{ width: "100%", borderRadius: 8 }}
               value={currentValue}
               onChange={(val) => handleStatusChange(record._id, val)}
               disabled={isResolved}
-            >
-              {statusOptions
-                .filter(opt => !isResolved || opt.value === "RESOLVED")
-                .map(opt => (
-                  <Select.Option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </Select.Option>
-                ))}
-            </Select>
+              options={statusOptions
+                .filter((opt) => !isResolved || opt.value === "RESOLVED")
+                .map((opt) => ({ label: opt.label, value: opt.value }))}
+            />
           </div>
         );
       },
@@ -197,56 +207,80 @@ const Complaints: React.FC = () => {
     {
       title: "Thao tác",
       key: "actions",
+      align: "center",
       width: 120,
       render: (_, record) => (
         <Space>
-          <Popconfirm
-            title="Xóa complaint này?"
-            okText="Xóa"
-            cancelText="Hủy"
-            onConfirm={() => handleDelete(record._id)}
-          >
-            <Button danger size="small" icon={<DeleteOutlined />}>Xóa</Button>
-          </Popconfirm>
+          <Tooltip title="Xóa">
+            <Popconfirm
+              title="Xóa khiếu nại này?"
+              okText="Xóa"
+              cancelText="Hủy"
+              onConfirm={() => handleDelete(record._id)}
+            >
+              <Button
+                shape="circle"
+                type="primary"
+                danger
+                icon={<DeleteOutlined />}
+                className="btn-hover"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </Popconfirm>
+          </Tooltip>
         </Space>
       ),
     },
   ];
 
   return (
-    <div style={{ maxWidth: 1400, margin: "24px auto", padding: "0 16px" }}>
-      <Card
-        title="Quản lý Khiếu nại"
-        extra={
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={() => fetchData(page, limit)}>
-              Tải lại
-            </Button>
-          </Space>
-        }
+    <div style={{ maxWidth: 1400, margin: "32px auto", padding: "0 24px" }}>
+      <Row
+        gutter={[24, 24]}
+        style={{
+          borderRadius: 12,
+          boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+          background: "#fff",
+          padding: 24,
+        }}
       >
-        <Table
-          rowKey="_id"
-          loading={loading}
-          className="no-row-hover"
-          columns={columns}
-          dataSource={data}
-          scroll={{ x: 1200 }}
-          pagination={{
-            current: page,
-            pageSize: limit,
-            total,
-            showSizeChanger: true,
-            pageSizeOptions: [5, 10, 20, 50],
-            onChange: (p, l) => {
-              setPage(p);
-              setLimit(l);
-              fetchData(p, l);
-            },
-            showTotal: (t) => `${t} khiếu nại`,
-          }}
-        />
-      </Card>
+        {/* Header */}
+        <Col span={24} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+          <span style={{ fontSize: 21, fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}>
+            <ExclamationCircleOutlined style={{ color: "#1890ff", fontSize: 28 }} />
+            Quản lý Khiếu nại
+          </span>
+        </Col>
+
+        {/* Table */}
+        <Col span={24}>
+          <Table
+            rowKey="_id"
+            loading={loading}
+            columns={columns}
+            dataSource={data}
+            scroll={{ x: "max-content" }}
+            bordered
+            pagination={{
+              current: page,
+              pageSize: limit,
+              total,
+              showSizeChanger: true,
+              pageSizeOptions: [5, 10, 20, 50],
+              onChange: (p, l) => {
+                setPage(p);
+                setLimit(l);
+                fetchData(p, l);
+              },
+              showTotal: (t) => `${t} khiếu nại`,
+            }}
+            rowClassName={(record, index) =>
+              index % 2 === 0 ? "table-row-light" : ""
+            }
+          />
+        </Col>
+      </Row>
+
     </div>
   );
 };

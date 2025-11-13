@@ -22,7 +22,7 @@
 .search-button {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, #40a9ff, #1890ff);
+  background: linear-gradient(135deg, #0d6efd, #0dcaf0);
   border: none;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
   transition: all 0.3s ease-in-out;

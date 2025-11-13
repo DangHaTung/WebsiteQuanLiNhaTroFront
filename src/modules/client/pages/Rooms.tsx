@@ -25,6 +25,7 @@ const Rooms: React.FC = () => {
   const query = new URLSearchParams(location.search).get("q")?.toLowerCase() || "";
 
   const [hovered, setHovered] = useState(false);
+  const [showFilter, setShowFilter] = useState(true);
 
   useEffect(() => {
     const fetchRooms = async () => {
@@ -119,109 +120,124 @@ const Rooms: React.FC = () => {
     <div style={{ padding: "24px 24px 60px", backgroundColor: "#f6f9ffff", }}>
       {/* Header */}
       <section style={{ textAlign: "center", marginBottom: 32 }}>
-        <Title level={2} className="section-title" style={{ textAlign: "center" }}>
+        <Title
+          level={2}
+          className="section-title"
+          style={{
+            textAlign: "center",
+            cursor: "pointer",
+            userSelect: "none",
+            color: "#1677ff",
+            transition: "color 0.3s",
+          }}
+          onClick={() => setShowFilter(!showFilter)}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#0958d9")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "#1677ff")}
+        >
           DANH SÁCH PHÒNG TRỌ
         </Title>
       </section>
 
-      {/* Filter Card */}
-      <Card
-        style={{
-          marginBottom: 32,
-          borderRadius: 16,
-          boxShadow: "0 6px 20px rgba(0,0,0,0.05)",
-          transition: "all 0.3s",
-        }}
-        hoverable
+      {/* Filter card với animation */}
+      <div
+        className={`filter-wrapper ${showFilter ? "open" : "closed"}`}
       >
-        <div
+        <Card
           style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 24,
-            alignItems: "flex-end",
+            marginBottom: 32,
+            borderRadius: 16,
+            boxShadow: "0 6px 20px rgba(0,0,0,0.05)",
+            transition: "all 0.3s",
           }}
+          hoverable
         >
-          {/* Price Slider */}
-          <div style={{ flex: 1, minWidth: 200 }}>
-            <label style={{ display: "block", marginBottom: 8, fontWeight: 500 }}>
-              <DollarOutlined style={{ marginRight: 4, color: "#1677ff" }} />
-              Khoảng giá
-            </label>
-            <Slider
-              range
-              min={minPrice}
-              max={maxPrice}
-              value={priceRange}
-              tooltip={{ formatter: (value) => `${value} VND` }}
-              onChange={(value) => setPriceRange(value as [number, number])}
-            />
-          </div>
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 24,
+              alignItems: "flex-end",
+            }}
+          >
+            {/* Price Slider */}
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <label style={{ display: "block", marginBottom: 8, fontWeight: 500 }}>
+                <DollarOutlined style={{ marginRight: 4, color: "#1677ff" }} />
+                Khoảng giá
+              </label>
+              <Slider
+                range
+                min={minPrice}
+                max={maxPrice}
+                value={priceRange}
+                tooltip={{ formatter: (value) => `${value} VND` }}
+                onChange={(value) => setPriceRange(value as [number, number])}
+              />
+            </div>
 
-          {/* Room Type */}
-          <div style={{ flex: 1, minWidth: 150 }}>
-            <label style={{ display: "block", marginBottom: 8, fontWeight: 500 }}>
-              <HomeOutlined style={{ marginRight: 4, color: "#1677ff" }} />
-              Loại phòng
-            </label>
-            <Select
-              style={{ width: "100%", borderColor: "#1677ff" }}
-              placeholder="Chọn loại phòng"
-              value={selectedRoomType || undefined}
-              onChange={setSelectedRoomType}
-              allowClear
-              size="large"
-            >
-              {roomTypes.map((type) => (
-                <Option key={type} value={type}>
-                  {type === "SINGLE"
-                    ? "Phòng đơn"
-                    : type === "DOUBLE"
-                      ? "Phòng đôi"
-                      : type === "DORM"
-                        ? "Phòng dorm"
-                        : "Phòng khác"}
-                </Option>
-              ))}
-            </Select>
-          </div>
+            {/* Room Type */}
+            <div style={{ flex: 1, minWidth: 150 }}>
+              <label style={{ display: "block", marginBottom: 8, fontWeight: 500 }}>
+                <HomeOutlined style={{ marginRight: 4, color: "#1677ff" }} />
+                Loại phòng
+              </label>
+              <Select
+                style={{ width: "100%" }}
+                placeholder="Chọn loại phòng"
+                value={selectedRoomType || undefined}
+                onChange={setSelectedRoomType}
+                allowClear
+                size="large"
+              >
+                {roomTypes.map((type) => (
+                  <Option key={type} value={type}>
+                    {type === "SINGLE"
+                      ? "Phòng đơn"
+                      : type === "DOUBLE"
+                        ? "Phòng đôi"
+                        : type === "DORM"
+                          ? "Phòng dorm"
+                          : "Phòng khác"}
+                  </Option>
+                ))}
+              </Select>
+            </div>
 
-          {/* Room Status */}
-          <div style={{ flex: 1, minWidth: 150 }}>
-            <label style={{ display: "block", marginBottom: 8, fontWeight: 500 }}>
-              <PushpinOutlined style={{ marginRight: 4, color: "#1677ff" }} />
-              Trạng thái
-            </label>
-            <Select
-              style={{ width: "100%", borderColor: "#1677ff" }}
-              placeholder="Chọn trạng thái"
-              value={selectedRoomStatus || undefined}
-              onChange={setSelectedRoomStatus}
-              allowClear
-              size="large"
-            >
-              <Option value="AVAILABLE">Còn trống</Option>
-              <Option value="OCCUPIED">Đang thuê</Option>
-              <Option value="MAINTENANCE">Bảo trì</Option>
-            </Select>
-          </div>
+            {/* Room Status */}
+            <div style={{ flex: 1, minWidth: 150 }}>
+              <label style={{ display: "block", marginBottom: 8, fontWeight: 500 }}>
+                <PushpinOutlined style={{ marginRight: 4, color: "#1677ff" }} />
+                Trạng thái
+              </label>
+              <Select
+                style={{ width: "100%" }}
+                placeholder="Chọn trạng thái"
+                value={selectedRoomStatus || undefined}
+                onChange={setSelectedRoomStatus}
+                allowClear
+                size="large"
+              >
+                <Option value="AVAILABLE">Còn trống</Option>
+                <Option value="OCCUPIED">Đang thuê</Option>
+                <Option value="MAINTENANCE">Bảo trì</Option>
+              </Select>
+            </div>
 
-          {/* Reset Button */}
-          <div style={{ flexShrink: 0 }}>
-            <Button
-              type="primary"
-              size="large"
-              className="btn-animated"
-              onClick={resetFilters}
-              onMouseEnter={() => setHovered(true)}
-              onMouseLeave={() => setHovered(false)}
-            >
-              <SyncOutlined spin={hovered} />
-            </Button>
-
+            {/* Reset Button */}
+            <div style={{ flexShrink: 0 }}>
+              <Button
+                type="primary"
+                size="large"
+                onClick={resetFilters}
+                onMouseEnter={() => setHovered(true)}
+                onMouseLeave={() => setHovered(false)}
+              >
+                <SyncOutlined spin={hovered} />
+              </Button>
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      </div>
 
       {/* Room List */}
       <Row gutter={[24, 24]} justify="center">
@@ -254,6 +270,23 @@ const Rooms: React.FC = () => {
           </Col>
         )}
       </Row>
+      <style>
+        {`.filter-wrapper {
+          overflow: hidden;
+          transition: max-height 0.5s ease, opacity 0.4s ease;
+        }
+
+        .filter-wrapper.closed {
+          max-height: 0;
+          opacity: 0;
+        }
+
+        .filter-wrapper.open {
+          max-height: 1000px; /* đủ lớn để chứa card */
+          opacity: 1;
+        }
+        `}
+      </style>
     </div>
   );
 };
