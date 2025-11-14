@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Table, Button, Tag, Modal, Upload, message, Space, Popconfirm, Image, Tooltip, Select, Descriptions, Divider, Form, Input, Card } from "antd";
-import { UploadOutlined, EyeOutlined, DeleteOutlined, FilePdfOutlined, IdcardOutlined, PlusOutlined, DollarOutlined } from "@ant-design/icons";
+import { Table, Button, Tag, Modal, Upload, message, Space, Popconfirm, Image, Tooltip, Select, Descriptions, Divider, Form, Input, Card, Tabs, Avatar } from "antd";
+import { UploadOutlined, EyeOutlined, DeleteOutlined, FilePdfOutlined, PlusOutlined, DollarOutlined, SearchOutlined, UserOutlined } from "@ant-design/icons";
 import type { UploadFile } from "antd";
 import dayjs from "dayjs";
 
@@ -10,6 +10,7 @@ const { Option } = Select;
 import { adminFinalContractService } from "../services/finalContract";
 import { adminContractService } from "../services/contract";
 import { adminBillService } from "../services/bill";
+import { adminUserService } from "../services/user";
 import type { Contract } from "../../../types/contract";
 
 // Define types locally to avoid import issues
@@ -91,6 +92,10 @@ const FinalContracts = () => {
   const [assignTenantModalVisible, setAssignTenantModalVisible] = useState(false);
   const [assigningContract, setAssigningContract] = useState<FinalContract | null>(null);
   const [tenantForm] = Form.useForm();
+  const [activeTab, setActiveTab] = useState<"search" | "create">("search");
+  const [searchTenants, setSearchTenants] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [selectedTenantId, setSelectedTenantId] = useState<string>("");
   
   // PDF viewer modal
   const [pdfViewerVisible, setPdfViewerVisible] = useState(false);
@@ -165,11 +170,62 @@ const FinalContracts = () => {
 
   const loadAvailableContracts = async () => {
     try {
-      const contractsData = await adminContractService.getAll({ limit: 100 });
-      setAvailableContracts(contractsData || []);
+      // Load checkins đã COMPLETED (đã thanh toán tiền cọc)
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+      const token = localStorage.getItem("admin_token");
+      const response = await fetch(`${apiUrl}/api/checkins?limit=100`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      const checkinsData = data.data || [];
+      
+      console.log("📥 Raw checkins from API:", checkinsData.length);
+      
+      // Lọc chỉ lấy checkins COMPLETED và chưa có FinalContract
+      const existingFinalContractIds = contracts
+        .map(fc => getOriginContractId(fc))
+        .filter(Boolean);
+      
+      console.log("🔍 Existing FinalContract contract IDs:", existingFinalContractIds);
+      
+      const completedCheckins = checkinsData.filter((checkin: any) => {
+        // Chỉ hiển thị checkin COMPLETED và chưa có FinalContract
+        const contractId = typeof checkin.contractId === 'string' 
+          ? checkin.contractId 
+          : checkin.contractId?._id;
+        
+        return checkin.status === "COMPLETED" && 
+               contractId &&
+               !existingFinalContractIds.includes(contractId);
+      });
+      
+      console.log("✅ Completed checkins:", completedCheckins.length);
+      
+      // Convert checkins sang format Contract để UI không cần đổi nhiều
+      const contractsFromCheckins = completedCheckins.map((checkin: any) => {
+        const contractId = typeof checkin.contractId === 'string' 
+          ? checkin.contractId 
+          : checkin.contractId?._id;
+        
+        return {
+          _id: contractId,
+          roomId: checkin.roomId,
+          tenantId: checkin.tenantId,
+          tenantSnapshot: checkin.tenantSnapshot,
+          startDate: checkin.checkinDate,
+          deposit: checkin.deposit,
+          monthlyRent: checkin.monthlyRent,
+          durationMonths: checkin.durationMonths,
+        };
+      });
+      
+      console.log("🎯 Final contracts from checkins:", contractsFromCheckins.length);
+      setAvailableContracts(contractsFromCheckins);
     } catch (error: any) {
-      console.error("Load contracts error:", error);
-      message.error(error.response?.data?.message || "Lỗi khi tải danh sách phiếu thu");
+      console.error("Load checkins error:", error);
+      message.error(error.response?.data?.message || "Lỗi khi tải danh sách check-in");
       setAvailableContracts([]);
     }
   };
@@ -210,41 +266,47 @@ const FinalContracts = () => {
 
   const openDetail = async (contract: FinalContract) => {
     setViewModalVisible(true);
+    setSelectedContract(contract); // Set immediately để tránh undefined
+    setContractBills([]); // Clear bills
     
     // Load full contract details with populated originContractId
     try {
       const fullContract = await adminFinalContractService.getById(contract._id);
       setSelectedContract(fullContract);
       
-      // Load bills của FinalContract này - CHỈ HIỂN THỈ BILLS CỦA FINALCONTRACT NÀY
-      console.log("Loading bills for FinalContract:", fullContract._id);
-      try {
-        // Gọi trực tiếp API để tránh TypeScript cache issue
-        const token = localStorage.getItem("admin_token");
-        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
-        const response = await fetch(`${apiUrl}/api/bills/final-contract/${fullContract._id}`, {
-          headers: {
-            "Authorization": `Bearer ${token}`,
-          },
-        });
-        const data = await response.json();
-        console.log("Bills API response:", data);
-        
-        const bills = data.data || [];
-        // Lọc chỉ lấy bill CONTRACT (tháng đầu) chưa thanh toán
-        const contractBills = bills.filter(
-          (bill: any) => bill.billType === "CONTRACT" && bill.status !== "PAID"
-        );
-        console.log("Filtered bills:", contractBills);
-        setContractBills(contractBills);
-      } catch (err) {
-        console.error("Load bills error:", err);
-        setContractBills([]);
+      // Load bills của Contract (để thanh toán bill CONTRACT - tháng đầu)
+      const contractId = typeof fullContract.originContractId === 'string' 
+        ? fullContract.originContractId 
+        : (fullContract.originContractId as { _id: string } | undefined)?._id;
+      
+      if (contractId) {
+        console.log("Loading bills for Contract:", contractId);
+        try {
+          const token = localStorage.getItem("admin_token");
+          const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+          const response = await fetch(`${apiUrl}/api/bills?contractId=${contractId}`, {
+            headers: {
+              "Authorization": `Bearer ${token}`,
+            },
+          });
+          const data = await response.json();
+          console.log("Bills API response:", data);
+          
+          const bills = data.data || [];
+          // Lọc chỉ lấy bill CONTRACT (tháng đầu) chưa thanh toán
+          const contractBills = bills.filter(
+            (bill: any) => bill.billType === "CONTRACT" && bill.status !== "PAID"
+          );
+          console.log("Unpaid CONTRACT bills:", contractBills);
+          setContractBills(contractBills);
+        } catch (err) {
+          console.error("Load bills error:", err);
+          setContractBills([]);
+        }
       }
     } catch (error: any) {
       console.error("Load contract details error:", error);
-      setSelectedContract(contract);
-      setContractBills([]);
+      message.error("Lỗi khi tải chi tiết hợp đồng");
     }
   };
 
@@ -252,26 +314,34 @@ const FinalContracts = () => {
     try {
       await adminBillService.confirmPayment(billId);
       message.success("Xác nhận thanh toán tiền mặt thành công!");
-      // Reload bills - CHỈ HIỂN THỊ BILL CONTRACT CHƯA THANH TOÁN
-      if (selectedContract?._id) {
-        try {
-          const token = localStorage.getItem("admin_token");
-          const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
-          const response = await fetch(`${apiUrl}/api/bills/final-contract/${selectedContract._id}`, {
-            headers: {
-              "Authorization": `Bearer ${token}`,
-            },
-          });
-          const data = await response.json();
-          const bills = data.data || [];
-          const contractBills = bills.filter(
-            (bill: any) => bill.billType === "CONTRACT" && bill.status !== "PAID"
-          );
-          setContractBills(contractBills);
-        } catch (err) {
-          console.error("Reload bills error:", err);
+      
+      // Reload bills
+      if (selectedContract) {
+        const contractId = typeof selectedContract.originContractId === 'string' 
+          ? selectedContract.originContractId 
+          : selectedContract.originContractId?._id;
+        
+        if (contractId) {
+          try {
+            const token = localStorage.getItem("admin_token");
+            const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+            const response = await fetch(`${apiUrl}/api/bills?contractId=${contractId}`, {
+              headers: {
+                "Authorization": `Bearer ${token}`,
+              },
+            });
+            const data = await response.json();
+            const bills = data.data || [];
+            const contractBills = bills.filter(
+              (bill: any) => bill.billType === "CONTRACT" && bill.status !== "PAID"
+            );
+            setContractBills(contractBills);
+          } catch (err) {
+            console.error("Reload bills error:", err);
+          }
         }
       }
+      
       fetchContracts(pagination.current, pagination.pageSize);
     } catch (error: any) {
       message.error(error.response?.data?.message || "Lỗi khi xác nhận thanh toán");
@@ -371,6 +441,40 @@ const FinalContracts = () => {
       okText: "Đóng",
       onOk: () => Modal.destroyAll(),
     });
+  };
+
+  const handleSearchTenants = async (keyword: string) => {
+    setSearchLoading(true);
+    try {
+      console.log("Searching tenants with keyword:", keyword);
+      const tenants = await adminUserService.searchTenants(keyword || undefined);
+      console.log("Found tenants:", tenants);
+      setSearchTenants(tenants);
+    } catch (error) {
+      console.error("Search tenants error:", error);
+      message.error("Lỗi khi tìm kiếm người thuê");
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const handleSelectExistingTenant = async () => {
+    if (!selectedTenantId) {
+      message.warning("Vui lòng chọn người thuê");
+      return;
+    }
+    
+    try {
+      await adminFinalContractService.assignTenant(assigningContract!._id, selectedTenantId);
+      message.success("Đã gán người thuê thành công!");
+      setAssignTenantModalVisible(false);
+      setSelectedTenantId("");
+      setSearchTenants([]);
+      fetchContracts(pagination.current, pagination.pageSize);
+    } catch (error: any) {
+      console.error("Assign tenant error:", error);
+      message.error(error.response?.data?.message || "Có lỗi xảy ra");
+    }
   };
 
   const handleAssignTenant = async () => {
@@ -577,9 +681,6 @@ const FinalContracts = () => {
           <Tooltip title="Hợp đồng">
             <Tag color="blue">{record.images?.length || 0}</Tag>
           </Tooltip>
-          <Tooltip title="CCCD">
-            <Tag color="green">{record.cccdFiles?.length || 0}</Tag>
-          </Tooltip>
         </Space>
       ),
     },
@@ -604,16 +705,6 @@ const FinalContracts = () => {
             }}
           >
             Upload HĐ
-          </Button>
-          <Button
-            size="small"
-            icon={<IdcardOutlined />}
-            onClick={() => {
-              setSelectedContract(record);
-              setCccdModalVisible(true);
-            }}
-          >
-            Upload CCCD
           </Button>
           <Popconfirm title="Xác nhận xóa?" onConfirm={() => handleDeleteContract(record._id)}>
             <Button size="small" danger icon={<DeleteOutlined />}>
@@ -755,23 +846,31 @@ const FinalContracts = () => {
 
       {/* Assign Tenant Modal */}
       <Modal
-        title="Tạo tài khoản và gán người thuê"
+        title="🔍 Gán người thuê"
         open={assignTenantModalVisible}
-        onOk={handleAssignTenant}
+        onOk={activeTab === "search" ? handleSelectExistingTenant : handleAssignTenant}
         onCancel={() => {
           setAssignTenantModalVisible(false);
           tenantForm.resetFields();
+          setActiveTab("search");
+          setSearchTenants([]);
+          setSelectedTenantId("");
         }}
-        okText="Tạo và gán"
+        okText={activeTab === "search" ? "Gán người thuê" : "Tạo và gán"}
         cancelText="Hủy"
+        width={700}
         afterOpenChange={async (open) => {
           if (open && assigningContract) {
+            setActiveTab("search");
+            setSelectedTenantId("");
+            
             const originId = getOriginContractId(assigningContract);
+            
+            // Load contract info để fill form
             if (originId) {
               try {
                 const contract = await adminContractService.getById(originId) as any;
                 if (contract.tenantSnapshot) {
-                  // Tự động tạo email từ số điện thoại nếu chưa có
                   const suggestedEmail = contract.tenantSnapshot.email || 
                     (contract.tenantSnapshot.phone ? `${contract.tenantSnapshot.phone}@gmail.com` : '');
                   
@@ -780,51 +879,136 @@ const FinalContracts = () => {
                     phone: contract.tenantSnapshot.phone,
                     email: suggestedEmail,
                   });
+                  
+                  // Auto search với phone hoặc email để suggest
+                  if (contract.tenantSnapshot.phone) {
+                    await handleSearchTenants(contract.tenantSnapshot.phone);
+                  } else if (contract.tenantSnapshot.email) {
+                    await handleSearchTenants(contract.tenantSnapshot.email);
+                  } else {
+                    // Nếu không có thông tin, load tất cả
+                    await handleSearchTenants("");
+                  }
+                  return;
                 }
               } catch (err) {
                 console.warn("Cannot load contract:", err);
               }
             }
+            
+            // Fallback: Load tất cả người thuê nếu không có contract info
+            await handleSearchTenants("");
+          } else if (!open) {
+            // Reset khi đóng modal
+            setSearchTenants([]);
+            setSelectedTenantId("");
           }
         }}
       >
-        <Form form={tenantForm} layout="vertical">
-          <Form.Item
-            label="Họ tên"
-            name="fullName"
-            rules={[{ required: true, message: "Nhập họ tên" }]}
-          >
-            <Input placeholder="Từ thông tin check-in" />
-          </Form.Item>
-          <Form.Item
-            label="Email (dùng để đăng nhập)"
-            name="email"
-            rules={[
-              { required: true, message: "Nhập email" },
-              { type: "email", message: "Email không hợp lệ" },
-            ]}
-          >
-            <Input placeholder="example@email.com" />
-          </Form.Item>
-          <Form.Item
-            label="Số điện thoại"
-            name="phone"
-            rules={[{ required: true, message: "Nhập số điện thoại" }]}
-          >
-            <Input placeholder="Từ thông tin check-in" />
-          </Form.Item>
-          <Form.Item
-            label="Mật khẩu"
-            name="password"
-            initialValue="123456"
-            rules={[{ required: true, message: "Nhập mật khẩu" }]}
-          >
-            <Input.Password />
-          </Form.Item>
-          <p style={{ color: "#999", fontSize: 12 }}>
-            * Tài khoản sẽ được tạo với role TENANT để khách có thể đăng nhập và xem hóa đơn
-          </p>
-        </Form>
+        <Tabs activeKey={activeTab} onChange={(key) => setActiveTab(key as "search" | "create")}>
+          <Tabs.TabPane tab={<span><SearchOutlined /> Chọn người thuê có sẵn</span>} key="search">
+            <Space direction="vertical" style={{ width: "100%" }} size="large">
+              <div>
+                <label style={{ display: "block", marginBottom: 8, fontWeight: 500 }}>
+                  Tìm và chọn người thuê:
+                </label>
+                <Select
+                  showSearch
+                  placeholder="Tìm theo tên, email hoặc số điện thoại..."
+                  style={{ width: "100%" }}
+                  size="large"
+                  value={selectedTenantId || undefined}
+                  onChange={(value) => setSelectedTenantId(value)}
+                  onSearch={handleSearchTenants}
+                  onFocus={() => {
+                    // Load data nếu chưa có
+                    if (searchTenants.length === 0 && !searchLoading) {
+                      handleSearchTenants("");
+                    }
+                  }}
+                  loading={searchLoading}
+                  filterOption={false}
+                  notFoundContent={searchLoading ? "Đang tìm kiếm..." : "Không tìm thấy người thuê"}
+                  optionLabelProp="label"
+                >
+                  {searchTenants.map((tenant: any) => (
+                    <Option 
+                      key={tenant._id} 
+                      value={tenant._id}
+                      label={tenant.fullName}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <Avatar size="small" icon={<UserOutlined />} />
+                        <div>
+                          <div style={{ fontWeight: 500 }}>{tenant.fullName}</div>
+                          <div style={{ fontSize: 12, color: "#999" }}>
+                            📧 {tenant.email} | 📱 {tenant.phone}
+                          </div>
+                        </div>
+                      </div>
+                    </Option>
+                  ))}
+                </Select>
+              </div>
+              
+              {selectedTenantId && searchTenants.find((t: any) => t._id === selectedTenantId) && (
+                <Card size="small" style={{ backgroundColor: "#f0f9ff" }}>
+                  <Space direction="vertical" style={{ width: "100%" }}>
+                    <div style={{ fontWeight: 500, fontSize: 16 }}>
+                      ✅ Đã chọn: {searchTenants.find((t: any) => t._id === selectedTenantId)?.fullName}
+                    </div>
+                    <div style={{ color: "#666" }}>
+                      📧 {searchTenants.find((t: any) => t._id === selectedTenantId)?.email}
+                    </div>
+                    <div style={{ color: "#666" }}>
+                      📱 {searchTenants.find((t: any) => t._id === selectedTenantId)?.phone}
+                    </div>
+                  </Space>
+                </Card>
+              )}
+            </Space>
+          </Tabs.TabPane>
+          
+          <Tabs.TabPane tab={<span><PlusOutlined /> Tạo tài khoản mới</span>} key="create">
+            <Form form={tenantForm} layout="vertical">
+              <Form.Item
+                label="Họ tên"
+                name="fullName"
+                rules={[{ required: true, message: "Nhập họ tên" }]}
+              >
+                <Input placeholder="Từ thông tin check-in" />
+              </Form.Item>
+              <Form.Item
+                label="Email (dùng để đăng nhập)"
+                name="email"
+                rules={[
+                  { required: true, message: "Nhập email" },
+                  { type: "email", message: "Email không hợp lệ" },
+                ]}
+              >
+                <Input placeholder="example@email.com" />
+              </Form.Item>
+              <Form.Item
+                label="Số điện thoại"
+                name="phone"
+                rules={[{ required: true, message: "Nhập số điện thoại" }]}
+              >
+                <Input placeholder="Từ thông tin check-in" />
+              </Form.Item>
+              <Form.Item
+                label="Mật khẩu"
+                name="password"
+                initialValue="123456"
+                rules={[{ required: true, message: "Nhập mật khẩu" }]}
+              >
+                <Input.Password />
+              </Form.Item>
+              <p style={{ color: "#999", fontSize: 12 }}>
+                * Tài khoản sẽ được tạo với role TENANT để khách có thể đăng nhập và xem hóa đơn
+              </p>
+            </Form>
+          </Tabs.TabPane>
+        </Tabs>
       </Modal>
 
       {/* View Contract Modal */}
@@ -850,10 +1034,24 @@ const FinalContracts = () => {
               </Descriptions.Item>
               <Descriptions.Item label="Trạng thái">{getStatusTag(selectedContract.status)}</Descriptions.Item>
               <Descriptions.Item label="Thời gian">
-                {dayjs(selectedContract.startDate).format("DD/MM/YYYY")} → {dayjs(selectedContract.endDate).format("DD/MM/YYYY")}
+                {selectedContract.startDate 
+                  ? `${dayjs(selectedContract.startDate).format("DD/MM/YYYY")} → ${dayjs(selectedContract.endDate).format("DD/MM/YYYY")}`
+                  : (typeof selectedContract.originContractId === 'object' && (selectedContract.originContractId as any)?.startDate
+                      ? `${dayjs((selectedContract.originContractId as any).startDate).format("DD/MM/YYYY")} → ${dayjs((selectedContract.originContractId as any).endDate).format("DD/MM/YYYY")}`
+                      : "N/A"
+                    )
+                }
               </Descriptions.Item>
-              <Descriptions.Item label="Tiền cọc">{selectedContract.deposit?.toLocaleString("vi-VN")} đ</Descriptions.Item>
-              <Descriptions.Item label="Tiền thuê/tháng">{selectedContract.monthlyRent?.toLocaleString("vi-VN")} đ</Descriptions.Item>
+              <Descriptions.Item label="Tiền cọc">
+                {(selectedContract.deposit || 
+                  (typeof selectedContract.originContractId === 'object' && (selectedContract.originContractId as any)?.deposit) || 
+                  0).toLocaleString("vi-VN")} đ
+              </Descriptions.Item>
+              <Descriptions.Item label="Tiền thuê/tháng">
+                {(selectedContract.monthlyRent || 
+                  (typeof selectedContract.originContractId === 'object' && (selectedContract.originContractId as any)?.monthlyRent) || 
+                  0).toLocaleString("vi-VN")} đ
+              </Descriptions.Item>
             </Descriptions>
 
             <Divider orientation="left">

@@ -107,12 +107,13 @@ const RoomsAD: React.FC = () => {
         if (key !== "images") formData.append(key, (values as any)[key]);
       });
 
-      // Gửi ảnh cũ còn giữ
-      existingImages.forEach((img) => {
-        if (img.url) formData.append("existingImages", img.url); // hoặc publicId nếu backend yêu cầu
-      });
+      // Khi edit room: LUÔN gửi existingImages (kể cả khi rỗng để xóa hết ảnh)
+      if (editingRoom) {
+        const imagesToKeep = existingImages.map(img => img.url);
+        formData.append("existingImages", JSON.stringify(imagesToKeep));
+      }
 
-      // Gửi ảnh mới
+      // Gửi ảnh mới upload (backend sẽ thêm vào cuối danh sách)
       selectedFiles.forEach((file) => {
         formData.append("images", file);
       });
@@ -596,9 +597,7 @@ const RoomsAD: React.FC = () => {
             </Col>
           </Row>
 
-          <Form.Item label="Quận" name="district">
-            <Input placeholder="VD: Quận 1" />
-          </Form.Item>
+        
 
           <Form.Item label="Ảnh phòng">
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>

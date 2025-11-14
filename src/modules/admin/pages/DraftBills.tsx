@@ -48,20 +48,98 @@ const DraftBills: React.FC = () => {
     }
   };
 
-  const handleElectricityChange = (billId: string, value: number | null) => {
-    setDraftBills(prev =>
-      prev.map(bill =>
-        bill._id === billId ? { ...bill, electricityKwh: value || 0 } : bill
-      )
-    );
+  const handleCreateDraftBills = async () => {
+    try {
+      setLoading(true);
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+      const token = localStorage.getItem("admin_token");
+      
+      const response = await fetch(`${apiUrl}/api/monthly-bills/auto-generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({}),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        message.success(`Đã tạo ${data.data.created} hóa đơn nháp thành công!`);
+        loadDraftBills();
+      } else {
+        message.error(data.message || "Lỗi khi tạo hóa đơn nháp");
+      }
+    } catch (error: any) {
+      message.error("Lỗi khi tạo hóa đơn nháp");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleOccupantChange = (billId: string, value: number | null) => {
+  // Hàm auto-calculate (không hiển thị modal)
+  const autoCalculate = async (bill: DraftBillWithElectricity, electricityKwh: number, occupantCount: number) => {
+    try {
+      const contract = bill.contractId as Contract;
+      if (!contract?.roomId) return;
+
+      const roomId = typeof contract.roomId === 'string' ? contract.roomId : contract.roomId._id;
+      if (!roomId) return;
+      
+      const result = await roomFeeService.calculateFees(roomId, electricityKwh, occupantCount);
+
+      // Update bill với calculated amount
+      setDraftBills(prev =>
+        prev.map(b =>
+          b._id === bill._id 
+            ? { 
+                ...b, 
+                amountDue: result.total,
+                calculatedBreakdown: result.breakdown 
+              } 
+            : b
+        )
+      );
+    } catch (error) {
+      console.error("Auto-calculate error:", error);
+    }
+  };
+
+  const handleElectricityChange = async (billId: string, value: number | null) => {
+    const electricityKwh = value || 0;
+    
+    // Update state
     setDraftBills(prev =>
       prev.map(bill =>
-        bill._id === billId ? { ...bill, occupantCount: value || 1 } : bill
+        bill._id === billId ? { ...bill, electricityKwh } : bill
       )
     );
+    
+    // Auto-calculate nếu có số điện
+    if (electricityKwh > 0) {
+      const bill = draftBills.find(b => b._id === billId);
+      if (bill) {
+        await autoCalculate(bill, electricityKwh, bill.occupantCount || 1);
+      }
+    }
+  };
+
+  const handleOccupantChange = async (billId: string, value: number | null) => {
+    const occupantCount = value || 1;
+    
+    // Update state
+    setDraftBills(prev =>
+      prev.map(bill =>
+        bill._id === billId ? { ...bill, occupantCount } : bill
+      )
+    );
+    
+    // Auto-calculate nếu đã có số điện
+    const bill = draftBills.find(b => b._id === billId);
+    if (bill && bill.electricityKwh && bill.electricityKwh > 0) {
+      await autoCalculate(bill, bill.electricityKwh, occupantCount);
+    }
   };
 
   const handleCalculate = async (bill: DraftBillWithElectricity) => {
@@ -308,6 +386,16 @@ const DraftBills: React.FC = () => {
           type="info"
           showIcon
           style={{ marginBottom: 24 }}
+          action={
+            <Button
+              type="primary"
+              size="small"
+              onClick={handleCreateDraftBills}
+              loading={loading}
+            >
+              🚀 Tạo draft bill ngay
+            </Button>
+          }
         />
 
         {/* Statistics */}

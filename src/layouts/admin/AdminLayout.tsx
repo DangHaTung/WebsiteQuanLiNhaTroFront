@@ -17,7 +17,7 @@ import {
   HomeOutlined,
   LoginOutlined,
   UserAddOutlined,
-  FileTextOutlined,
+
   FileDoneOutlined,
   ExclamationCircleOutlined,
   SafetyCertificateOutlined,
@@ -51,11 +51,14 @@ const AdminLayout: React.FC = () => {
   };
 
   // Danh sách menu chính (ẩn Users nếu là STAFF)
-  const menuItems = [
+  const menuItems: MenuProps["items"] = [
     {
       key: "/admin/dashboard",
       icon: <DashboardOutlined style={{ fontSize: 20 }} />,
       label: "Dashboard",
+    },
+    {
+      type: "divider" as const,
     },
     {
       key: "/admin/roomsad",
@@ -65,32 +68,32 @@ const AdminLayout: React.FC = () => {
     {
       key: "/admin/checkins",
       icon: <LoginOutlined style={{ fontSize: 20 }} />,
-      label: "Quản lý Check-in",
+      label: "Check-in",
     },
+    {
+      type: "divider" as const,
+    },
+
     {
       key: "/admin/final-contracts",
       icon: <SafetyCertificateOutlined style={{ fontSize: 20 }} />,
       label: "Hợp đồng chính thức",
     },
     {
-      key: "/admin/contracts",
-      icon: <FileTextOutlined style={{ fontSize: 20 }} />,
-      label: "Phiếu thu",
+      type: "divider" as const,
     },
     {
-      key: "bills-menu",
+      key: "/admin/draft-bills",
       icon: <FileDoneOutlined style={{ fontSize: 20 }} />,
-      label: "Hóa đơn",
-      children: [
-        {
-          key: "/admin/bills",
-          label: "Tất cả hóa đơn",
-        },
-        {
-          key: "/admin/draft-bills",
-          label: "Hóa đơn nháp",
-        },
-      ],
+      label: "Hóa đơn nháp",
+    },
+    {
+      key: "/admin/bills",
+      icon: <FileDoneOutlined style={{ fontSize: 20 }} />,
+      label: "Hóa đơn hàng tháng",
+    },
+    {
+      type: "divider" as const,
     },
     {
       key: "/admin/complaints",
@@ -105,6 +108,9 @@ const AdminLayout: React.FC = () => {
     // Chỉ hiển thị nếu là ADMIN
     ...(currentUser?.role === "ADMIN"
       ? [
+        {
+          type: "divider" as const,
+        },
         {
           key: "/admin/users",
           icon: <UserOutlined style={{ fontSize: 20 }} />,

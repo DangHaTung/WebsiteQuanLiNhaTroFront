@@ -8,7 +8,7 @@ import { Navigate } from "react-router-dom";
 import { adminAuthService } from "../modules/admin/services/auth";
 import BillsAD from "../modules/admin/pages/BillsAD";
 import Users from "../modules/admin/pages/Users";
-import ContractsAD from "../modules/admin/pages/ContractsAD";
+
 import Complaints from "../modules/admin/pages/Complaints";
 import FinalContracts from "../modules/admin/pages/FinalContracts";
 import DraftBills from "../modules/admin/pages/DraftBills";
@@ -47,7 +47,7 @@ const adminRoutes = [
   { path: "draft-bills", element: <RequireAdmin><DraftBills /></RequireAdmin> },
   { path: "utility-fees", element: <RequireAdmin><UtilityFees /></RequireAdmin> },
   { path: "final-contracts", element: <RequireAdmin><FinalContracts /></RequireAdmin> },
-  { path: "contracts", element: <RequireAdmin><ContractsAD /></RequireAdmin> },
+
   { path: "checkins", element: <RequireAdmin><CheckinsAD /></RequireAdmin> },
   { path: "roomsad", element: <RequireAdmin><RoomsAD /></RequireAdmin> },
   { path: "complaints", element: <RequireAdmin><Complaints /></RequireAdmin> },

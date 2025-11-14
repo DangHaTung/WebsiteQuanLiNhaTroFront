@@ -220,7 +220,11 @@ const CheckinsAD: React.FC = () => {
             "Content-Type": "application/json",
             ...(token ? { "Authorization": `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ billId, amount }),
+          body: JSON.stringify({ 
+            billId, 
+            amount,
+            returnUrl: `${window.location.origin}/admin/checkins`
+          }),
         });
         
         console.log(`[${provider.toUpperCase()}] Response status:`, response.status);
@@ -735,14 +739,11 @@ const CheckinsAD: React.FC = () => {
               </Form.Item>
             </Col>
             <Col xs={24}>
-              <Form.Item label="Ghi chú khách thuê" name="tenantNote">
+              <Form.Item label="Ghi chú" name="tenantNote">
                 <TextArea rows={2} />
               </Form.Item>
             </Col>
             <Col xs={24}>
-              <Form.Item label="Ghi chú thêm" name="notes">
-                <TextArea rows={2} />
-              </Form.Item>
             </Col>
           </Row>
         </Form>
