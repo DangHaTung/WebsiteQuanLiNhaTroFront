@@ -66,7 +66,8 @@ const DraftBills: React.FC = () => {
       const data = await response.json();
       
       if (data.success) {
-        message.success(`Đã tạo ${data.data.created} hóa đơn nháp thành công!`);
+        const created = data.data?.summary?.created || data.data?.created || 0;
+        message.success(`Đã tạo ${created} hóa đơn nháp thành công!`);
         loadDraftBills();
       } else {
         message.error(data.message || "Lỗi khi tạo hóa đơn nháp");

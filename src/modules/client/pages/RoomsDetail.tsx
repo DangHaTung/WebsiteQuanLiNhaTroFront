@@ -523,7 +523,7 @@ const RoomsDetail: React.FC = () => {
                   }}
                   onClick={handleBook}
                 >
-                  Đặt phòng ngay
+                  Liên hệ ngay
                 </Button>
               ) : (
                 <Button

@@ -358,13 +358,20 @@ const FinalContracts = () => {
           ? `${apiUrl}/api/payment/zalopay/create`
           : `${apiUrl}/api/payment/${provider}/create`;
 
+        // Admin thanh toán xong phải về trang /admin/final-contracts
+        const returnUrl = `${window.location.origin}/admin/final-contracts`;
+
         const response = await fetch(endpoint, {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
             ...(token ? { "Authorization": `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ billId, amount }),
+          body: JSON.stringify({ 
+            billId, 
+            amount,
+            returnUrl: returnUrl,
+          }),
         });
         const data = await response.json();
 
@@ -1186,7 +1193,7 @@ const FinalContracts = () => {
               <p style={{ color: "#999", textAlign: "center" }}>Chưa có file hợp đồng</p>
             )}
 
-            <Divider orientation="left">Files CCCD ({selectedContract.cccdFiles?.length || 0})</Divider>
+            
             {selectedContract.cccdFiles && selectedContract.cccdFiles.length > 0 ? (
               <Space wrap direction="vertical" style={{ width: "100%" }}>
                 {selectedContract.cccdFiles.map((file, idx) => {

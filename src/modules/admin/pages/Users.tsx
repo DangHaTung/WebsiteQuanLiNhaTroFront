@@ -59,16 +59,21 @@ const Users: React.FC = () => {
             const roleToSend = values.role ?? "TENANT";
             if (editing) {
                 const id = (editing._id as string) || (editing.id as string);
-                const updated = await adminUserService.update(id, {
+                const payload: any = {
                     fullName: values.fullName,
                     email: values.email,
                     phone: values.phone,
                     role: roleToSend,
-                } as any);
+                };
+                // Nếu có nhập password mới, thêm vào payload
+                if (values.password && values.password.trim()) {
+                    payload.password = values.password;
+                }
+                const updated = await adminUserService.update(id, payload);
                 setUsers((prev) =>
                     prev.map((u) => ((u._id || u.id) === (updated._id || updated.id) ? updated : u))
                 );
-                message.success("Cập nhật người dùng thành công!");
+                message.success(values.password ? "Cập nhật người dùng và mật khẩu thành công!" : "Cập nhật người dùng thành công!");
             } else {
                 if (!values.password) {
                     message.error("Vui lòng nhập mật khẩu cho tài khoản mới");
@@ -404,21 +409,38 @@ const Users: React.FC = () => {
                                 </Select>
                             </Form.Item>
                         </Col>
-                        {!editing && (
-                            <Col xs={24} md={12}>
-                                <Form.Item
-                                    label="Mật khẩu"
-                                    name="password"
-                                    rules={[
-                                        { required: true, message: "Nhập mật khẩu" },
-                                        { min: 6, message: "Ít nhất 6 ký tự" },
-                                    ]}
-                                >
-                                    <Input.Password
-                                        placeholder="••••••"
-                                        style={{ borderRadius: 10, boxShadow: "0 2px 6px rgba(0,0,0,0.08)" }}
-                                    />
-                                </Form.Item>
+                        <Col xs={24} md={12}>
+                            <Form.Item
+                                label={editing ? "Mật khẩu mới" : "Mật khẩu"}
+                                name="password"
+                                rules={
+                                    editing
+                                        ? [{ min: 6, message: "Ít nhất 6 ký tự" }]
+                                        : [
+                                              { required: true, message: "Nhập mật khẩu" },
+                                              { min: 6, message: "Ít nhất 6 ký tự" },
+                                          ]
+                                }
+                            >
+                                <Input.Password
+                                    placeholder={editing ? "Để trống nếu không đổi" : "••••••"}
+                                    style={{ borderRadius: 10, boxShadow: "0 2px 6px rgba(0,0,0,0.08)" }}
+                                />
+                            </Form.Item>
+                        </Col>
+                        {editing && (
+                            <Col span={24}>
+                                <div style={{ 
+                                    padding: 12, 
+                                    background: "#e6f7ff", 
+                                    borderRadius: 8, 
+                                    border: "1px solid #91d5ff",
+                                    marginTop: -8
+                                }}>
+                                    <p style={{ margin: 0, fontSize: 13, color: "#0050b3" }}>
+                                        💡 <strong>Lưu ý:</strong> Chỉ nhập mật khẩu mới nếu muốn đổi mật khẩu cho người dùng. Để trống nếu chỉ cập nhật thông tin khác.
+                                    </p>
+                                </div>
                             </Col>
                         )}
                     </Row>

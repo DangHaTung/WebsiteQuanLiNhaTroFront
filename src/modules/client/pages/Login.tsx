@@ -60,17 +60,10 @@ const Login: React.FC = () => {
 
       {/* --- Cột trái --- */}
       <div className="login-left">
-        <img
-          src="https://cdn3d.iconscout.com/3d/premium/thumb/website-login-3d-illustration-download-in-png-blend-fbx-gltf-file-formats--login-signup-signin-user-interface-web-pack-network-illustrations-3022528.png"
-          alt="illustration"
-          className="login-illustration"
-        />
         <Title className="login-title" level={2}>
           Giải pháp quản lý phòng trọ thông minh
         </Title>
-        <Text className="login-subtitle">
-          Quản lý – Kết nối – Tối ưu vận hành 💡
-        </Text>
+      
       </div>
 
       {/* --- Cột phải --- */}
@@ -80,7 +73,7 @@ const Login: React.FC = () => {
             <Title level={2} className="login-heading">
               Đăng nhập
             </Title>
-            <Text type="secondary">Chào mừng bạn quay lại 👋</Text>
+            <Text type="secondary">Chào mừng bạn quay lại </Text>
           </div>
 
           <Form
@@ -113,12 +106,6 @@ const Login: React.FC = () => {
               />
             </Form.Item>
 
-            <div style={{ textAlign: "right", marginBottom: 10 }}>
-              <a href="/forgot-password" className="forgot-link">
-                Quên mật khẩu?
-              </a>
-            </div>
-
             <Form.Item>
               <Button
                 type="primary"
@@ -133,19 +120,6 @@ const Login: React.FC = () => {
               </Button>
             </Form.Item>
           </Form>
-
-          <div style={{ textAlign: "center", marginTop: 10 }}>
-            <Text>
-              Chưa có tài khoản?{" "}
-              <Button
-                type="link"
-                onClick={() => navigate("/register")}
-                style={{ padding: 0, fontWeight: 600 }}
-              >
-                Đăng ký
-              </Button>
-            </Text>
-          </div>
         </Card>
       </div>
     </div>

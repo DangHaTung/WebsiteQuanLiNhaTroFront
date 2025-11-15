@@ -24,6 +24,24 @@ export interface Contract {
     identityNo?: string;
     note?: string;
   };
+  depositRefunded?: boolean;
+  depositRefund?: {
+    amount?: number;
+    refundedAt?: string;
+    method?: string;
+    transactionId?: string;
+    note?: string;
+  };
+  coTenants?: Array<{
+    userId?: string;
+    fullName: string;
+    phone: string;
+    email?: string;
+    identityNo?: string;
+    joinedAt: string;
+    leftAt?: string;
+    finalContractId?: string;
+  }>;
   createdAt?: string;
   updatedAt?: string;
 }

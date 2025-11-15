@@ -13,6 +13,27 @@ const Invoices: React.FC = () => {
 
   useEffect(() => {
     loadBills();
+    
+    // Kiểm tra URL params để hiển thị thông báo thanh toán
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get("payment");
+    const provider = urlParams.get("provider");
+    const transactionId = urlParams.get("transactionId");
+    
+    if (paymentStatus === "success" && provider) {
+      message.success({
+        content: `Thanh toán ${provider.toUpperCase()} thành công! Mã GD: ${transactionId || "N/A"}`,
+        duration: 5,
+      });
+      
+      // Xóa params khỏi URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Reload data sau 1 giây để cập nhật trạng thái
+      setTimeout(() => {
+        loadBills();
+      }, 1000);
+    }
   }, []);
 
   const loadBills = async () => {
@@ -22,6 +43,8 @@ const Invoices: React.FC = () => {
       // Chỉ lấy bill MONTHLY (hóa đơn hàng tháng)
       const monthlyBills = (response.data || []).filter(bill => bill.billType === "MONTHLY");
       setBills(monthlyBills);
+      
+      console.log("📋 Loaded bills:", monthlyBills.length);
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Lỗi khi tải hóa đơn");
     } finally {
@@ -81,9 +104,9 @@ const Invoices: React.FC = () => {
         if (provider === "vnpay") {
           paymentUrl = data.url || data.paymentUrl;
         } else if (provider === "momo") {
-          paymentUrl = data.payUrl;
+          paymentUrl = data.payUrl || data.data?.payUrl;
         } else if (provider === "zalopay") {
-          paymentUrl = data.order_url;
+          paymentUrl = data.payUrl || data.zaloData?.order_url || data.order_url;
         }
 
         if (paymentUrl) {
@@ -269,6 +292,9 @@ const Invoices: React.FC = () => {
             <FileTextOutlined style={{ color: "#1890ff" }} />
             Hóa đơn hàng tháng
           </h2>
+          <p style={{ color: "#666", marginTop: 8, marginBottom: 0 }}>
+            💡 Nếu bạn ở chung phòng với người khác, cả hai đều có thể xem và thanh toán hóa đơn này.
+          </p>
         </div>
 
         <Row gutter={16} style={{ marginBottom: 24 }}>

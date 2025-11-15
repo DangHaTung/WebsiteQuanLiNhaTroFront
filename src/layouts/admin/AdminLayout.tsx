@@ -80,6 +80,11 @@ const AdminLayout: React.FC = () => {
       label: "Hợp đồng chính thức",
     },
     {
+      key: "/admin/contracts",
+      icon: <FileDoneOutlined style={{ fontSize: 20 }} />,
+      label: "Quản lý người ở cùng",
+    },
+    {
       type: "divider" as const,
     },
     {
