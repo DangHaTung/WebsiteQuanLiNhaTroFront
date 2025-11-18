@@ -91,9 +91,9 @@ const RoomCard: React.FC<Props> = ({ room }) => {
         </Tag>
       </div>
 
-      {/* Loại & vị trí */}
+      {/* Loại */}
       <div style={{ fontSize: 14, color: "#555", marginBottom: 4 }}>
-        {getTypeText(room.type || 'SINGLE')} • {room.district || 'N/A'}
+        {getTypeText(room.type || 'SINGLE')}
       </div>
 
       {/* Diện tích & tầng */}

@@ -45,12 +45,12 @@ export const adminBillService = {
     return res.data.data;
   },
 
-  async publishDraft(id: string, payload: { electricityKwh: number; waterM3?: number; occupantCount?: number }): Promise<Bill> {
+  async publishDraft(id: string, payload: { electricityKwh: number; waterM3?: number; occupantCount?: number; vehicleCount?: number }): Promise<Bill> {
     const res = await api.put<SingleBillResponse>(`/bills/${id}/publish`, payload);
     return res.data.data;
   },
 
-  async publishBatch(bills: Array<{ billId: string; electricityKwh: number; occupantCount?: number }>): Promise<any> {
+  async publishBatch(bills: Array<{ billId: string; electricityKwh: number; occupantCount?: number; vehicleCount?: number }>): Promise<any> {
     const res = await api.post("/bills/publish-batch", { bills });
     return res.data;
   },

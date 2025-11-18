@@ -10,6 +10,9 @@ const { Title, Text } = Typography;
 const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  
+  // Kiểm tra xem có phải từ admin route không
+  const fromAdmin = new URLSearchParams(window.location.search).get("from") === "admin";
 
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
@@ -19,8 +22,20 @@ const Login: React.FC = () => {
         password: values.password,
       });
 
-      // Save token and user
-      clientAuthService.saveAuthData(res.token, res.user);
+      // Save token and user based on role
+      const role = res.user.role;
+      
+      if (role === "ADMIN" || role === "STAFF") {
+        // Admin/Staff: lưu vào admin_token và admin_currentUser
+        localStorage.setItem("admin_token", res.token);
+        localStorage.setItem("admin_currentUser", JSON.stringify(res.user));
+        // Cũng lưu vào token để có thể dùng chung
+        localStorage.setItem("token", res.token);
+        localStorage.setItem("currentUser", JSON.stringify(res.user));
+      } else {
+        // User: lưu vào token và currentUser
+        clientAuthService.saveAuthData(res.token, res.user);
+      }
 
       const displayName = res.user.username || res.user.fullName || res.user.email;
       message.success(res.message || `Đăng nhập thành công! Chào mừng, ${displayName}!`);
@@ -31,11 +46,16 @@ const Login: React.FC = () => {
       }));
 
       // Role-based redirect
-      const role = res.user.role;
-      if (role === "ADMIN") {
+      if (role === "ADMIN" || role === "STAFF") {
         navigate("/admin/dashboard");
       } else {
-        navigate("/");
+        // Kiểm tra xem có redirect từ admin route không
+        const from = new URLSearchParams(window.location.search).get("from");
+        if (from === "admin") {
+          navigate("/admin/dashboard");
+        } else {
+          navigate("/");
+        }
       }
     } catch (err: any) {
       message.error(
@@ -71,9 +91,11 @@ const Login: React.FC = () => {
         <Card className="login-card">
           <div className="login-card-header">
             <Title level={2} className="login-heading">
-              Đăng nhập
+              {fromAdmin ? "Đăng nhập Admin" : "Đăng nhập"}
             </Title>
-            <Text type="secondary">Chào mừng bạn quay lại </Text>
+            <Text type="secondary">
+              {fromAdmin ? "Truy cập khu vực quản trị Tro360" : "Chào mừng bạn quay lại"}
+            </Text>
           </div>
 
           <Form

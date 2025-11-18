@@ -158,9 +158,6 @@ const RoomsDetail: React.FC = () => {
             Phòng {room.roomNumber}
           </Title>
           <Space wrap align="center" size={12}>
-            <Text style={{ color: "#f0f0f0" }}>
-              <EnvironmentOutlined /> {room.district}
-            </Text>
             <span style={{ color: "#ffd666" }}>
               <Rate allowHalf disabled value={userRating} />{" "}
               <Text style={{ color: "#ffd666" }}>{userRating.toFixed(1)}</Text>
@@ -284,9 +281,6 @@ const RoomsDetail: React.FC = () => {
               </Space>
             </div>
 
-            <Paragraph type="secondary" style={{ marginTop: 8 }}>
-              <EnvironmentOutlined /> {room.district}
-            </Paragraph>
 
             <Divider style={{ margin: "12px 0" }} />
 
@@ -320,11 +314,86 @@ const RoomsDetail: React.FC = () => {
             </Descriptions>
 
             <Divider style={{ margin: "16px 0" }} />
-            <Title level={4}>Mô tả</Title>
-            <Paragraph>
-              Phòng đầy đủ tiện nghi, khu vực an ninh, gần trung tâm và thuận tiện di chuyển.
-              Phù hợp cho sinh viên hoặc người đi làm cần không gian yên tĩnh và sạch sẽ.
-            </Paragraph>
+            <Title level={4}>Nội thất</Title>
+            {room.utilities && room.utilities.filter((util: any) => util.condition !== "broken").length > 0 ? (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                {room.utilities
+                  .filter((util: any) => util.condition !== "broken")
+                  .map((util: any) => {
+                  const utilityLabels: Record<string, string> = {
+                    refrigerator: "Tủ lạnh",
+                    air_conditioner: "Máy lạnh",
+                    washing_machine: "Máy giặt",
+                    television: "TV",
+                    microwave: "Lò vi sóng",
+                    water_heater: "Bình nóng lạnh",
+                    fan: "Quạt",
+                    bed: "Giường",
+                    wardrobe: "Tủ quần áo",
+                    desk: "Bàn",
+                    chair: "Ghế",
+                    sofa: "Sofa",
+                    wifi_router: "Bộ phát WiFi",
+                    other: "Khác",
+                  };
+
+                  const conditionLabels: Record<string, string> = {
+                    new: "Mới",
+                    used: "Đã sử dụng",
+                    broken: "Hỏng",
+                  };
+
+                  const conditionColors: Record<string, string> = {
+                    new: "success",
+                    used: "processing",
+                    broken: "error",
+                  };
+
+                  const conditionStyles: Record<string, React.CSSProperties> = {
+                    new: {
+                      margin: 0,
+                      padding: "4px 12px",
+                      fontSize: 13,
+                      borderRadius: "16px",
+                      border: "1px solid #52c41a",
+                      backgroundColor: "#f6ffed",
+                      color: "#389e0d",
+                    },
+                    used: {
+                      margin: 0,
+                      padding: "4px 12px",
+                      fontSize: 13,
+                      borderRadius: "16px",
+                      border: "1px solid #1890ff",
+                      backgroundColor: "#e6f7ff",
+                      color: "#0958d9",
+                    },
+                    broken: {
+                      margin: 0,
+                      padding: "4px 12px",
+                      fontSize: 13,
+                      borderRadius: "16px",
+                      border: "1px solid #ff4d4f",
+                      backgroundColor: "#fff2f0",
+                      color: "#cf1322",
+                    },
+                  };
+
+                  return (
+                    <Tag
+                      key={util._id}
+                      color={util.condition === "new" ? undefined : conditionColors[util.condition] || "default"}
+                      style={conditionStyles[util.condition] || conditionStyles.used}
+                      title={util.description || undefined}
+                    >
+                      {utilityLabels[util.name] || util.name} ({conditionLabels[util.condition] || util.condition})
+                    </Tag>
+                  );
+                })}
+              </div>
+            ) : (
+              <Empty description="Chưa có thông tin nội thất" />
+            )}
           </Card>
         </Col>
 
@@ -415,7 +484,7 @@ const RoomsDetail: React.FC = () => {
                 >
                   {/* Zalo */}
                   <a
-                    href="https://zalo.me/0123456789"
+                    href="https://zalo.me/0842346871"
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{
@@ -445,7 +514,7 @@ const RoomsDetail: React.FC = () => {
 
                   {/* Facebook */}
                   <a
-                    href="https://facebook.com/NhomWD-04"
+                    href="https://www.facebook.com/profile.php?id=61583677535458"
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{
@@ -476,7 +545,7 @@ const RoomsDetail: React.FC = () => {
 
                 {/* Messenger (riêng dòng) */}
                 <a
-                  href="https://m.me/NhomWD-04"
+                  href="https://www.facebook.com/messages/t/846800271851706"
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{

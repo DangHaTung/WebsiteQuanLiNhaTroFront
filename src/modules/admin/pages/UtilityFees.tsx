@@ -24,13 +24,48 @@ const UtilityFees: React.FC = () => {
       
       // Set form values
       const formValues: any = {};
+      
+      // Default tiers (luôn có 6 tiers)
+      const defaultTiers = [
+        { min: 0, max: 50, rate: 1806 },
+        { min: 51, max: 100, rate: 1866 },
+        { min: 101, max: 200, rate: 2167 },
+        { min: 201, max: 300, rate: 2729 },
+        { min: 301, max: 400, rate: 3050 },
+        { min: 401, max: undefined, rate: 3151 },
+      ];
+      
+      // Khởi tạo tất cả 6 tiers với giá trị mặc định trước
+      for (let i = 1; i <= 6; i++) {
+        const defaultTier = defaultTiers[i - 1];
+        formValues[`elec_tier${i}_min`] = defaultTier.min;
+        formValues[`elec_tier${i}_max`] = defaultTier.max;
+        formValues[`elec_tier${i}_rate`] = defaultTier.rate;
+      }
+      
       data.forEach(fee => {
         if (fee.type === "electricity") {
           formValues.electricityVat = fee.vatPercent || 8;
-          fee.electricityTiers?.forEach((tier, index) => {
+          
+          // Load tiers từ database và override giá trị mặc định
+          if (fee.electricityTiers && fee.electricityTiers.length > 0) {
+            fee.electricityTiers.forEach((tier, index) => {
+              if (index < 6) { // Chỉ load tối đa 6 tiers
             formValues[`elec_tier${index + 1}_min`] = tier.min;
             formValues[`elec_tier${index + 1}_max`] = tier.max;
             formValues[`elec_tier${index + 1}_rate`] = tier.rate;
+              }
+            });
+          }
+          
+          console.log('[UtilityFees] Loaded tiers from DB:', fee.electricityTiers?.length || 0);
+          console.log('[UtilityFees] Form values after load:', {
+            elec_tier1_rate: formValues.elec_tier1_rate,
+            elec_tier2_rate: formValues.elec_tier2_rate,
+            elec_tier3_rate: formValues.elec_tier3_rate,
+            elec_tier4_rate: formValues.elec_tier4_rate,
+            elec_tier5_rate: formValues.elec_tier5_rate,
+            elec_tier6_rate: formValues.elec_tier6_rate,
           });
         } else {
           formValues[`${fee.type}Rate`] = fee.baseRate;
@@ -51,14 +86,62 @@ const UtilityFees: React.FC = () => {
       const values = await form.validateFields();
 
       // Save electricity
-      const electricityTiers: ElectricityTier[] = [
-        { min: values.elec_tier1_min || 0, max: values.elec_tier1_max, rate: values.elec_tier1_rate || 0 },
-        { min: values.elec_tier2_min || 0, max: values.elec_tier2_max, rate: values.elec_tier2_rate || 0 },
-        { min: values.elec_tier3_min || 0, max: values.elec_tier3_max, rate: values.elec_tier3_rate || 0 },
-        { min: values.elec_tier4_min || 0, max: values.elec_tier4_max, rate: values.elec_tier4_rate || 0 },
-        { min: values.elec_tier5_min || 0, max: values.elec_tier5_max, rate: values.elec_tier5_rate || 0 },
-        { min: values.elec_tier6_min || 0, rate: values.elec_tier6_rate || 0 },
-      ].filter(tier => tier.rate > 0);
+      // Lấy giá trị từ form, nếu không có thì dùng giá trị mặc định
+      const getFormValue = (key: string, defaultValue: any) => {
+        const val = values[key];
+        return val !== undefined && val !== null ? val : defaultValue;
+      };
+      
+      // Tạo tất cả 6 tiers với giá trị từ form hoặc mặc định
+      const allTiers: ElectricityTier[] = [
+        { 
+          min: getFormValue('elec_tier1_min', 0), 
+          max: getFormValue('elec_tier1_max', 50), 
+          rate: getFormValue('elec_tier1_rate', 1806) 
+        },
+        { 
+          min: getFormValue('elec_tier2_min', 51), 
+          max: getFormValue('elec_tier2_max', 100), 
+          rate: getFormValue('elec_tier2_rate', 1866) 
+        },
+        { 
+          min: getFormValue('elec_tier3_min', 101), 
+          max: getFormValue('elec_tier3_max', 200), 
+          rate: getFormValue('elec_tier3_rate', 2167) 
+        },
+        { 
+          min: getFormValue('elec_tier4_min', 201), 
+          max: getFormValue('elec_tier4_max', 300), 
+          rate: getFormValue('elec_tier4_rate', 2729) 
+        },
+        { 
+          min: getFormValue('elec_tier5_min', 301), 
+          max: getFormValue('elec_tier5_max', 400), 
+          rate: getFormValue('elec_tier5_rate', 3050) 
+        },
+        { 
+          min: getFormValue('elec_tier6_min', 401), 
+          max: undefined, 
+          rate: getFormValue('elec_tier6_rate', 3151) 
+        },
+      ];
+      
+      // Debug: Log tất cả tiers trước khi filter
+      console.log('[UtilityFees] Form values:', {
+        elec_tier1_rate: values.elec_tier1_rate,
+        elec_tier2_rate: values.elec_tier2_rate,
+        elec_tier3_rate: values.elec_tier3_rate,
+        elec_tier4_rate: values.elec_tier4_rate,
+        elec_tier5_rate: values.elec_tier5_rate,
+        elec_tier6_rate: values.elec_tier6_rate,
+      });
+      console.log('[UtilityFees] All tiers before filter:', JSON.stringify(allTiers, null, 2));
+      
+      // KHÔNG filter - gửi tất cả 6 tiers lên backend
+      const electricityTiers = allTiers;
+      
+      console.log('[UtilityFees] Tiers to send (no filter):', JSON.stringify(electricityTiers, null, 2));
+      console.log('[UtilityFees] Tiers count:', electricityTiers.length);
 
       await utilityFeeService.createOrUpdate({
         type: "electricity",
@@ -263,7 +346,7 @@ const UtilityFees: React.FC = () => {
             <Row gutter={16}>
               <Col xs={24} md={12}>
                 <Card type="inner" title="💧 Tiền nước" style={{ marginBottom: 16 }}>
-                  <Form.Item label="Giá cố định (₫/tháng)" name="waterRate" initialValue={100000}>
+                  <Form.Item label="Giá (₫/người/tháng)" name="waterRate" initialValue={100000}>
                     <InputNumber
                       min={0}
                       style={{ width: "100%" }}

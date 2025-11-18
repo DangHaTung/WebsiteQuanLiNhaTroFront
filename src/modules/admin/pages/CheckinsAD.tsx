@@ -38,6 +38,7 @@ import { adminBillService } from "../services/bill";
 import type { Checkin, CheckinStatus } from "../../../types/checkin";
 import type { Room } from "../../../types/room";
 import ExpandableSearch from "../components/ExpandableSearch";
+import BillDetailDrawer from "../components/BillDetailDrawer";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -66,10 +67,14 @@ const CheckinsAD: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string | "ALL">("ALL");
   const [keyword, setKeyword] = useState<string>("");
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
+  const [moveOutRequests, setMoveOutRequests] = useState<any[]>([]);
+  const [receiptDetailVisible, setReceiptDetailVisible] = useState(false);
+  const [selectedReceiptBillId, setSelectedReceiptBillId] = useState<string | null>(null);
 
   useEffect(() => {
     loadCheckins();
     loadRooms();
+    loadMoveOutRequests();
     
     // Kiểm tra URL params để hiển thị thông báo thanh toán
     const urlParams = new URLSearchParams(window.location.search);
@@ -93,6 +98,24 @@ const CheckinsAD: React.FC = () => {
     }
   }, []);
 
+  const loadMoveOutRequests = async () => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+      const token = localStorage.getItem("admin_token");
+      const response = await fetch(`${apiUrl}/api/move-out-requests`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      if (data.success) {
+        setMoveOutRequests(data.data || []);
+      }
+    } catch (error: any) {
+      console.error("Error loading move-out requests:", error);
+    }
+  };
+
   const loadCheckins = async (page = 1, limit = 10) => {
     try {
       setLoading(true);
@@ -103,6 +126,8 @@ const CheckinsAD: React.FC = () => {
         pageSize: response.pagination?.limit || 10,
         total: response.pagination?.totalRecords || 0,
       });
+      // Load move-out requests để kiểm tra yêu cầu hoàn cọc
+      await loadMoveOutRequests();
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu check-in");
     } finally {
@@ -392,42 +417,85 @@ const CheckinsAD: React.FC = () => {
     );
   };
 
-  const getDepositDispositionTag = (disposition?: string) => {
-    if (!disposition) return null;
+  const getDepositDispositionTag = (disposition?: string, record?: Checkin) => {
+    // Nếu đã có depositDisposition, hiển thị trạng thái tương ứng
+    if (disposition) {
     const map: Record<string, { color: string; text: string }> = {
       FORFEIT: { color: "#ff4d4f", text: "Mất cọc" },
       APPLIED: { color: "#1890ff", text: "Áp dụng" },
-      REFUNDED: { color: "#52c41a", text: "Hoàn cọc" },
+        REFUNDED: { color: "#52c41a", text: "Đã Hoàn Cọc" },
     };
     const d = map[disposition];
-    if (!d) return null;
+      if (!d) {
+        return <Tag color="default" style={{ borderRadius: 8 }}>{disposition}</Tag>;
+      }
     return (
       <Tag color={d.color} style={{ borderRadius: 8 }}>
         {d.text}
       </Tag>
     );
+    }
+    
+    // Nếu chưa có depositDisposition, kiểm tra xem có yêu cầu hoàn cọc không
+    if (record?.contractId) {
+      const contractId = typeof record.contractId === 'object' 
+        ? (record.contractId as any)?._id 
+        : record.contractId;
+      
+      if (contractId) {
+        // Kiểm tra xem có move-out-request nào cho contract này không
+        const hasRequest = moveOutRequests.some((req: any) => {
+          const reqContractId = typeof req.contractId === 'object' 
+            ? req.contractId?._id 
+            : req.contractId;
+          return reqContractId === contractId;
+        });
+        
+        if (hasRequest) {
+          // Có yêu cầu nhưng chưa xử lý
+          return <Tag color="warning" style={{ borderRadius: 8 }}>Chưa xử lý</Tag>;
+        }
+      }
+    }
+    
+    // Chưa có yêu cầu hoàn cọc
+    return <Tag color="default" style={{ borderRadius: 8 }}>Chưa có yêu cầu</Tag>;
   };
 
   const columns: ColumnsType<Checkin> = [
-    {
-      title: "Mã Check-in",
-      dataIndex: "_id",
-      key: "_id",
-      width: 120,
-      render: (v: string) => (
-        <b style={{ cursor: "pointer" }}>
-          {v.substring(0, 8)}...
-        </b>
-      ),
-    },
+ 
     {
       title: "Khách thuê",
       key: "tenant",
-      render: (_: any, record: Checkin) => (
-        <span style={{ whiteSpace: "normal", wordBreak: "break-word" }}>
-          {getTenantName(record)}
-        </span>
-      ),
+      render: (_: any, record: Checkin) => {
+        const receiptBill = typeof record.receiptBillId === "object" 
+          ? record.receiptBillId 
+          : null;
+        const hasReceipt = !!receiptBill;
+        
+        return (
+          <span 
+            style={{ 
+              whiteSpace: "normal", 
+              wordBreak: "break-word",
+              cursor: hasReceipt ? "pointer" : "default",
+              color: hasReceipt ? "#1890ff" : "inherit",
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (hasReceipt) {
+                const billId = typeof receiptBill === "object" 
+                  ? (receiptBill as any)._id 
+                  : receiptBill;
+                setSelectedReceiptBillId(billId);
+                setReceiptDetailVisible(true);
+              }
+            }}
+          >
+            {getTenantName(record)}
+          </span>
+        );
+      },
     },
     {
       title: "Phòng",
@@ -474,11 +542,24 @@ const CheckinsAD: React.FC = () => {
       render: (s: CheckinStatus) => getStatusTag(s),
     },
     {
-      title: "Xử lý cọc",
+      title: "Xử lý hoàn cọc",
       dataIndex: "depositDisposition",
       key: "depositDisposition",
       align: "center",
-      render: (d?: string) => getDepositDispositionTag(d),
+      render: (d?: string, record?: Checkin) => {
+        // Ưu tiên lấy từ Checkin.depositDisposition
+        let disposition = record?.depositDisposition || d;
+        
+        // Nếu Checkin chưa có depositDisposition, kiểm tra từ Contract.depositRefunded
+        if (!disposition && record?.contractId) {
+          const contract = typeof record.contractId === 'object' ? record.contractId : null;
+          if (contract && (contract as any).depositRefunded) {
+            disposition = "REFUNDED";
+          }
+        }
+        
+        return getDepositDispositionTag(disposition, record);
+      },
     },
     {
       title: "Thao tác",
@@ -575,7 +656,7 @@ const CheckinsAD: React.FC = () => {
         <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
           <Col>
             <Title level={3} style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-              <CheckCircleOutlined style={{ color: "#1890ff", fontSize: 28 }} /> Quản lý Check-in
+              <CheckCircleOutlined style={{ color: "#1890ff", fontSize: 28 }} /> Quản lý phiếu thu
             </Title>
           </Col>
           <Col>
@@ -586,7 +667,7 @@ const CheckinsAD: React.FC = () => {
               onClick={openModal}
               className="btn-hover-gradient"
             >
-              Tạo Check-in
+              Tạo phiếu thu
             </Button>
           </Col>
         </Row>
@@ -657,7 +738,7 @@ const CheckinsAD: React.FC = () => {
 
       {/* Modal Create Check-in */}
       <Modal
-        title="Tạo Check-in mới"
+        title="Tạo phiếu thu mới"
         open={isModalOpen}
         onCancel={closeModal}
         onOk={handleSave}
@@ -748,6 +829,19 @@ const CheckinsAD: React.FC = () => {
           </Row>
         </Form>
       </Modal>
+
+      {/* Receipt Detail Drawer */}
+      <BillDetailDrawer
+        open={receiptDetailVisible}
+        onClose={() => {
+          setReceiptDetailVisible(false);
+          setSelectedReceiptBillId(null);
+        }}
+        billId={selectedReceiptBillId}
+        contracts={[]}
+        tenants={[]}
+        rooms={rooms}
+      />
     </div>
   );
 };

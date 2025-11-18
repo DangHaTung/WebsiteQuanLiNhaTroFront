@@ -5,7 +5,6 @@ export interface Room {
   pricePerMonth: number;
   areaM2: number;
   floor: number;
-  district: string;
   status: "AVAILABLE" | "OCCUPIED" | "MAINTENANCE";
   image: string;
   images?: string[];
@@ -18,4 +17,10 @@ export interface Room {
     endDate: string;
     monthlyRent: string;
   };
+  utilities?: Array<{
+    _id: string;
+    name: string;
+    condition: "new" | "used" | "broken";
+    description?: string;
+  }>;
 }

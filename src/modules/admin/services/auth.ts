@@ -50,17 +50,23 @@ export const adminAuthService = {
   },
 
   getCurrentUser(): User | null {
-    const raw = localStorage.getItem("admin_currentUser");
+    // Kiểm tra cả admin_currentUser và currentUser (vì có thể đăng nhập từ form chung)
+    const adminRaw = localStorage.getItem("admin_currentUser");
+    const clientRaw = localStorage.getItem("currentUser");
+    const raw = adminRaw || clientRaw;
     return raw ? (JSON.parse(raw) as User) : null;
   },
 
   isAuthenticated(): boolean {
-    return !!localStorage.getItem("admin_token");
+    // Kiểm tra cả admin_token và token (vì có thể đăng nhập từ form chung)
+    return !!(localStorage.getItem("admin_token") || localStorage.getItem("token"));
   },
 
   logout() {
     localStorage.removeItem("admin_token");
     localStorage.removeItem("admin_currentUser");
-    window.location.href = "/admin/login";
+    localStorage.removeItem("token");
+    localStorage.removeItem("currentUser");
+    window.location.href = "/login";
   },
 };

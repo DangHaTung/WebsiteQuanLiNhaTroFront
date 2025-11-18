@@ -76,7 +76,6 @@ const Rooms: React.FC = () => {
 
       const roomText = [
         room.roomNumber?.toString() || "",
-        room.district || "",
         room.type === "SINGLE" ? "phong don" :
           room.type === "DOUBLE" ? "phong doi" :
             room.type === "DORM" ? "phong dorm" : "phong khac",

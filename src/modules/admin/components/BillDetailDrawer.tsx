@@ -161,10 +161,10 @@ const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
             <Descriptions.Item label="Cập nhật lần cuối">{dayjs(bill.updatedAt).format("DD/MM/YYYY HH:mm")}</Descriptions.Item>
           </Descriptions>
 
-          {/* Thông tin hợp đồng */}
-          {contract && (
+          {/* Thông tin khách thuê (từ tenantSnapshot khi tạo) */}
+          {contract && contract.tenantSnapshot && (
             <>
-              <Divider orientation="left">Thông tin hợp đồng</Divider>
+              <Divider orientation="left">Thông tin khách thuê</Divider>
               <Descriptions
                 bordered
                 column={1}
@@ -174,33 +174,56 @@ const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
                   content: { background: "#fff" },
                 }}
               >
-                <Descriptions.Item label="Mã hợp đồng">
-                  <Text code>{contract._id}</Text>
+                {contract.tenantSnapshot.fullName && (
+                  <Descriptions.Item label="Họ tên">
+                    <Text strong>{contract.tenantSnapshot.fullName}</Text>
+                  </Descriptions.Item>
+                )}
+                {contract.tenantSnapshot.phone && (
+                  <Descriptions.Item label="Số điện thoại">
+                    {contract.tenantSnapshot.phone}
+                  </Descriptions.Item>
+                )}
+                {contract.tenantSnapshot.identityNo && (
+                  <Descriptions.Item label="CMND/CCCD">
+                    {contract.tenantSnapshot.identityNo}
+                  </Descriptions.Item>
+                )}
+                {contract.tenantSnapshot.address && (
+                  <Descriptions.Item label="Địa chỉ">
+                    {contract.tenantSnapshot.address}
+                  </Descriptions.Item>
+                )}
+                {contract.tenantSnapshot.note && (
+                  <Descriptions.Item label="Ghi chú khách thuê">
+                    {contract.tenantSnapshot.note}
+                  </Descriptions.Item>
+                )}
+                {room && (
+                  <Descriptions.Item label="Số phòng">
+                    <Text strong>{room.roomNumber}</Text>
+                  </Descriptions.Item>
+                )}
+                <Descriptions.Item label="Tiền cọc">
+                  <Text strong style={{ color: "#fa8c16", fontSize: 16 }}>
+                    {dec(contract.deposit).toLocaleString("vi-VN")} ₫
+                  </Text>
                 </Descriptions.Item>
                 <Descriptions.Item label="Tiền thuê/tháng">
                   <Text strong style={{ color: "#52c41a", fontSize: 16 }}>
                     {dec(contract.monthlyRent).toLocaleString("vi-VN")} ₫
                   </Text>
                 </Descriptions.Item>
-                <Descriptions.Item label="Tiền cọc">
-                  <Text strong style={{ color: "#fa8c16", fontSize: 16 }}>
-                    {dec(contract.deposit).toLocaleString("vi-VN")} ₫
-                  </Text>
-                </Descriptions.Item>
-                <Descriptions.Item label="Số phòng">{room?.roomNumber}</Descriptions.Item>
-                {tenant && (
-                  <Descriptions.Item label="Người thuê">{tenant.fullName}</Descriptions.Item>
-                )}
-                <Descriptions.Item label="Thời hạn hợp đồng">
+                <Descriptions.Item label="Thời hạn thuê">
                   <Text>
                     {dayjs(contract.startDate).format("DD/MM/YYYY")} - {dayjs(contract.endDate).format("DD/MM/YYYY")}
                   </Text>
                 </Descriptions.Item>
-                <Descriptions.Item label="Trạng thái hợp đồng">
-                  <Tag color={contract.status ? "#52c41a" : "#ff4d4f"}>
-                    {contract.status ? "Đang hiệu lực" : "Đã kết thúc"}
-                  </Tag>
-                </Descriptions.Item>
+                {bill.note && (
+                  <Descriptions.Item label="Ghi chú">
+                    {bill.note}
+                  </Descriptions.Item>
+                )}
               </Descriptions>
             </>
           )}

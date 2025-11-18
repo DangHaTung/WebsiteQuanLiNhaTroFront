@@ -14,13 +14,20 @@ interface CoTenant {
 
 interface Contract {
   _id: string;
-  tenantId: {
+  tenantId?: string | {
     _id: string;
     fullName: string;
     phone: string;
     email: string;
   };
-  roomId: {
+  tenantSnapshot?: {
+    fullName?: string;
+    phone?: string;
+    email?: string;
+    identityNo?: string;
+    note?: string;
+  };
+  roomId?: string | {
     _id: string;
     roomNumber: string;
     pricePerMonth: number;
@@ -77,14 +84,20 @@ const ContractsAD: React.FC = () => {
         <div style={{ marginTop: 16 }}>
           <Descriptions column={1} bordered size="small">
             <Descriptions.Item label="Người thuê chính">
-              {contract.tenantId.fullName}
+              {typeof contract.tenantId === "object" && contract.tenantId?.fullName 
+                ? contract.tenantId.fullName 
+                : contract.tenantSnapshot?.fullName || "N/A"}
               <br />
               <small style={{ color: "#666" }}>
-                {contract.tenantId.phone} | {contract.tenantId.email}
+                {typeof contract.tenantId === "object" && contract.tenantId?.phone ? contract.tenantId.phone : (contract.tenantSnapshot?.phone || "N/A")}
+                {((typeof contract.tenantId === "object" && contract.tenantId?.email) || contract.tenantSnapshot?.email) && 
+                  ` | ${(typeof contract.tenantId === "object" && contract.tenantId?.email) || contract.tenantSnapshot?.email}`}
               </small>
             </Descriptions.Item>
             <Descriptions.Item label="Phòng">
-              {contract.roomId.roomNumber} - {contract.roomId.pricePerMonth.toLocaleString("vi-VN")} đ/tháng
+              {typeof contract.roomId === "object" && contract.roomId?.roomNumber 
+                ? `${contract.roomId.roomNumber} - ${(contract.roomId.pricePerMonth || 0).toLocaleString("vi-VN")} đ/tháng`
+                : "N/A"}
             </Descriptions.Item>
             <Descriptions.Item label="Thời hạn">
               {dayjs(contract.startDate).format("DD/MM/YYYY")} - {dayjs(contract.endDate).format("DD/MM/YYYY")}
@@ -139,14 +152,22 @@ const ContractsAD: React.FC = () => {
     },
     {
       title: "Người thuê chính",
-      dataIndex: ["tenantId", "fullName"],
       key: "tenant",
-      render: (fullName: string, record: Contract) => (
-        <div>
-          <div>{fullName}</div>
-          <small style={{ color: "#666" }}>{record.tenantId.phone}</small>
-        </div>
-      ),
+      render: (_: any, record: Contract) => {
+        // Lấy tên từ tenantId (nếu được populate) hoặc tenantSnapshot
+        const tenantId = typeof record.tenantId === "object" ? record.tenantId : null;
+        const tenantName = tenantId?.fullName || record.tenantSnapshot?.fullName || "N/A";
+        const tenantPhone = tenantId?.phone || record.tenantSnapshot?.phone;
+        
+        return (
+          <div>
+            <div>{tenantName}</div>
+            {tenantPhone && (
+              <small style={{ color: "#666" }}>{tenantPhone}</small>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: "Người ở cùng",

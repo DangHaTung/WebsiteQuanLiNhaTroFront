@@ -43,6 +43,12 @@ export const adminContractService = {
   },
 
   async refundDeposit(id: string, data: {
+    electricityKwh?: number;
+    waterM3?: number;
+    occupantCount?: number;
+    vehicleCount?: number;
+    damageAmount?: number;
+    damageNote?: string;
     method: string;
     transactionId?: string;
     note?: string;

@@ -59,7 +59,7 @@ interface FinalContract {
     deposit: number;
   };
   terms?: string;
-  status: "DRAFT" | "WAITING_SIGN" | "SIGNED";
+  status: "DRAFT" | "WAITING_SIGN" | "SIGNED" | "CANCELED";
   images?: FileInfo[];
   cccdFiles?: FileInfo[];
   tenantSignedAt?: string;
@@ -358,20 +358,13 @@ const FinalContracts = () => {
           ? `${apiUrl}/api/payment/zalopay/create`
           : `${apiUrl}/api/payment/${provider}/create`;
 
-        // Admin thanh toán xong phải về trang /admin/final-contracts
-        const returnUrl = `${window.location.origin}/admin/final-contracts`;
-
         const response = await fetch(endpoint, {
           method: "POST",
           headers: { 
             "Content-Type": "application/json",
             ...(token ? { "Authorization": `Bearer ${token}` } : {}),
           },
-          body: JSON.stringify({ 
-            billId, 
-            amount,
-            returnUrl: returnUrl,
-          }),
+          body: JSON.stringify({ billId, amount }),
         });
         const data = await response.json();
 
@@ -612,14 +605,39 @@ const FinalContracts = () => {
     }
   };
 
-  const getStatusTag = (status: string) => {
-    const statusMap: Record<string, { color: string; text: string }> = {
-      DRAFT: { color: "default", text: "Nháp" },
-      WAITING_SIGN: { color: "processing", text: "Chờ ký" },
-      SIGNED: { color: "success", text: "Đã ký" },
-    };
-    const s = statusMap[status] || { color: "default", text: status };
-    return <Tag color={s.color}>{s.text}</Tag>;
+  const handleCancelContract = async (id: string) => {
+    try {
+      await adminFinalContractService.cancel(id);
+      message.success("Hủy hợp đồng thành công");
+      fetchContracts(pagination.current, pagination.pageSize);
+    } catch (error: any) {
+      message.error(error.response?.data?.message || "Lỗi khi hủy hợp đồng");
+    }
+  };
+
+  const getStatusTag = (status: string, record?: FinalContract) => {
+    if (status === "CANCELED") {
+      return <Tag color="error">Đã hủy</Tag>;
+    }
+    if (status === "DRAFT") {
+      return <Tag color="default">Nháp</Tag>;
+    }
+    if (status === "WAITING_SIGN") {
+      return <Tag color="processing">Chờ ký</Tag>;
+    }
+    if (status === "SIGNED" && record) {
+      const now = dayjs();
+      const startDate = dayjs(record.startDate);
+      const endDate = dayjs(record.endDate);
+      if (now.isBefore(startDate)) {
+        return <Tag color="default">Chưa hiệu lực</Tag>;
+      } else if (now.isAfter(endDate)) {
+        return <Tag color="warning">Hết hạn</Tag>;
+      } else {
+        return <Tag color="success">Hiệu lực</Tag>;
+      }
+    }
+    return <Tag color="default">{status || "N/A"}</Tag>;
   };
 
   const columns = [
@@ -678,7 +696,7 @@ const FinalContracts = () => {
       title: "Trạng thái",
       dataIndex: "status",
       key: "status",
-      render: (status: string) => getStatusTag(status),
+      render: (status: string, record: FinalContract) => getStatusTag(status, record),
     },
     {
       title: "Files",
@@ -713,11 +731,13 @@ const FinalContracts = () => {
           >
             Upload HĐ
           </Button>
-          <Popconfirm title="Xác nhận xóa?" onConfirm={() => handleDeleteContract(record._id)}>
+          {record.status !== "CANCELED" && (
+            <Popconfirm title="Xác nhận hủy hợp đồng?" onConfirm={() => handleCancelContract(record._id)}>
             <Button size="small" danger icon={<DeleteOutlined />}>
-              Xóa
+                Hủy
             </Button>
           </Popconfirm>
+          )}
         </Space>
       ),
     },
@@ -801,7 +821,7 @@ const FinalContracts = () => {
           setSelectedContractId("");
           setNewContractFiles([]);
         }}
-        okText="Tạo hợp đồng"
+        okText="Upload hợp đồng"
         cancelText="Hủy"
       >
         <div style={{ marginBottom: 16 }}>
@@ -1039,7 +1059,7 @@ const FinalContracts = () => {
                   selectedContract.originContractId?.tenantSnapshot?.fullName) ||
                  "Chưa gán"}
               </Descriptions.Item>
-              <Descriptions.Item label="Trạng thái">{getStatusTag(selectedContract.status)}</Descriptions.Item>
+              <Descriptions.Item label="Trạng thái">{getStatusTag(selectedContract.status, selectedContract)}</Descriptions.Item>
               <Descriptions.Item label="Thời gian">
                 {selectedContract.startDate 
                   ? `${dayjs(selectedContract.startDate).format("DD/MM/YYYY")} → ${dayjs(selectedContract.endDate).format("DD/MM/YYYY")}`
@@ -1193,7 +1213,7 @@ const FinalContracts = () => {
               <p style={{ color: "#999", textAlign: "center" }}>Chưa có file hợp đồng</p>
             )}
 
-            
+            <Divider orientation="left">Files CCCD ({selectedContract.cccdFiles?.length || 0})</Divider>
             {selectedContract.cccdFiles && selectedContract.cccdFiles.length > 0 ? (
               <Space wrap direction="vertical" style={{ width: "100%" }}>
                 {selectedContract.cccdFiles.map((file, idx) => {

@@ -17,11 +17,11 @@ import {
   HomeOutlined,
   LoginOutlined,
   UserAddOutlined,
-
   FileDoneOutlined,
   ExclamationCircleOutlined,
   SafetyCertificateOutlined,
   SettingOutlined,
+  SwapOutlined,
 } from "@ant-design/icons";
 import "../../assets/styles/layoutAd.css";
 import SearchBar from "./SearchBar";
@@ -68,7 +68,7 @@ const AdminLayout: React.FC = () => {
     {
       key: "/admin/checkins",
       icon: <LoginOutlined style={{ fontSize: 20 }} />,
-      label: "Check-in",
+      label: "Phiếu thu",
     },
     {
       type: "divider" as const,
@@ -83,6 +83,11 @@ const AdminLayout: React.FC = () => {
       key: "/admin/contracts",
       icon: <FileDoneOutlined style={{ fontSize: 20 }} />,
       label: "Quản lý người ở cùng",
+    },
+    {
+      key: "/admin/move-out-requests",
+      icon: <SwapOutlined style={{ fontSize: 20 }} />,
+      label: "Yêu cầu chuyển đi / Hoàn cọc",
     },
     {
       type: "divider" as const,

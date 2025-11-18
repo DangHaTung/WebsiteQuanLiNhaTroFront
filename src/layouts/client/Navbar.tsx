@@ -66,6 +66,11 @@ const Navbar: React.FC = () => {
       label: "Hóa đơn của tôi",
     },
     {
+      key: "my-move-out-requests",
+      icon: <LogoutOutlined />,
+      label: "Yêu cầu hoàn cọc",
+    },
+    {
       key: "settings",
       icon: <SettingOutlined />,
       label: "Cài đặt",
@@ -88,6 +93,9 @@ const Navbar: React.FC = () => {
         break;
       case "invoices":
         navigate("/invoices");
+        break;
+      case "my-move-out-requests":
+        navigate("/my-move-out-requests");
         break;
       case "settings":
         navigate("/settings");
@@ -113,7 +121,7 @@ const Navbar: React.FC = () => {
         <div className="nav-container nav-top-inner">
           <div className="nav-top-contact">
             <span>
-              <PhoneOutlined /> <strong>0842 346 871</strong>
+              <PhoneOutlined /> <strong>0123 456 789</strong>
             </span>
             <span>
               <MailOutlined /> support@tro360.com
@@ -189,7 +197,6 @@ const Navbar: React.FC = () => {
               <div className="nav-user">
                 <UserOutlined />
                 <Link to="/login">Đăng nhập</Link>
-
               </div>
             )}
 
@@ -259,6 +266,9 @@ const Navbar: React.FC = () => {
               <Link to="/invoices" onClick={() => setOpenDrawer(false)}>
                 <UserOutlined /> Hóa đơn của tôi
               </Link>
+              <Link to="/my-move-out-requests" onClick={() => setOpenDrawer(false)}>
+                <LogoutOutlined /> Yêu cầu hoàn cọc
+              </Link>
               <Link to="/settings" onClick={() => setOpenDrawer(false)}>
                 <SettingOutlined /> Cài đặt
               </Link>
@@ -280,14 +290,9 @@ const Navbar: React.FC = () => {
               </Button>
             </div>
           ) : (
-            <>
               <Link to="/login" onClick={() => setOpenDrawer(false)}>
                 Đăng nhập
               </Link>
-              <Link to="/register" onClick={() => setOpenDrawer(false)}>
-                Đăng ký
-              </Link>
-            </>
           )}
         </div>
       </Drawer>

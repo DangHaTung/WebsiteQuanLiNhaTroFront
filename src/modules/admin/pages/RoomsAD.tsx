@@ -157,7 +157,6 @@ const RoomsAD: React.FC = () => {
       areaM2: room.areaM2,
       status: room.status,
       floor: room.floor,
-      district: room.district,
     });
     setIsModalOpen(true);
 

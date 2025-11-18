@@ -12,7 +12,7 @@ interface FinalContract {
   endDate: string;
   deposit: number;
   monthlyRent: number;
-  status: "DRAFT" | "WAITING_SIGN" | "SIGNED";
+  status: "DRAFT" | "WAITING_SIGN" | "SIGNED" | "CANCELED";
   images?: Array<{ url: string; secure_url: string; viewUrl?: string; format?: string }>;
   cccdFiles?: Array<{ url: string; secure_url: string; viewUrl?: string; format?: string }>;
   createdAt: string;
@@ -99,14 +99,29 @@ const MyContractsDetail = () => {
     }
   };
 
-  const getStatusTag = (status: string) => {
-    const statusMap: Record<string, { color: string; text: string }> = {
-      DRAFT: { color: "default", text: "Nháp" },
-      WAITING_SIGN: { color: "processing", text: "Chờ ký" },
-      SIGNED: { color: "success", text: "Đã ký" },
-    };
-    const s = statusMap[status] || { color: "default", text: status };
-    return <Tag color={s.color}>{s.text}</Tag>;
+  const getStatusTag = (status: string, record?: FinalContract) => {
+    if (status === "CANCELED") {
+      return <Tag color="error">Đã hủy</Tag>;
+    }
+    if (status === "DRAFT") {
+      return <Tag color="default">Nháp</Tag>;
+    }
+    if (status === "WAITING_SIGN") {
+      return <Tag color="processing">Chờ ký</Tag>;
+    }
+    if (status === "SIGNED" && record) {
+      const now = dayjs();
+      const startDate = dayjs(record.startDate);
+      const endDate = dayjs(record.endDate);
+      if (now.isBefore(startDate)) {
+        return <Tag color="default">Chưa hiệu lực</Tag>;
+      } else if (now.isAfter(endDate)) {
+        return <Tag color="warning">Hết hạn</Tag>;
+      } else {
+        return <Tag color="success">Hiệu lực</Tag>;
+      }
+    }
+    return <Tag color="default">{status || "N/A"}</Tag>;
   };
 
   const getBillStatusTag = (status: string) => {
@@ -152,7 +167,7 @@ const MyContractsDetail = () => {
       title: "Trạng thái",
       dataIndex: "status",
       key: "status",
-      render: (status: string) => getStatusTag(status),
+      render: (status: string, record: FinalContract) => getStatusTag(status, record),
     },
     {
       title: "Thao tác",
@@ -203,7 +218,7 @@ const MyContractsDetail = () => {
           <div>
             <Descriptions bordered column={2} size="small">
               <Descriptions.Item label="Phòng">{selectedContract.roomId?.roomNumber}</Descriptions.Item>
-              <Descriptions.Item label="Trạng thái">{getStatusTag(selectedContract.status)}</Descriptions.Item>
+              <Descriptions.Item label="Trạng thái">{getStatusTag(selectedContract.status, selectedContract)}</Descriptions.Item>
               <Descriptions.Item label="Thời gian thuê">
                 {dayjs(selectedContract.startDate).format("DD/MM/YYYY")} → {dayjs(selectedContract.endDate).format("DD/MM/YYYY")}
               </Descriptions.Item>
