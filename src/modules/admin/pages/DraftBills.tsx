@@ -10,9 +10,28 @@ import { adminBillService } from "../services/bill";
 
 const { Title, Text } = Typography;
 
+// Helper function để convert Decimal128 sang number
+const dec = (v: any): number => {
+  if (v === null || v === undefined) return 0;
+  if (typeof v === "number") return v;
+  if (typeof v === "string") return Number(v) || 0;
+  if (typeof v === "object") {
+    // MongoDB Decimal128 có thể có $numberDecimal
+    if (typeof (v as any).$numberDecimal === "string") return Number((v as any).$numberDecimal) || 0;
+    // Hoặc có method toString()
+    if (typeof (v as any).toString === "function") {
+      const s = (v as any).toString();
+      const n = Number(s);
+      if (!isNaN(n)) return n;
+    }
+  }
+  return 0;
+};
+
 interface DraftBillWithElectricity extends Bill {
   electricityKwh?: number;
   occupantCount?: number;
+  vehicleCount?: number;
 }
 
 const DraftBills: React.FC = () => {
@@ -34,12 +53,97 @@ const DraftBills: React.FC = () => {
     try {
       setLoading(true);
       const data = await adminBillService.getDrafts({ limit: 100 });
-      // Initialize với electricityKwh = 0
-      const billsWithElectricity = data.map(bill => ({
+      
+      // Load rooms để lấy số người ở (giống như quản lý phòng)
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+      const token = localStorage.getItem("admin_token");
+      
+      // Lấy tất cả rooms với số người ở (gọi nhiều lần nếu cần, limit max = 100)
+      let allRooms: any[] = [];
+      let page = 1;
+      const limit = 100; // Max limit theo validation
+      let hasMore = true;
+
+      while (hasMore) {
+        try {
+          const roomsResponse = await fetch(`${apiUrl}/api/rooms?page=${page}&limit=${limit}`, {
+            headers: {
+              "Authorization": `Bearer ${token}`,
+            },
+          });
+          
+          if (!roomsResponse.ok) {
+            const errorData = await roomsResponse.json().catch(() => ({}));
+            console.error("Failed to load rooms:", roomsResponse.status, errorData);
+            message.error(`Lỗi khi tải danh sách phòng: ${errorData.message || roomsResponse.statusText}`);
+            break;
+          }
+          
+          const roomsData = await roomsResponse.json();
+          if (!roomsData.success) {
+            console.error("Rooms API returned error:", roomsData);
+            break;
+          }
+          
+          const rooms = roomsData.data || [];
+          allRooms = [...allRooms, ...rooms];
+          
+          const pagination = roomsData.pagination;
+          hasMore = pagination && page < pagination.totalPages;
+          page++;
+        } catch (error: any) {
+          console.error("Error loading rooms:", error);
+          message.error("Lỗi khi tải danh sách phòng");
+          break;
+        }
+      }
+      
+      const rooms = allRooms;
+      
+      // Tạo map roomId -> occupantCount (theo đúng logic quản lý phòng)
+      // Normalize roomId về string để so sánh chính xác
+      const roomOccupantMap = new Map<string, number>();
+      rooms.forEach((room: any) => {
+        if (room.occupantCount !== undefined && room._id) {
+          const roomIdStr = String(room._id);
+          roomOccupantMap.set(roomIdStr, room.occupantCount);
+        }
+      });
+      
+      console.log("Room occupant map:", Array.from(roomOccupantMap.entries()));
+      console.log("Total rooms:", rooms.length);
+      
+      // Initialize với electricityKwh = 0 và lấy số người ở từ room (theo contract ACTIVE của phòng)
+      const billsWithElectricity = data.map(bill => {
+        // Lấy roomId từ contract của bill
+        const contract = bill.contractId as Contract;
+        let roomId: string | undefined;
+        
+        if (contract) {
+          // contract.roomId có thể là object (đã populate) hoặc string (chưa populate)
+          if (contract.roomId) {
+            if (typeof contract.roomId === 'object' && contract.roomId._id) {
+              roomId = String(contract.roomId._id);
+            } else if (typeof contract.roomId === 'string') {
+              roomId = contract.roomId;
+            } else if (contract.roomId._id) {
+              roomId = String(contract.roomId._id);
+            }
+          }
+        }
+        
+        // Lấy số người ở từ room (theo đúng logic quản lý phòng)
+        const occupantCount = roomId ? (roomOccupantMap.get(roomId) ?? 1) : 1;
+        
+        console.log(`Bill ${bill._id?.substring(0, 8)}: roomId=${roomId}, occupantCount=${occupantCount}, mapHasRoom=${roomId ? roomOccupantMap.has(roomId) : false}, contract=`, contract ? { hasRoomId: !!contract.roomId, roomIdType: typeof contract.roomId } : 'no contract');
+        
+        return {
         ...bill,
         electricityKwh: 0,
-        occupantCount: 1,
-      }));
+          occupantCount,
+          vehicleCount: 0, // Mặc định 0 xe, user sẽ nhập
+        };
+      });
       setDraftBills(billsWithElectricity);
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Lỗi khi tải hóa đơn nháp");
@@ -48,29 +152,170 @@ const DraftBills: React.FC = () => {
     }
   };
 
-  const handleElectricityChange = (billId: string, value: number | null) => {
-    setDraftBills(prev =>
-      prev.map(bill =>
-        bill._id === billId ? { ...bill, electricityKwh: value || 0 } : bill
-      )
-    );
+  const handleCreateDraftBills = async () => {
+    try {
+      setLoading(true);
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+      const token = localStorage.getItem("admin_token");
+      
+      const response = await fetch(`${apiUrl}/api/monthly-bills/auto-generate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({}),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        const created = data.data?.summary?.created || data.data?.created || 0;
+        message.success(`Đã tạo ${created} hóa đơn nháp thành công!`);
+        loadDraftBills();
+      } else {
+        message.error(data.message || "Lỗi khi tạo hóa đơn nháp");
+      }
+    } catch (error: any) {
+      message.error("Lỗi khi tạo hóa đơn nháp");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleOccupantChange = (billId: string, value: number | null) => {
-    setDraftBills(prev =>
-      prev.map(bill =>
-        bill._id === billId ? { ...bill, occupantCount: value || 1 } : bill
-      )
-    );
+  // Hàm auto-calculate (không hiển thị modal)
+  const autoCalculate = async (bill: DraftBillWithElectricity, electricityKwh: number, occupantCount: number, vehicleCount: number = 0) => {
+    try {
+      const contract = bill.contractId as Contract;
+      if (!contract?.roomId) return;
+
+      const roomId = typeof contract.roomId === 'string' ? contract.roomId : contract.roomId._id;
+      if (!roomId) return;
+      
+      // Debug: Log vehicleCount trước khi tính (dùng vehicleCount từ parameter, không lấy từ state)
+      console.log(`[DraftBills] autoCalculate: vehicleCount=${vehicleCount}, electricityKwh=${electricityKwh}, occupantCount=${occupantCount}`);
+      
+      const result = await roomFeeService.calculateFees(roomId, electricityKwh, occupantCount, vehicleCount);
+      
+      console.log(`[DraftBills] autoCalculate result:`, result);
+      console.log(`[DraftBills] autoCalculate breakdown:`, result.breakdown);
+
+      // Update bill với calculated amount
+      setDraftBills(prev =>
+        prev.map(b =>
+          b._id === bill._id 
+            ? { 
+                ...b, 
+                amountDue: result.total,
+                calculatedBreakdown: result.breakdown 
+              } 
+            : b
+        )
+      );
+    } catch (error) {
+      console.error("Auto-calculate error:", error);
+    }
+  };
+
+  const handleElectricityChange = async (billId: string, value: number | null) => {
+    const electricityKwh = value || 0;
+    
+    console.log(`[DraftBills] handleElectricityChange: billId=${billId}, electricityKwh=${electricityKwh}`);
+    
+    // Update state và lấy bill mới nhất
+    let updatedBill: DraftBillWithElectricity | undefined;
+    setDraftBills(prev => {
+      const updated = prev.map(bill => {
+        if (bill._id === billId) {
+          const newBill = { ...bill, electricityKwh };
+          updatedBill = newBill;
+          return newBill;
+        }
+        return bill;
+      });
+      return updated;
+    });
+    
+    // Auto-calculate luôn (kể cả khi electricityKwh = 0) để tính lại tổng tiền
+    if (updatedBill) {
+      console.log(`[DraftBills] handleElectricityChange: Calling autoCalculate with electricityKwh=${electricityKwh}, vehicleCount=${updatedBill.vehicleCount || 0}`);
+      await autoCalculate(updatedBill, electricityKwh, updatedBill.occupantCount || 1, updatedBill.vehicleCount || 0);
+    }
+  };
+
+  const handleOccupantChange = async (billId: string, value: number | null) => {
+    const occupantCount = value || 1;
+    
+    // Update state và lấy bill mới nhất
+    let updatedBill: DraftBillWithElectricity | undefined;
+    setDraftBills(prev => {
+      const updated = prev.map(bill => {
+        if (bill._id === billId) {
+          const newBill = { ...bill, occupantCount };
+          updatedBill = newBill;
+          return newBill;
+        }
+        return bill;
+      });
+      return updated;
+    });
+    
+    // Auto-calculate nếu đã có số điện (dùng bill mới nhất)
+    if (updatedBill && updatedBill.electricityKwh && updatedBill.electricityKwh > 0) {
+      await autoCalculate(updatedBill, updatedBill.electricityKwh, occupantCount, updatedBill.vehicleCount || 0);
+    }
+  };
+
+  const handleVehicleChange = async (billId: string, value: number | null) => {
+    const vehicleCount = value || 0;
+    
+    console.log(`[DraftBills] handleVehicleChange: billId=${billId}, vehicleCount=${vehicleCount}`);
+    
+    // Update state và lấy bill mới nhất từ state
+    let updatedBill: DraftBillWithElectricity | undefined;
+    setDraftBills(prev => {
+      const updated = prev.map(bill => {
+        if (bill._id === billId) {
+          const newBill = { ...bill, vehicleCount };
+          updatedBill = newBill;
+          console.log(`[DraftBills] handleVehicleChange: Updated bill, vehicleCount=${newBill.vehicleCount}, electricityKwh=${newBill.electricityKwh}`);
+          return newBill;
+        }
+        return bill;
+      });
+      return updated;
+    });
+    
+    // Auto-calculate nếu đã có số điện (truyền vehicleCount trực tiếp từ parameter)
+    if (updatedBill && updatedBill.electricityKwh !== undefined && updatedBill.electricityKwh > 0) {
+      console.log(`[DraftBills] handleVehicleChange: Calling autoCalculate with vehicleCount=${vehicleCount}`);
+      // Truyền vehicleCount trực tiếp từ parameter, không lấy từ state
+      await autoCalculate(updatedBill, updatedBill.electricityKwh, updatedBill.occupantCount || 1, vehicleCount);
+    } else {
+      console.log(`[DraftBills] handleVehicleChange: Skipping autoCalculate - electricityKwh=${updatedBill?.electricityKwh}`);
+    }
   };
 
   const handleCalculate = async (bill: DraftBillWithElectricity) => {
-    if (!bill.electricityKwh && bill.electricityKwh !== 0) {
+    // Lấy bill mới nhất từ state để đảm bảo có vehicleCount mới nhất
+    // Sử dụng functional update để đảm bảo lấy state mới nhất
+    let currentBill: DraftBillWithElectricity | undefined;
+    setDraftBills(prev => {
+      currentBill = prev.find(b => b._id === bill._id) || bill;
+      return prev; // Không thay đổi state, chỉ lấy giá trị
+    });
+    
+    // Fallback nếu không tìm thấy trong state
+    if (!currentBill) {
+      currentBill = bill;
+    }
+    
+    if (!currentBill.electricityKwh && currentBill.electricityKwh !== 0) {
       message.warning("Vui lòng nhập số điện trước");
       return;
     }
 
-    const contractId = bill.contractId;
+    const contractId = currentBill.contractId;
     if (typeof contractId !== "object" || !contractId.roomId) {
       message.error("Không tìm thấy thông tin phòng");
       return;
@@ -79,11 +324,49 @@ const DraftBills: React.FC = () => {
     const roomId = typeof contractId.roomId === "object" ? contractId.roomId._id! : contractId.roomId;
 
     try {
-      setCalculatingBill(bill._id);
-      const result = await roomFeeService.calculateFees(roomId, bill.electricityKwh, bill.occupantCount || 1);
+      setCalculatingBill(currentBill._id);
+      
+      // Debug: Log vehicleCount trước khi tính
+      const vehicleCountToSend = currentBill.vehicleCount ?? 0;
+      const electricityKwhToSend = currentBill.electricityKwh ?? 0;
+      const occupantCountToSend = currentBill.occupantCount ?? 1;
+      
+      console.log(`[DraftBills] handleCalculate: vehicleCount=${currentBill.vehicleCount}, vehicleCountToSend=${vehicleCountToSend}, electricityKwh=${electricityKwhToSend}, occupantCount=${occupantCountToSend}`);
+      console.log(`[DraftBills] handleCalculate: currentBill object:`, {
+        _id: currentBill._id,
+        vehicleCount: currentBill.vehicleCount,
+        electricityKwh: currentBill.electricityKwh,
+        occupantCount: currentBill.occupantCount,
+      });
+      console.log(`[DraftBills] handleCalculate: Calling API with:`, {
+        roomId,
+        kwh: electricityKwhToSend,
+        occupantCount: occupantCountToSend,
+        vehicleCount: vehicleCountToSend,
+      });
+      
+      const result = await roomFeeService.calculateFees(
+        roomId, 
+        electricityKwhToSend, 
+        occupantCountToSend, 
+        vehicleCountToSend
+      );
+      
+      console.log(`[DraftBills] handleCalculate result:`, result);
+      console.log(`[DraftBills] handleCalculate breakdown:`, result.breakdown);
+      
+      // Tìm parking trong breakdown để debug
+      const parkingItem = result.breakdown.find(item => item.type === 'parking');
+      if (parkingItem) {
+        console.log(`[DraftBills] handleCalculate: Parking item found:`, parkingItem);
+      } else {
+        console.log(`[DraftBills] handleCalculate: Parking item NOT found in breakdown`);
+      }
+      
       setCalculationResult(result);
       setCalculationVisible(true);
     } catch (error: any) {
+      console.error(`[DraftBills] handleCalculate error:`, error);
       message.error(error?.response?.data?.message || "Lỗi khi tính toán chi phí");
     } finally {
       setCalculatingBill(null);
@@ -101,6 +384,7 @@ const DraftBills: React.FC = () => {
       await adminBillService.publishDraft(bill._id, {
         electricityKwh: bill.electricityKwh,
         occupantCount: bill.occupantCount || 1,
+        vehicleCount: bill.vehicleCount || 0,
       });
       message.success("Phát hành hóa đơn thành công!");
       loadDraftBills();
@@ -132,6 +416,7 @@ const DraftBills: React.FC = () => {
         billId: bill._id,
         electricityKwh: bill.electricityKwh!,
         occupantCount: bill.occupantCount || 1,
+        vehicleCount: bill.vehicleCount || 0,
       }));
 
       const result = await adminBillService.publishBatch(payload);
@@ -232,16 +517,42 @@ const DraftBills: React.FC = () => {
           value={record.occupantCount}
           onChange={(value) => handleOccupantChange(record._id, value)}
           style={{ width: "100%" }}
+          disabled
+        />
+      ),
+    },
+    {
+      title: "Số xe",
+      key: "vehicle",
+      width: 120,
+      render: (_: any, record: DraftBillWithElectricity) => (
+        <InputNumber
+          min={0}
+          value={record.vehicleCount}
+          onChange={(value) => handleVehicleChange(record._id, value)}
+          placeholder="Nhập số xe"
+          style={{ width: "100%" }}
         />
       ),
     },
     {
       title: "Tiền phòng (₫)",
-      dataIndex: "amountDue",
-      key: "amountDue",
+      key: "monthlyRent",
       align: "right",
       width: 150,
-      render: (amount: number) => amount.toLocaleString("vi-VN"),
+      render: (_: any, record: DraftBillWithElectricity) => {
+        // Lấy tiền thuê phòng từ contract, không phải từ amountDue (tổng)
+        const contract = record.contractId as Contract;
+        if (!contract) {
+          return "0";
+        }
+        // Sử dụng helper function dec để xử lý Decimal128
+        // Ưu tiên lấy từ pricingSnapshot nếu có (đã được format)
+        const monthlyRent = contract.pricingSnapshot?.monthlyRent 
+          ? dec(contract.pricingSnapshot.monthlyRent)
+          : dec(contract.monthlyRent);
+        return monthlyRent.toLocaleString("vi-VN");
+      },
     },
     {
       title: "Trạng thái",
@@ -303,11 +614,21 @@ const DraftBills: React.FC = () => {
 
         {/* Alert */}
         <Alert
-          message="Hướng dẫn"
-          description="Hóa đơn nháp được tạo tự động vào ngày 5 hàng tháng. Vui lòng nhập số điện tiêu thụ cho từng phòng và phát hành để tenant có thể thanh toán."
+          //message="Hướng dẫn"
+          //description="Hóa đơn nháp được tạo tự động vào ngày 5 hàng tháng. Vui lòng nhập số điện tiêu thụ cho từng phòng và phát hành để tenant có thể thanh toán."
           type="info"
-          showIcon
+          //showIcon
           style={{ marginBottom: 24 }}
+          action={
+            <Button
+              type="primary"
+              size="small"
+              onClick={handleCreateDraftBills}
+              loading={loading}
+            >
+              🚀 Tạo draft bill ngay
+            </Button>
+          }
         />
 
         {/* Statistics */}
@@ -397,6 +718,7 @@ const DraftBills: React.FC = () => {
             <Descriptions title="Chi tiết từng khoản" column={1} bordered>
               {calculationResult.breakdown.map((item, index) => {
                 const typeNames: Record<string, string> = {
+                  rent: "Tiền phòng",
                   electricity: "⚡ Tiền điện",
                   water: "💧 Tiền nước",
                   internet: "📡 Internet",
@@ -409,6 +731,7 @@ const DraftBills: React.FC = () => {
                     <Space direction="vertical" size="small" style={{ width: "100%" }}>
                       {item.kwh !== undefined && <Text>Số điện: {item.kwh} kWh</Text>}
                       {item.occupantCount !== undefined && <Text>Số người: {item.occupantCount}</Text>}
+                      {item.vehicleCount !== undefined && <Text>Số xe: {item.vehicleCount}</Text>}
                       {item.baseRate !== undefined && <Text>Đơn giá: {item.baseRate.toLocaleString("vi-VN")} ₫</Text>}
                       {item.subtotal !== undefined && <Text>Tiền điện: {item.subtotal.toLocaleString("vi-VN")} ₫</Text>}
                       {item.vat !== undefined && <Text>VAT: {item.vat.toLocaleString("vi-VN")} ₫</Text>}

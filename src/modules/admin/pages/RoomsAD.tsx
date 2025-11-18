@@ -107,12 +107,13 @@ const RoomsAD: React.FC = () => {
         if (key !== "images") formData.append(key, (values as any)[key]);
       });
 
-      // Gửi ảnh cũ còn giữ
-      existingImages.forEach((img) => {
-        if (img.url) formData.append("existingImages", img.url); // hoặc publicId nếu backend yêu cầu
-      });
+      // Khi edit room: LUÔN gửi existingImages (kể cả khi rỗng để xóa hết ảnh)
+      if (editingRoom) {
+        const imagesToKeep = existingImages.map(img => img.url);
+        formData.append("existingImages", JSON.stringify(imagesToKeep));
+      }
 
-      // Gửi ảnh mới
+      // Gửi ảnh mới upload (backend sẽ thêm vào cuối danh sách)
       selectedFiles.forEach((file) => {
         formData.append("images", file);
       });
@@ -156,7 +157,6 @@ const RoomsAD: React.FC = () => {
       areaM2: room.areaM2,
       status: room.status,
       floor: room.floor,
-      district: room.district,
     });
     setIsModalOpen(true);
 
@@ -312,7 +312,18 @@ const RoomsAD: React.FC = () => {
       title: "Diện tích (m²)",
       dataIndex: "areaM2",
       key: "areaM2",
-      render: (area: number) => <span>{area} m²</span>,
+      render: (area: number) => <span>{area}</span>,
+    },
+    {
+      title: "Số người ở",
+      dataIndex: "occupantCount",
+      key: "occupantCount",
+      align: "center",
+      render: (count: number) => (
+        <Tag color={count > 0 ? "green" : "default"} style={{ fontWeight: 600 }}>
+          {count || 0} người
+        </Tag>
+      ),
     },
     {
       title: "Tình trạng",
@@ -585,9 +596,7 @@ const RoomsAD: React.FC = () => {
             </Col>
           </Row>
 
-          <Form.Item label="Quận" name="district">
-            <Input placeholder="VD: Quận 1" />
-          </Form.Item>
+        
 
           <Form.Item label="Ảnh phòng">
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>

@@ -103,10 +103,10 @@ const Footer: React.FC = () => {
                         </Title>
                         <Space direction="vertical" size="middle">
                             <Text style={{ display: "flex", alignItems: "center", color: "#ccc", gap: 8 }}>
-                                <EnvironmentOutlined style={{ color: "#3B82F6" }} /> 123 Nam Từ Liêm, TP. Hà Nội
+                                <EnvironmentOutlined style={{ color: "#3B82F6" }} /> 39 Ngõ 113 Yên Hoà - Cầu Giấy
                             </Text>
                             <Text style={{ display: "flex", alignItems: "center", color: "#ccc", gap: 8 }}>
-                                <PhoneOutlined style={{ color: "#3B82F6" }} /> 0123 456 789
+                                <PhoneOutlined style={{ color: "#3B82F6" }} /> 0842 346 871
                             </Text>
                             <Text style={{ display: "flex", alignItems: "center", color: "#ccc", gap: 8 }}>
                                 <MailOutlined style={{ color: "#3B82F6" }} /> tro360@example.com

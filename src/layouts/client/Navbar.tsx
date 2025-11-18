@@ -56,6 +56,21 @@ const Navbar: React.FC = () => {
       label: "Thông tin cá nhân",
     },
     {
+      key: "my-contracts",
+      icon: <UserOutlined />,
+      label: "Hợp đồng của tôi",
+    },
+    {
+      key: "invoices",
+      icon: <UserOutlined />,
+      label: "Hóa đơn của tôi",
+    },
+    {
+      key: "my-move-out-requests",
+      icon: <LogoutOutlined />,
+      label: "Yêu cầu hoàn cọc",
+    },
+    {
       key: "settings",
       icon: <SettingOutlined />,
       label: "Cài đặt",
@@ -72,6 +87,15 @@ const Navbar: React.FC = () => {
     switch (e.key) {
       case "profile":
         navigate("/profile");
+        break;
+      case "my-contracts":
+        navigate("/my-contracts");
+        break;
+      case "invoices":
+        navigate("/invoices");
+        break;
+      case "my-move-out-requests":
+        navigate("/my-move-out-requests");
         break;
       case "settings":
         navigate("/settings");
@@ -173,8 +197,6 @@ const Navbar: React.FC = () => {
               <div className="nav-user">
                 <UserOutlined />
                 <Link to="/login">Đăng nhập</Link>
-                <span>/</span>
-                <Link to="/register">Đăng ký</Link>
               </div>
             )}
 
@@ -238,6 +260,15 @@ const Navbar: React.FC = () => {
               <Link to="/profile" onClick={() => setOpenDrawer(false)}>
                 <UserSwitchOutlined /> Thông tin cá nhân
               </Link>
+              <Link to="/my-contracts" onClick={() => setOpenDrawer(false)}>
+                <UserOutlined /> Hợp đồng của tôi
+              </Link>
+              <Link to="/invoices" onClick={() => setOpenDrawer(false)}>
+                <UserOutlined /> Hóa đơn của tôi
+              </Link>
+              <Link to="/my-move-out-requests" onClick={() => setOpenDrawer(false)}>
+                <LogoutOutlined /> Yêu cầu hoàn cọc
+              </Link>
               <Link to="/settings" onClick={() => setOpenDrawer(false)}>
                 <SettingOutlined /> Cài đặt
               </Link>
@@ -259,14 +290,9 @@ const Navbar: React.FC = () => {
               </Button>
             </div>
           ) : (
-            <>
               <Link to="/login" onClick={() => setOpenDrawer(false)}>
                 Đăng nhập
               </Link>
-              <Link to="/register" onClick={() => setOpenDrawer(false)}>
-                Đăng ký
-              </Link>
-            </>
           )}
         </div>
       </Drawer>

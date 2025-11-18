@@ -75,26 +75,24 @@ const Complaint: React.FC = () => {
   }, [isLoggedIn]);
 
   const onFinish = async (values: any) => {
+    if (!isLoggedIn) {
+      message.warning("Vui lòng đăng nhập để gửi khiếu nại");
+      return;
+    }
+    
     setSubmitting(true);
     try {
-      let payload: any = {
+      const payload = {
         title: (values.title || "").trim(),
         description: (values.description || "").trim(),
+        tenantId: tenantId,
       };
-      if (isLoggedIn) payload.tenantId = tenantId;
-      else {
-        payload.tenantId = null;
-        payload.contactName = values.contactName?.trim();
-        payload.contactPhone = values.contactPhone?.trim();
-        payload.contactEmail = values.contactEmail?.trim();
-      }
+      
       await complaintService.create(payload);
       message.success("Gửi khiếu nại thành công");
       form.resetFields();
-      if (isLoggedIn) {
-        setPage(1);
-        await loadData(1, limit);
-      }
+      setPage(1);
+      await loadData(1, limit);
     } catch (err: any) {
       const firstError = err?.response?.data?.errors?.[0]?.message;
       message.error(firstError || err?.response?.data?.message || "Lỗi khi gửi khiếu nại");
@@ -127,54 +125,66 @@ const Complaint: React.FC = () => {
   return (
     <div style={{ maxWidth: 900, margin: "24px auto", padding: "0 16px" }}>
 
-      {/* Form gửi khiếu nại */}
-      <Card
-        title="Gửi khiếu nại"
-        style={{
-          marginBottom: 16,
-          borderRadius: 16,
-          boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
-        }}
-      >
-        {!isLoggedIn && (
-          <div style={{
-            background: "linear-gradient(90deg, #e6f7ff, #bae7ff)",
-            borderRadius: 8,
-            padding: "12px 16px",
+      {/* Yêu cầu đăng nhập */}
+      {!isLoggedIn ? (
+        <Card
+          title="Gửi khiếu nại"
+          style={{
             marginBottom: 16,
-            color: "#096dd9",
-          }}>
-            <strong>Lưu ý:</strong> Bạn đang gửi khiếu nại với tư cách khách hàng. Vui lòng cung cấp thông tin liên hệ để chúng tôi có thể phản hồi.
-          </div>
-        )}
-
-        <Form form={form} layout="vertical" onFinish={onFinish}>
-          {!isLoggedIn && (
-            <>
-              <Form.Item name="contactName" label="Họ và tên" rules={[{ required: true }]}>
-                <Input placeholder="Nhập họ và tên" />
-              </Form.Item>
-              <Form.Item name="contactPhone" label="Số điện thoại" rules={[{ required: true }]}>
-                <Input placeholder="Nhập số điện thoại" />
-              </Form.Item>
-              <Form.Item name="contactEmail" label="Email" rules={[{ required: true, type: "email" }]}>
-                <Input placeholder="Nhập email" />
-              </Form.Item>
-            </>
-          )}
-          <Form.Item name="title" label="Tiêu đề" rules={[{ required: true }]}>
-            <Input placeholder="Ví dụ: Hỏng vòi nước phòng 203" />
-          </Form.Item>
-          <Form.Item name="description" label="Mô tả chi tiết" rules={[{ required: true }]}>
-            <TextArea rows={4} placeholder="Mô tả vấn đề, thời gian, mức độ khẩn cấp..." />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" icon={<PlusOutlined />} loading={submitting} className="btn-animated">
-              Gửi khiếu nại
+            borderRadius: 16,
+            boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
+          }}
+        >
+          <div style={{ textAlign: "center", padding: "40px 20px" }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+            <h3 style={{ color: "#1890ff", marginBottom: 16 }}>Vui lòng đăng nhập</h3>
+            <p style={{ color: "#666", marginBottom: 24, fontSize: 16 }}>
+              Bạn cần đăng nhập để gửi khiếu nại và theo dõi trạng thái xử lý.
+            </p>
+            <Button 
+              type="primary" 
+              size="large"
+              onClick={() => window.location.href = "/login"} 
+              style={{ borderRadius: 8, height: 48, fontSize: 16 }}
+            >
+              Đăng nhập ngay
             </Button>
-          </Form.Item>
-        </Form>
-      </Card>
+          </div>
+        </Card>
+      ) : (
+        <>
+          {/* Form gửi khiếu nại */}
+          <Card
+            title="Gửi khiếu nại"
+            style={{
+              marginBottom: 16,
+              borderRadius: 16,
+              boxShadow: "0 6px 18px rgba(0,0,0,0.08)",
+            }}
+          >
+            <Form form={form} layout="vertical" onFinish={onFinish}>
+              <Form.Item name="title" label="Tiêu đề" rules={[{ required: true, message: "Vui lòng nhập tiêu đề" }]}>
+                <Input placeholder="Ví dụ: Hỏng vòi nước phòng 203" size="large" />
+              </Form.Item>
+              <Form.Item name="description" label="Mô tả chi tiết" rules={[{ required: true, message: "Vui lòng mô tả chi tiết" }]}>
+                <TextArea rows={4} placeholder="Mô tả vấn đề, thời gian, mức độ khẩn cấp..." size="large" />
+              </Form.Item>
+              <Form.Item>
+                <Button 
+                  type="primary" 
+                  htmlType="submit" 
+                  icon={<PlusOutlined />} 
+                  loading={submitting} 
+                  size="large"
+                  className="btn-animated"
+                >
+                  Gửi khiếu nại
+                </Button>
+              </Form.Item>
+            </Form>
+          </Card>
+        </>
+      )}
 
       {/* Danh sách khiếu nại */}
       {isLoggedIn && (
@@ -244,18 +254,7 @@ const Complaint: React.FC = () => {
         </Card>
       )}
 
-      {!isLoggedIn && (
-        <Card title="Thông tin bổ sung" style={{ borderRadius: 16, boxShadow: "0 6px 18px rgba(0,0,0,0.08)", marginTop: 16 }}>
-          <div style={{ textAlign: "center", padding: "20px" }}>
-            <p style={{ color: "#666", marginBottom: 16 }}>
-              Để theo dõi trạng thái khiếu nại và quản lý lịch sử khiếu nại, vui lòng đăng nhập vào tài khoản của bạn.
-            </p>
-            <Button type="primary" onClick={() => window.location.href = "/login"} style={{ borderRadius: 8 }}>
-              Đăng nhập ngay
-            </Button>
-          </div>
-        </Card>
-      )}
+
     </div>
   );
 };

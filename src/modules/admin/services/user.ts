@@ -106,6 +106,25 @@ export const adminUserService = {
   async remove(id: string): Promise<void> {
     await api.delete(`/users/${id}`);
   },
+
+  async searchTenants(keyword?: string): Promise<User[]> {
+    const params: any = { role: "TENANT", limit: 100 };
+    if (keyword) {
+      params.keyword = keyword;
+    }
+    
+    const { data } = await api.get("/users", { params });
+    const users: any[] = data?.data || [];
+    
+    return users.map((u) => ({
+      _id: u._id || u.id,
+      fullName: u.fullName || u.username,
+      email: u.email,
+      phone: u.phone,
+      role: u.role,
+      createdAt: u.createdAt,
+    }));
+  },
 };
 
 

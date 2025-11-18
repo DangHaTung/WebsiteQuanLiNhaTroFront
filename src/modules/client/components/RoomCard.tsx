@@ -62,8 +62,8 @@ const RoomCard: React.FC<Props> = ({ room }) => {
       className="room-card"
       cover={
         <img
-          alt={`Phòng ${room.roomNumber}`}
-          src={room.image}
+          alt={`Phòng ${room.roomNumber || 'N/A'}`}
+          src={room.image || 'https://via.placeholder.com/300x180?text=No+Image'}
           style={{
             height: 180,
             objectFit: "cover",
@@ -91,9 +91,9 @@ const RoomCard: React.FC<Props> = ({ room }) => {
         </Tag>
       </div>
 
-      {/* Loại & vị trí */}
+      {/* Loại */}
       <div style={{ fontSize: 14, color: "#555", marginBottom: 4 }}>
-        {getTypeText(room.type)} • {room.district}
+        {getTypeText(room.type || 'SINGLE')}
       </div>
 
       {/* Diện tích & tầng */}
@@ -105,10 +105,10 @@ const RoomCard: React.FC<Props> = ({ room }) => {
         }}
       >
         <span>
-          <FullscreenOutlined /> {room.areaM2}m²
+          <FullscreenOutlined /> {room.areaM2 || 0}m²
         </span>
         <span>
-          <HomeOutlined /> Tầng {room.floor}
+          <HomeOutlined /> Tầng {room.floor || 1}
         </span>
       </Space>
 
@@ -121,7 +121,7 @@ const RoomCard: React.FC<Props> = ({ room }) => {
           marginBottom: 10,
         }}
       >
-        {new Intl.NumberFormat('vi-VN').format(room.pricePerMonth)}₫
+        {new Intl.NumberFormat('vi-VN').format(room.pricePerMonth || 0)}₫
       </div>
 
       {/* Nút hành động - phòng bảo trì không thể xem chi tiết */}

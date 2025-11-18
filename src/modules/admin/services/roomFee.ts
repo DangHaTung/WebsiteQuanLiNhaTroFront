@@ -17,6 +17,7 @@ export interface FeeCalculation {
     kwh?: number;
     baseRate?: number;
     occupantCount?: number;
+    vehicleCount?: number;
     subtotal?: number;
     vat?: number;
     total: number;
@@ -47,8 +48,11 @@ export const roomFeeService = {
     return res.data.data;
   },
 
-  async calculateFees(roomId: string, kwh: number, occupantCount: number): Promise<FeeCalculation> {
-    const res = await api.post<FeeCalculationResponse>(`/rooms/${roomId}/fees/calculate`, { kwh, occupantCount });
+  async calculateFees(roomId: string, kwh: number, occupantCount: number, vehicleCount: number = 0): Promise<FeeCalculation> {
+    const payload = { kwh, occupantCount, vehicleCount };
+    console.log(`[roomFeeService] calculateFees: payload=`, payload);
+    const res = await api.post<FeeCalculationResponse>(`/rooms/${roomId}/fees/calculate`, payload);
+    console.log(`[roomFeeService] calculateFees: response=`, res.data);
     return res.data.data;
   },
 };

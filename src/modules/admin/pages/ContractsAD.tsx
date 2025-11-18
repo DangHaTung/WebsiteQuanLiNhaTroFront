@@ -1,556 +1,272 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Button, DatePicker, Form, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message, Row, Col, Statistic, Card } from "antd";
-import { PlusOutlined, EditOutlined, DeleteOutlined, FileDoneOutlined } from "@ant-design/icons";
-import type { ColumnsType } from "antd/es/table";
-import type { Contract } from "../../../types/contract";
-import type { Tenant } from "../../../types/tenant";
-import type { Room } from "../../../types/room";
-import dayjs, { Dayjs } from "dayjs";
-import { adminContractService } from "../services/contract";
-import { adminTenantService } from "../services/tenant";
-import { adminRoomService } from "../services/room";
-import ContractDetailDrawer from "../components/ContractDetailDrawer";
-import "../../../assets/styles/roomAd.css";
-import { isAdmin } from "../../../utils/roleChecker";
-import ExpandableSearch from "../components/ExpandableSearch";
+import React, { useState, useEffect } from "react";
+import { Table, Card, Tag, Button, Space, message, Modal, Descriptions } from "antd";
+import { UserAddOutlined, EyeOutlined, TeamOutlined } from "@ant-design/icons";
+import dayjs from "dayjs";
+import AddCoTenantModal from "../components/AddCoTenantModal";
 
-const { Title } = Typography;
-const { Option } = Select;
+interface CoTenant {
+  userId?: string;
+  fullName: string;
+  phone: string;
+  email?: string;
+  joinedAt: string;
+}
 
-interface ContractFormValues {
-  tenantId: string;
-  roomId: string;
-  startDate: Dayjs;
-  endDate: Dayjs;
+interface Contract {
+  _id: string;
+  tenantId?: string | {
+    _id: string;
+    fullName: string;
+    phone: string;
+    email: string;
+  };
+  tenantSnapshot?: {
+    fullName?: string;
+    phone?: string;
+    email?: string;
+    identityNo?: string;
+    note?: string;
+  };
+  roomId?: string | {
+    _id: string;
+    roomNumber: string;
+    pricePerMonth: number;
+  };
+  startDate: string;
+  endDate: string;
   deposit: number;
   monthlyRent: number;
   status: "ACTIVE" | "ENDED" | "CANCELED";
+  coTenants?: CoTenant[];
+  createdAt: string;
 }
 
 const ContractsAD: React.FC = () => {
   const [contracts, setContracts] = useState<Contract[]>([]);
-  const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [editing, setEditing] = useState<Contract | null>(null);
-  const [form] = Form.useForm<ContractFormValues>();
-  const [statusFilter, setStatusFilter] = useState<string | "ALL">("ALL");
-  const [keyword, setKeyword] = useState<string>("");
-
-  // Drawer detail
-  const [detailVisible, setDetailVisible] = useState(false);
-  const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
-
-  // State để theo dõi đã load tenants và rooms chưa
-  const [hasLoadedTenants, setHasLoadedTenants] = useState<boolean>(false);
-  const [hasLoadedRooms, setHasLoadedRooms] = useState<boolean>(false);
+  const [loading, setLoading] = useState(false);
+  const [addCoTenantVisible, setAddCoTenantVisible] = useState(false);
+  const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
 
   useEffect(() => {
     loadContracts();
   }, []);
 
-  // Chỉ load contracts ban đầu
   const loadContracts = async () => {
     try {
       setLoading(true);
-      const contractsData = await adminContractService.getAll({ limit: 50 });
-      setContracts(contractsData);
+      
+      // Import service
+      const { adminContractService } = await import("../services/contract");
+      
+      console.log("🔍 Loading contracts...");
+      const data = await adminContractService.getAll({ status: "ACTIVE", limit: 100 });
+      
+      console.log("✅ Loaded contracts:", data.length);
+      setContracts(data);
     } catch (error: any) {
-      message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu hợp đồng");
+      console.error("❌ Error loading contracts:", error);
+      message.error(error?.response?.data?.message || error.message || "Lỗi khi tải danh sách hợp đồng");
     } finally {
       setLoading(false);
     }
   };
 
-  // Load tenants chỉ khi cần (khi mở modal)
-  const loadTenantsIfNeeded = async () => {
-    if (!hasLoadedTenants) {
-      try {
-        const tenantsData = await adminTenantService.getAll({ limit: 50 });
-        setTenants(tenantsData);
-        setHasLoadedTenants(true);
-      } catch (error: any) {
-        message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu người thuê");
-      }
-    }
+  const handleAddCoTenant = (contract: Contract) => {
+    setSelectedContract(contract);
+    setAddCoTenantVisible(true);
   };
 
-  // Load rooms chỉ khi cần (khi mở modal)
-  const loadRoomsIfNeeded = async () => {
-    if (!hasLoadedRooms) {
-      try {
-        const roomsData = await adminRoomService.getAll();
-        setRooms(roomsData);
-        setHasLoadedRooms(true);
-      } catch (error: any) {
-        message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu phòng");
-      }
-    }
-  };
-
-  const openModal = async (record?: Contract) => {
-    // Chỉ load tenants và rooms khi mở modal
-    await Promise.all([loadTenantsIfNeeded(), loadRoomsIfNeeded()]);
-
-    if (record) {
-      setEditing(record);
-      const tenantId = typeof record.tenantId === "string" ? record.tenantId : record.tenantId?._id;
-      const roomId = typeof record.roomId === "string" ? record.roomId : record.roomId?._id;
-      form.setFieldsValue({
-        tenantId,
-        roomId,
-        startDate: dayjs(record.startDate),
-        endDate: dayjs(record.endDate),
-        deposit: typeof record.deposit === 'number' ? record.deposit : Number(record.deposit ?? 0),
-        monthlyRent: typeof record.monthlyRent === 'number' ? record.monthlyRent : Number(record.monthlyRent ?? 0),
-        status: record.status as any,
-      });
-    } else {
-      setEditing(null);
-      form.resetFields();
-      form.setFieldsValue({ status: "ACTIVE" } as any);
-    }
-    setIsModalOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsModalOpen(false);
-    setEditing(null);
-  };
-
-  const handleSave = async () => {
-    try {
-      const values = await form.validateFields();
-      const payload: Partial<Contract> = {
-        tenantId: values.tenantId,
-        roomId: values.roomId,
-        startDate: values.startDate.toISOString(),
-        endDate: values.endDate.toISOString(),
-        deposit: values.deposit ?? 0,
-        monthlyRent: values.monthlyRent ?? 0,
-        status: values.status,
-      };
-
-      if (editing) {
-        await adminContractService.update(editing._id, payload);
-        message.success("Cập nhật hợp đồng thành công!");
-      } else {
-        await adminContractService.create(payload);
-        message.success("Thêm phiếu thu thành công!");
-      }
-      closeModal();
-      loadContracts();
-    } catch (error: any) {
-      message.error(error?.response?.data?.message || "Có lỗi xảy ra");
-    }
-  };
-
-  const handleDelete = async (id: string) => {
-    try {
-      await adminContractService.remove(id);
-      message.success("Đã xóa hợp đồng!");
-      loadContracts();
-    } catch (error: any) {
-      message.error(error?.response?.data?.message || "Lỗi khi xóa hợp đồng");
-    }
-  };
-
-  const getTenantName = (tenantId: string | Tenant): string => {
-    if (tenantId === null || tenantId === undefined) {
-      return "N/A";
-    }
-
-    if (typeof tenantId === "object" && tenantId?.fullName) {
-      return tenantId.fullName;
-    }
-
-    // Nếu backend đã populate tenant data trong contract, không cần tìm trong tenants list
-    const contract = contracts.find(c =>
-      (typeof c.tenantId === 'object' && c.tenantId?._id === tenantId) ||
-      (typeof c.tenantId === 'string' && c.tenantId === tenantId)
-    );
-
-    if (contract && typeof contract.tenantId === 'object') {
-      return contract.tenantId.fullName || "N/A";
-    }
-
-    const tenant = tenants.find((t) => t._id === tenantId);
-    return tenant?.fullName || (typeof tenantId === "string" ? tenantId : "N/A");
-  };
-
-  const getRoomNumber = (roomId: string | Room): string => {
-    if (typeof roomId === "object" && roomId?.roomNumber) {
-      return roomId.roomNumber;
-    }
-
-    // Nếu backend đã populate room data trong contract, không cần tìm trong rooms list
-    const contract = contracts.find(c =>
-      (typeof c.roomId === 'object' && c.roomId?._id === roomId) ||
-      (typeof c.roomId === 'string' && c.roomId === roomId)
-    );
-
-    if (contract && typeof contract.roomId === 'object') {
-      return contract.roomId.roomNumber || "N/A";
-    }
-
-    const room = rooms.find((r) => r._id === roomId);
-    return room?.roomNumber || (typeof roomId === "string" ? roomId : "N/A");
-  };
-
-  const filteredContracts = useMemo(() => {
-    let data = [...contracts];
-
-    // Filter theo trạng thái
-    if (statusFilter && statusFilter !== "ALL") {
-      data = data.filter((c) => c.status === statusFilter);
-    }
-
-    // Filter theo từ khóa (mã hợp đồng, tên người thuê, số phòng)
-    if (keyword.trim() !== "") {
-      const k = keyword.toLowerCase();
-      data = data.filter((c) => {
-        const tenantName = getTenantName(c.tenantId).toLowerCase();
-        const roomNumber = getRoomNumber(c.roomId).toLowerCase();
-        const contractId = c._id.toLowerCase();
-        return tenantName.includes(k) || roomNumber.includes(k) || contractId.includes(k);
-      });
-    }
-
-    return data;
-  }, [contracts, statusFilter, keyword]);
-
-  const activeCount = useMemo(() => contracts.filter((c) => c.status === "ACTIVE").length, [contracts]);
-  const endedCount = useMemo(() => contracts.filter((c) => c.status === "ENDED").length, [contracts]);
-  const canceledCount = useMemo(() => contracts.filter((c) => c.status === "CANCELED").length, [contracts]);
-
-  const openDetail = (contract: Contract) => {
-    setSelectedContractId(contract._id);
-    setDetailVisible(true);
-  };
-
-  const closeDetail = () => {
-    setDetailVisible(false);
-    setSelectedContractId(null);
-  };
-
-  const columns: ColumnsType<Contract> = [
-    {
-      title: "Mã hợp đồng",
-      dataIndex: "_id",
-      key: "_id",
-      width: 160,
-      render: (v: string, record: Contract) => (
-        <b style={{ cursor: "pointer" }} onClick={() => openDetail(record)}>
-          {v.substring(0, 8)}...
-        </b>
+  const handleViewDetail = (contract: Contract) => {
+    Modal.info({
+      title: `Chi tiết hợp đồng - Phòng ${contract.roomId.roomNumber}`,
+      width: 700,
+      content: (
+        <div style={{ marginTop: 16 }}>
+          <Descriptions column={1} bordered size="small">
+            <Descriptions.Item label="Người thuê chính">
+              {typeof contract.tenantId === "object" && contract.tenantId?.fullName 
+                ? contract.tenantId.fullName 
+                : contract.tenantSnapshot?.fullName || "N/A"}
+              <br />
+              <small style={{ color: "#666" }}>
+                {typeof contract.tenantId === "object" && contract.tenantId?.phone ? contract.tenantId.phone : (contract.tenantSnapshot?.phone || "N/A")}
+                {((typeof contract.tenantId === "object" && contract.tenantId?.email) || contract.tenantSnapshot?.email) && 
+                  ` | ${(typeof contract.tenantId === "object" && contract.tenantId?.email) || contract.tenantSnapshot?.email}`}
+              </small>
+            </Descriptions.Item>
+            <Descriptions.Item label="Phòng">
+              {typeof contract.roomId === "object" && contract.roomId?.roomNumber 
+                ? `${contract.roomId.roomNumber} - ${(contract.roomId.pricePerMonth || 0).toLocaleString("vi-VN")} đ/tháng`
+                : "N/A"}
+            </Descriptions.Item>
+            <Descriptions.Item label="Thời hạn">
+              {dayjs(contract.startDate).format("DD/MM/YYYY")} - {dayjs(contract.endDate).format("DD/MM/YYYY")}
+            </Descriptions.Item>
+            <Descriptions.Item label="Tiền cọc">
+              {contract.deposit.toLocaleString("vi-VN")} đ
+            </Descriptions.Item>
+            <Descriptions.Item label="Tiền phòng/tháng">
+              {contract.monthlyRent.toLocaleString("vi-VN")} đ
+            </Descriptions.Item>
+            <Descriptions.Item label="Người ở cùng">
+              {contract.coTenants && contract.coTenants.length > 0 ? (
+                <div>
+                  {contract.coTenants.map((ct, idx) => (
+                    <div key={idx} style={{ marginBottom: 8 }}>
+                      <strong>{ct.fullName}</strong>
+                      <br />
+                      <small style={{ color: "#666" }}>
+                        {ct.phone} {ct.email && `| ${ct.email}`}
+                        <br />
+                        Tham gia: {dayjs(ct.joinedAt).format("DD/MM/YYYY")}
+                      </small>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <span style={{ color: "#999" }}>Chưa có</span>
+              )}
+            </Descriptions.Item>
+          </Descriptions>
+        </div>
       ),
-    },
-    {
-      title: "Người thuê",
-      dataIndex: "tenantId",
-      key: "tenantId",
-      render: (v: string | Tenant) => (
-        <span style={{ whiteSpace: "normal", wordBreak: "break-word" }}>{getTenantName(v)}</span>
-      ),
-    },
+    });
+  };
+
+  const getStatusTag = (status: string) => {
+    const map: Record<string, { color: string; text: string }> = {
+      ACTIVE: { color: "success", text: "Đang hoạt động" },
+      ENDED: { color: "default", text: "Đã kết thúc" },
+      CANCELED: { color: "error", text: "Đã hủy" },
+    };
+    const m = map[status] || { color: "default", text: status };
+    return <Tag color={m.color}>{m.text}</Tag>;
+  };
+
+  const columns = [
     {
       title: "Phòng",
-      dataIndex: "roomId",
-      key: "roomId",
-      render: (v: string | Room) => (
-        <span style={{ whiteSpace: "normal", wordBreak: "break-word" }}>{getRoomNumber(v)}</span>
+      dataIndex: ["roomId", "roomNumber"],
+      key: "room",
+      render: (roomNumber: string) => <strong>{roomNumber}</strong>,
+    },
+    {
+      title: "Người thuê chính",
+      key: "tenant",
+      render: (_: any, record: Contract) => {
+        // Lấy tên từ tenantId (nếu được populate) hoặc tenantSnapshot
+        const tenantId = typeof record.tenantId === "object" ? record.tenantId : null;
+        const tenantName = tenantId?.fullName || record.tenantSnapshot?.fullName || "N/A";
+        const tenantPhone = tenantId?.phone || record.tenantSnapshot?.phone;
+        
+        return (
+          <div>
+            <div>{tenantName}</div>
+            {tenantPhone && (
+              <small style={{ color: "#666" }}>{tenantPhone}</small>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      title: "Người ở cùng",
+      dataIndex: "coTenants",
+      key: "coTenants",
+      render: (coTenants: CoTenant[]) => (
+        <div>
+          {coTenants && coTenants.length > 0 ? (
+            <Tag icon={<TeamOutlined />} color="blue">
+              {coTenants.length} người
+            </Tag>
+          ) : (
+            <span style={{ color: "#999" }}>Chưa có</span>
+          )}
+        </div>
       ),
     },
     {
-      title: "Bắt đầu",
-      dataIndex: "startDate",
-      key: "startDate",
-      render: (v: string) => dayjs(v).format("DD/MM/YYYY"),
+      title: "Thời hạn",
+      key: "duration",
+      render: (_: any, record: Contract) => (
+        <div>
+          <div>{dayjs(record.startDate).format("DD/MM/YYYY")}</div>
+          <small style={{ color: "#666" }}>đến {dayjs(record.endDate).format("DD/MM/YYYY")}</small>
+        </div>
+      ),
     },
     {
-      title: "Kết thúc",
-      dataIndex: "endDate",
-      key: "endDate",
-      render: (v: string) => dayjs(v).format("DD/MM/YYYY"),
-    },
-    {
-      title: "Cọc (VNĐ)",
-      dataIndex: "deposit",
-      key: "deposit",
-      align: "right",
-      render: (v: any) => {
-        if (typeof v === 'number' && !isNaN(v)) {
-          return v.toLocaleString("vi-VN");
-        }
-        return "0";
-      },
-    },
-    {
-      title: "Tiền thuê (VNĐ)",
+      title: "Tiền phòng",
       dataIndex: "monthlyRent",
-      key: "monthlyRent",
-      align: "right",
-      render: (v: any) => {
-        if (typeof v === 'number' && !isNaN(v)) {
-          return v.toLocaleString("vi-VN");
-        }
-        return "0";
-      },
+      key: "rent",
+      align: "right" as const,
+      render: (rent: number) => <strong>{rent.toLocaleString("vi-VN")} đ</strong>,
     },
     {
       title: "Trạng thái",
       dataIndex: "status",
       key: "status",
-      align: "center",
-      filters: [
-        { text: "Đang hiệu lực", value: "ACTIVE" },
-        { text: "Đã kết thúc", value: "ENDED" },
-        { text: "Đã hủy", value: "CANCELED" },
-      ],
-      onFilter: (val, record) => record.status === val,
-      render: (s: Contract["status"]) => {
-        const map: Record<string, { color: string; text: string }> = {
-          ACTIVE: { color: "#52c41a", text: "Đang hiệu lực" },
-          ENDED: { color: "#8c8c8c", text: "Đã kết thúc" },
-          CANCELED: { color: "#f5222d", text: "Đã hủy" },
-        };
-        const m = map[s] || { color: "#1890ff", text: s };
-        return (
-          <Tag
-            style={{
-              fontWeight: 600,
-              borderRadius: 12,
-              color: "#fff",
-              backgroundColor: m.color,
-              boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-              transition: "all 0.3s",
-            }}
-          >
-            {m.text}
-          </Tag>
-        );
-      },
+      render: (status: string) => getStatusTag(status),
     },
     {
-      title: "",
+      title: "Hành động",
       key: "actions",
-      align: "center",
-      width: 120,
       render: (_: any, record: Contract) => (
         <Space>
-          <Tooltip title="Sửa">
-            <Button
-              shape="circle"
-              type="primary"
-              icon={<EditOutlined />}
-              className="btn-hover"
-              onClick={(e) => { e.stopPropagation(); openModal(record); }}
-            />
-          </Tooltip>
-          {isAdmin() && (
-            <Tooltip title="Xóa">
-              <Popconfirm title="Xóa hợp đồng này?" okText="Xóa" cancelText="Hủy" onConfirm={() => handleDelete(record._id)}>
-                <Button shape="circle" type="primary" danger icon={<DeleteOutlined />} className="btn-hover" onClick={(e) => e.stopPropagation()} />
-              </Popconfirm>
-            </Tooltip>
-          )}
+          <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
+            Chi tiết
+          </Button>
+          <Button
+            type="primary"
+            icon={<UserAddOutlined />}
+            onClick={() => handleAddCoTenant(record)}
+            size="small"
+          >
+            Thêm người ở cùng
+          </Button>
         </Space>
       ),
     },
   ];
 
   return (
-    <div style={{ padding: 24, minHeight: "100vh" }}>
-      <div style={{ background: "#fff", padding: 24, borderRadius: 16, boxShadow: "0 8px 24px rgba(0,0,0,0.08)" }}>
-        {/* Header */}
-        <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
-          <Col>
-            <Title level={3} style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-              <FileTextOutlined style={{ color: "#1890ff", fontSize: 28 }} /> Quản lý phiếu thu
-            </Title>
-          </Col>
-          <Col>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              size="large"
-              onClick={() => openModal()}
-              className="btn-hover-gradient"
-            >
-              Thêm phiếu thu
-            </Button>
-          </Col>
-        </Row>
+    <div style={{ padding: 24 }}>
+      <Card>
+        <div style={{ marginBottom: 16 }}>
+          <h2 style={{ margin: 0 }}>Quản lý người ở cùng</h2>
+          <p style={{ color: "#666", marginTop: 8 }}>
+            Danh sách các hợp đồng đang hoạt động. Bạn có thể thêm người ở cùng phòng cho mỗi hợp đồng.
+          </p>
+        </div>
 
-        {/* Statistic */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-          <Col span={24}>
-            <Row gutter={[16, 16]} align="middle" justify="space-between">
-              {/* Search box */}
-              <Col xs={24} sm={12} md={8}>
-                <ExpandableSearch
-                  value={keyword}
-                  onChange={(e) => setKeyword(e.target.value)}
-                  placeholder="Tìm người thuê, phòng, mã hợp đồng..."
-                />
-              </Col>
-
-              {/* Thẻ thống kê trạng thái hợp đồng */}
-              <Col xs={24} sm={24} md={16}>
-                <Row gutter={[16, 16]} justify="end">
-                  {[
-                    { title: "Đang hiệu lực", color: "#52c41a", value: activeCount },
-                    { title: "Đã kết thúc", color: "#8c8c8c", value: endedCount },
-                    { title: "Đã hủy", color: "#ff4d4f", value: canceledCount },
-                  ].map((item, idx) => (
-                    <Col xs={24} sm={12} md={7} key={idx}>
-                      <Card
-                        size="small"
-                        bordered={false}
-                        style={{
-                          textAlign: "center",
-                          borderRadius: 16,
-                          background: "white",
-                          boxShadow: "0 3px 10px rgba(0,0,0,0.06)",
-                          padding: 12,
-                        }}
-                      >
-                        <FileDoneOutlined
-                          style={{ fontSize: 24, color: item.color, marginBottom: 4 }}
-                        />
-                        <Statistic
-                          title={item.title}
-                          value={item.value}
-                          valueStyle={{ color: item.color, fontWeight: 600, fontSize: 18 }}
-                        />
-                      </Card>
-                    </Col>
-                  ))}
-                </Row>
-              </Col>
-            </Row>
-          </Col>
-
-        </Row>
-
-        {/* Table */}
-        <Table<Contract>
+        <Table
           columns={columns}
-          dataSource={filteredContracts}
-          rowKey={(r) => r._id}
+          dataSource={contracts}
+          rowKey="_id"
           loading={loading}
-          pagination={{ pageSize: 8, showSizeChanger: true, pageSizeOptions: [5, 8, 10, 20] }}
-          size="middle"
-          onRow={(record) => ({
-            onClick: () => openDetail(record),
-          })}
+          pagination={{ pageSize: 10 }}
+          locale={{
+            emptyText: "Chưa có hợp đồng nào đang hoạt động",
+          }}
         />
-      </div>
+      </Card>
 
-      {/* Modal (Add/Edit) */}
-      <Modal
-        title={editing ? "Chỉnh sửa phiếu thu" : "Thêm phiếu thu"}
-        open={isModalOpen}
-        onCancel={closeModal}
-        onOk={handleSave}
-        okText="Lưu"
-        cancelText="Hủy"
-        width={640}
-        centered
-        okButtonProps={{ style: { background: "#1890ff", borderColor: "#1890ff" } }}
-      >
-        <Form<ContractFormValues> form={form} layout="vertical">
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item label="Người thuê" name="tenantId" rules={[{ required: true, message: "Chọn người thuê" }]}>
-                <Select
-                  showSearch
-                  placeholder="Chọn người thuê"
-                  optionFilterProp="children"
-                  filterOption={(input, option: any) => {
-                    const children = option?.children;
-                    if (children && typeof children === 'string') {
-                      return children.toLowerCase().includes(input.toLowerCase());
-                    }
-                    return false;
-                  }}
-                >
-                  {tenants.map((tenant) => (
-                    <Option key={tenant._id} value={tenant._id}>
-                      {tenant.fullName} {tenant.email ? `- ${tenant.email}` : ""}
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item label="Phòng" name="roomId" rules={[{ required: true, message: "Chọn phòng" }]}>
-                <Select
-                  showSearch
-                  placeholder="Chọn phòng"
-                  onChange={(roomId) => {
-                    const room = rooms.find(r => r._id === roomId);
-                    if (room && room.pricePerMonth) {
-                      form.setFieldValue('monthlyRent', Number(room.pricePerMonth));
-                    }
-                  }}
-                  optionFilterProp="children"
-                  filterOption={(input, option: any) => {
-                    const children = option?.children;
-                    if (children && typeof children === 'string') {
-                      return children.toLowerCase().includes(input.toLowerCase());
-                    }
-                    return false;
-                  }}
-                >
-                  {rooms.map((room) => (
-                    <Option key={room._id} value={room._id}>
-                      {room.roomNumber} - {room.type} - {Number(room.pricePerMonth || 0).toLocaleString("vi-VN")}₫
-                    </Option>
-                  ))}
-                </Select>
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item label="Ngày bắt đầu" name="startDate" rules={[{ required: true, message: "Chọn ngày bắt đầu" }]}>
-                <DatePicker style={{ width: "100%" }} format="DD/MM/YYYY" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item label="Ngày kết thúc" name="endDate" rules={[{ required: true, message: "Chọn ngày kết thúc" }]}>
-                <DatePicker style={{ width: "100%" }} format="DD/MM/YYYY" />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item label="Tiền cọc (VNĐ)" name="deposit" rules={[{ required: true, message: "Nhập tiền cọc" }]}>
-                <InputNumber min={0} style={{ width: "100%" }} />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item label="Tiền thuê/tháng (VNĐ)" name="monthlyRent" rules={[{ required: true, message: "Nhập tiền thuê" }]}>
-                <InputNumber min={0} style={{ width: "100%" }} />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item label="Trạng thái" name="status" initialValue="ACTIVE" rules={[{ required: true }]}>
-                <Select>
-                  <Option value="ACTIVE">Đang hiệu lực</Option>
-                  <Option value="ENDED">Đã kết thúc</Option>
-                  <Option value="CANCELED">Đã hủy</Option>
-                </Select>
-              </Form.Item>
-            </Col>
-          </Row>
-        </Form>
-      </Modal>
-
-      {/* Drawer: Detail view */}
-      <ContractDetailDrawer
-        open={detailVisible}
-        onClose={closeDetail}
-        contractId={selectedContractId}
-      />
+      {selectedContract && (
+        <AddCoTenantModal
+          visible={addCoTenantVisible}
+          onCancel={() => {
+            setAddCoTenantVisible(false);
+            setSelectedContract(null);
+          }}
+          onSuccess={() => {
+            setAddCoTenantVisible(false);
+            setSelectedContract(null);
+            loadContracts();
+          }}
+          contractId={selectedContract._id}
+          roomNumber={selectedContract.roomId.roomNumber}
+        />
+      )}
     </div>
   );
 };

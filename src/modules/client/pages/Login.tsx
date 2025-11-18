@@ -10,6 +10,9 @@ const { Title, Text } = Typography;
 const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  
+  // Kiểm tra xem có phải từ admin route không
+  const fromAdmin = new URLSearchParams(window.location.search).get("from") === "admin";
 
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true);
@@ -19,8 +22,20 @@ const Login: React.FC = () => {
         password: values.password,
       });
 
-      // Save token and user
-      clientAuthService.saveAuthData(res.token, res.user);
+      // Save token and user based on role
+      const role = res.user.role;
+      
+      if (role === "ADMIN" || role === "STAFF") {
+        // Admin/Staff: lưu vào admin_token và admin_currentUser
+        localStorage.setItem("admin_token", res.token);
+        localStorage.setItem("admin_currentUser", JSON.stringify(res.user));
+        // Cũng lưu vào token để có thể dùng chung
+        localStorage.setItem("token", res.token);
+        localStorage.setItem("currentUser", JSON.stringify(res.user));
+      } else {
+        // User: lưu vào token và currentUser
+        clientAuthService.saveAuthData(res.token, res.user);
+      }
 
       const displayName = res.user.username || res.user.fullName || res.user.email;
       message.success(res.message || `Đăng nhập thành công! Chào mừng, ${displayName}!`);
@@ -31,11 +46,16 @@ const Login: React.FC = () => {
       }));
 
       // Role-based redirect
-      const role = res.user.role;
-      if (role === "ADMIN") {
+      if (role === "ADMIN" || role === "STAFF") {
         navigate("/admin/dashboard");
       } else {
-        navigate("/");
+        // Kiểm tra xem có redirect từ admin route không
+        const from = new URLSearchParams(window.location.search).get("from");
+        if (from === "admin") {
+          navigate("/admin/dashboard");
+        } else {
+          navigate("/");
+        }
       }
     } catch (err: any) {
       message.error(
@@ -60,17 +80,10 @@ const Login: React.FC = () => {
 
       {/* --- Cột trái --- */}
       <div className="login-left">
-        <img
-          src="https://cdn3d.iconscout.com/3d/premium/thumb/website-login-3d-illustration-download-in-png-blend-fbx-gltf-file-formats--login-signup-signin-user-interface-web-pack-network-illustrations-3022528.png"
-          alt="illustration"
-          className="login-illustration"
-        />
         <Title className="login-title" level={2}>
           Giải pháp quản lý phòng trọ thông minh
         </Title>
-        <Text className="login-subtitle">
-          Quản lý – Kết nối – Tối ưu vận hành 💡
-        </Text>
+      
       </div>
 
       {/* --- Cột phải --- */}
@@ -78,9 +91,11 @@ const Login: React.FC = () => {
         <Card className="login-card">
           <div className="login-card-header">
             <Title level={2} className="login-heading">
-              Đăng nhập
+              {fromAdmin ? "Đăng nhập Admin" : "Đăng nhập"}
             </Title>
-            <Text type="secondary">Chào mừng bạn quay lại 👋</Text>
+            <Text type="secondary">
+              {fromAdmin ? "Truy cập khu vực quản trị Tro360" : "Chào mừng bạn quay lại"}
+            </Text>
           </div>
 
           <Form
@@ -113,12 +128,6 @@ const Login: React.FC = () => {
               />
             </Form.Item>
 
-            <div style={{ textAlign: "right", marginBottom: 10 }}>
-              <a href="/forgot-password" className="forgot-link">
-                Quên mật khẩu?
-              </a>
-            </div>
-
             <Form.Item>
               <Button
                 type="primary"
@@ -133,19 +142,6 @@ const Login: React.FC = () => {
               </Button>
             </Form.Item>
           </Form>
-
-          <div style={{ textAlign: "center", marginTop: 10 }}>
-            <Text>
-              Chưa có tài khoản?{" "}
-              <Button
-                type="link"
-                onClick={() => navigate("/register")}
-                style={{ padding: 0, fontWeight: 600 }}
-              >
-                Đăng ký
-              </Button>
-            </Text>
-          </div>
         </Card>
       </div>
     </div>

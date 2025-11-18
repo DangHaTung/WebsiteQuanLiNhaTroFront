@@ -85,7 +85,7 @@ const RoomFeesModal: React.FC<RoomFeesModalProps> = ({ visible, room, onClose, o
         <Space direction="vertical" style={{ width: "100%" }} size="large">
           <Alert
             message="Cấu hình tiện ích phòng"
-            description="Chọn các tiện ích cơ bản của phòng (điện, nước, internet). Các phí dịch vụ khác (dọn dẹp, đỗ xe) sẽ được cấu hình khi tạo hợp đồng."
+            description="Chọn các tiện ích và phí dịch vụ áp dụng cho phòng này. Các phí được chọn sẽ tự động tính vào hóa đơn hàng tháng."
             type="info"
             showIcon
           />
@@ -125,15 +125,25 @@ const RoomFeesModal: React.FC<RoomFeesModalProps> = ({ visible, room, onClose, o
               </Space>
             </Checkbox>
 
-            <Divider />
+            <Checkbox
+              checked={selectedTypes.includes("cleaning")}
+              onChange={(e) => handleCheckboxChange("cleaning", e.target.checked)}
+            >
+              <Space>
+                <Text strong>🧹 Phí dọn dẹp</Text>
+                <Text type="secondary">(Phí cố định hàng tháng)</Text>
+              </Space>
+            </Checkbox>
 
-            <Alert
-              message="Lưu ý"
-              description="Phí dọn dẹp và phí đỗ xe sẽ được cấu hình khi tạo hợp đồng (tùy thuộc vào từng người thuê)."
-              type="info"
-              showIcon
-              style={{ marginTop: 8 }}
-            />
+            <Checkbox
+              checked={selectedTypes.includes("parking")}
+              onChange={(e) => handleCheckboxChange("parking", e.target.checked)}
+            >
+              <Space>
+                <Text strong>🚗 Phí đỗ xe</Text>
+                <Text type="secondary">(Phí cố định hàng tháng)</Text>
+              </Space>
+            </Checkbox>
           </Space>
 
           <Divider />

@@ -45,12 +45,12 @@ export const adminBillService = {
     return res.data.data;
   },
 
-  async publishDraft(id: string, payload: { electricityKwh: number; waterM3?: number; occupantCount?: number }): Promise<Bill> {
+  async publishDraft(id: string, payload: { electricityKwh: number; waterM3?: number; occupantCount?: number; vehicleCount?: number }): Promise<Bill> {
     const res = await api.put<SingleBillResponse>(`/bills/${id}/publish`, payload);
     return res.data.data;
   },
 
-  async publishBatch(bills: Array<{ billId: string; electricityKwh: number; occupantCount?: number }>): Promise<any> {
+  async publishBatch(bills: Array<{ billId: string; electricityKwh: number; occupantCount?: number; vehicleCount?: number }>): Promise<any> {
     const res = await api.post("/bills/publish-batch", { bills });
     return res.data;
   },
@@ -58,6 +58,21 @@ export const adminBillService = {
   async remove(id: string): Promise<{ message: string }> {
     const res = await api.delete(`/bills/${id}`);
     return res.data;
+  },
+
+  async confirmCashPayment(id: string): Promise<Bill> {
+    const res = await api.post<SingleBillResponse>(`/bills/${id}/confirm-cash`, {});
+    return res.data.data;
+  },
+
+  async confirmPayment(id: string): Promise<Bill> {
+    const res = await api.post<SingleBillResponse>(`/bills/${id}/confirm-payment`, {});
+    return res.data.data;
+  },
+
+  async getByContractId(contractId: string): Promise<Bill[]> {
+    const res = await api.get<BillResponse>(`/bills?contractId=${contractId}`);
+    return res.data.data;
   },
 };
 
@@ -72,5 +87,9 @@ export const tenantBillService = {
     const res = await api.get<BillResponse>("/public/bills/my-bills", { params });
     return res.data.data;
   },
-};
 
+  async getByFinalContractId(finalContractId: string): Promise<Bill[]> {
+    const res = await api.get<BillResponse>(`/bills/final-contract/${finalContractId}`);
+    return res.data.data;
+  },
+};

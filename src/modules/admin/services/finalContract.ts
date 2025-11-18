@@ -26,7 +26,7 @@ export interface FinalContract {
     deposit: number;
   };
   terms?: string;
-  status: "DRAFT" | "WAITING_SIGN" | "SIGNED";
+  status: "DRAFT" | "WAITING_SIGN" | "SIGNED" | "CANCELED";
   images?: FileInfo[];
   cccdFiles?: FileInfo[];
   tenantSignedAt?: string;
@@ -116,6 +116,11 @@ export const adminFinalContractService = {
 
   async getRemainingAmount(id: string): Promise<{ remaining: number }> {
     const res = await api.get<{ success: boolean; data: { remaining: number } }>(`/final-contracts/${id}/remaining`);
+    return res.data.data;
+  },
+
+  async cancel(id: string): Promise<FinalContract> {
+    const res = await api.put<SingleFinalContractResponse>(`/final-contracts/${id}/cancel`);
     return res.data.data;
   },
 };

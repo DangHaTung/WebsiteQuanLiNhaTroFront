@@ -8,26 +8,52 @@ import { Navigate } from "react-router-dom";
 import { adminAuthService } from "../modules/admin/services/auth";
 import BillsAD from "../modules/admin/pages/BillsAD";
 import Users from "../modules/admin/pages/Users";
-import ContractsAD from "../modules/admin/pages/ContractsAD";
+
 import Complaints from "../modules/admin/pages/Complaints";
 import FinalContracts from "../modules/admin/pages/FinalContracts";
 import DraftBills from "../modules/admin/pages/DraftBills";
 import UtilityFees from "../modules/admin/pages/UtilityFees";
+import CheckinsAD from "../modules/admin/pages/CheckinsAD";
+import MoveOutRequestsAD from "../modules/admin/pages/MoveOutRequestsAD";
+import ContractsAD from "../modules/admin/pages/ContractsAD";
 
 const RequireAdmin = ({ children }: { children: React.ReactElement }) => {
-  const user = adminAuthService.getCurrentUser();
+  // Kiểm tra cả admin_token và token (vì có thể đăng nhập từ form chung)
+  const adminUser = adminAuthService.getCurrentUser();
+  const clientUser = (() => {
+    const raw = localStorage.getItem("currentUser");
+    return raw ? JSON.parse(raw) : null;
+  })();
+  
+  const user = adminUser || clientUser;
+  const hasToken = !!localStorage.getItem("admin_token") || !!localStorage.getItem("token");
 
-  if (!user) {
-    return <Navigate to="/admin/login" replace />;
+  if (!user || !hasToken) {
+    // Redirect về form login chung với query param để biết là từ admin
+    return <Navigate to="/login?from=admin" replace />;
   }
+
+  // Nếu user không phải ADMIN hoặc STAFF, không cho vào
+  if (user.role !== "ADMIN" && user.role !== "STAFF") {
+    return <Navigate to="/" replace />;
+  }
+
   return children;
 };
 
 const RequireAdminOnly = ({ children }: { children: React.ReactElement }) => {
-  const user = adminAuthService.getCurrentUser();
+  // Kiểm tra cả admin_token và token (vì có thể đăng nhập từ form chung)
+  const adminUser = adminAuthService.getCurrentUser();
+  const clientUser = (() => {
+    const raw = localStorage.getItem("currentUser");
+    return raw ? JSON.parse(raw) : null;
+  })();
+  
+  const user = adminUser || clientUser;
+  const hasToken = !!localStorage.getItem("admin_token") || !!localStorage.getItem("token");
 
-  if (!user) {
-    return <Navigate to="/admin/login" replace />;
+  if (!user || !hasToken) {
+    return <Navigate to="/login?from=admin" replace />;
   }
 
   if (user.role !== "ADMIN") {
@@ -37,7 +63,8 @@ const RequireAdminOnly = ({ children }: { children: React.ReactElement }) => {
 };
 
 const adminRoutes = [
-  { path: "login", element: <AdminLogin /> },
+  // Redirect admin login về form login chung
+  { path: "login", element: <Navigate to="/login?from=admin" replace /> },
   { path: "register", element: <AdminRegister /> },
 
   { path: "dashboard", element: <RequireAdmin><Dashboard /></RequireAdmin> },
@@ -46,6 +73,9 @@ const adminRoutes = [
   { path: "draft-bills", element: <RequireAdmin><DraftBills /></RequireAdmin> },
   { path: "utility-fees", element: <RequireAdmin><UtilityFees /></RequireAdmin> },
   { path: "final-contracts", element: <RequireAdmin><FinalContracts /></RequireAdmin> },
+
+  { path: "checkins", element: <RequireAdmin><CheckinsAD /></RequireAdmin> },
+  { path: "move-out-requests", element: <RequireAdmin><MoveOutRequestsAD /></RequireAdmin> },
   { path: "contracts", element: <RequireAdmin><ContractsAD /></RequireAdmin> },
   { path: "roomsad", element: <RequireAdmin><RoomsAD /></RequireAdmin> },
   { path: "complaints", element: <RequireAdmin><Complaints /></RequireAdmin> },

@@ -32,9 +32,10 @@ const Rooms: React.FC = () => {
       try {
         setLoading(true);
         const data = await getAllRooms();
-        setRooms(data);
+        console.log("✅ Loaded rooms:", data);
+        setRooms(data || []);
 
-        if (data.length > 0) {
+        if (data && data.length > 0) {
           const prices = data.map((r) => r.pricePerMonth);
           const min = Math.min(...prices);
           const max = Math.max(...prices);
@@ -42,9 +43,11 @@ const Rooms: React.FC = () => {
           setMaxPrice(max);
           setPriceRange([min, max]);
         }
-      } catch (error) {
-        console.error("Lỗi khi tải phòng:", error);
-        message.error("Không thể tải danh sách phòng!");
+      } catch (error: any) {
+        console.error("❌ Lỗi khi tải phòng:", error);
+        console.error("Error details:", error.response?.data || error.message);
+        message.error(error.response?.data?.message || "Không thể tải danh sách phòng!");
+        setRooms([]); // Set empty array để tránh crash
       } finally {
         setLoading(false);
       }
@@ -53,12 +56,15 @@ const Rooms: React.FC = () => {
     fetchRooms();
   }, []);
 
-  const normalize = (str: string) => str
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // bỏ dấu
-    .replace(/\s+/g, "") // bỏ tất cả khoảng trắng
-    .trim(); // loại bỏ khoảng trắng đầu cuối
+  const normalize = (str: string | undefined | null) => {
+    if (!str) return "";
+    return String(str)
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // bỏ dấu
+      .replace(/\s+/g, "") // bỏ tất cả khoảng trắng
+      .trim(); // loại bỏ khoảng trắng đầu cuối
+  };
 
   const filteredRooms = useMemo(() => {
     const normalizedQuery = normalize(query);
@@ -69,8 +75,7 @@ const Rooms: React.FC = () => {
       const matchStatus = selectedRoomStatus ? room.status === selectedRoomStatus : true;
 
       const roomText = [
-        room.roomNumber,
-        room.district,
+        room.roomNumber?.toString() || "",
         room.type === "SINGLE" ? "phong don" :
           room.type === "DOUBLE" ? "phong doi" :
             room.type === "DORM" ? "phong dorm" : "phong khac",
@@ -80,7 +85,7 @@ const Rooms: React.FC = () => {
       if (normalizedQuery) {
         // Nếu query là số, check roomNumber bắt đầu bằng query
         if (!isNaN(Number(normalizedQuery))) {
-          matchQuery = room.roomNumber.toString().startsWith(normalizedQuery);
+          matchQuery = (room.roomNumber?.toString() || "").startsWith(normalizedQuery);
         } else {
           // Nếu query là chữ, search trong roomText
           matchQuery = roomText.includes(normalizedQuery);

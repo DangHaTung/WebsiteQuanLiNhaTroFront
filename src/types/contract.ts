@@ -17,6 +17,31 @@ export interface Contract {
     monthlyRent?: number; // converted from Decimal128
     deposit?: number; // converted from Decimal128
   };
+  tenantSnapshot?: {
+    fullName?: string;
+    phone?: string;
+    email?: string;
+    identityNo?: string;
+    note?: string;
+  };
+  depositRefunded?: boolean;
+  depositRefund?: {
+    amount?: number;
+    refundedAt?: string;
+    method?: string;
+    transactionId?: string;
+    note?: string;
+  };
+  coTenants?: Array<{
+    userId?: string;
+    fullName: string;
+    phone: string;
+    email?: string;
+    identityNo?: string;
+    joinedAt: string;
+    leftAt?: string;
+    finalContractId?: string;
+  }>;
   createdAt?: string;
   updatedAt?: string;
 }

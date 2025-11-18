@@ -1,8 +1,7 @@
 import api from "./api";
 import type { Contract } from "../../../types/contract";
 
-interface ContractResponse {
-  message: string;
+interface ContractsResponse {
   success: boolean;
   data: Contract[];
   pagination?: {
@@ -14,14 +13,13 @@ interface ContractResponse {
 }
 
 interface SingleContractResponse {
-  message: string;
   success: boolean;
   data: Contract;
 }
 
 export const adminContractService = {
-  async getAll(params?: { page?: number; limit?: number }): Promise<Contract[]> {
-    const res = await api.get<ContractResponse>("/contracts", { params });
+  async getAll(params?: { page?: number; limit?: number; status?: string }): Promise<Contract[]> {
+    const res = await api.get<ContractsResponse>("/contracts", { params });
     return res.data.data;
   },
 
@@ -30,19 +28,34 @@ export const adminContractService = {
     return res.data.data;
   },
 
-  async create(payload: Partial<Contract>): Promise<Contract> {
-    const res = await api.post<SingleContractResponse>("/contracts", payload);
+  async create(data: Partial<Contract>): Promise<Contract> {
+    const res = await api.post<SingleContractResponse>("/contracts", data);
     return res.data.data;
   },
 
-  async update(id: string, payload: Partial<Contract>): Promise<Contract> {
-    const res = await api.put<SingleContractResponse>(`/contracts/${id}`, payload);
+  async update(id: string, data: Partial<Contract>): Promise<Contract> {
+    const res = await api.put<SingleContractResponse>(`/contracts/${id}`, data);
     return res.data.data;
   },
 
-  async remove(id: string): Promise<{ message: string }> {
-    const res = await api.delete(`/contracts/${id}`);
-    return res.data;
+  async delete(id: string): Promise<void> {
+    await api.delete(`/contracts/${id}`);
+  },
+
+  async refundDeposit(id: string, data: {
+    electricityKwh?: number;
+    waterM3?: number;
+    occupantCount?: number;
+    vehicleCount?: number;
+    damageAmount?: number;
+    damageNote?: string;
+    method: string;
+    transactionId?: string;
+    note?: string;
+  }): Promise<Contract> {
+    const res = await api.post<SingleContractResponse>(`/contracts/${id}/refund-deposit`, data);
+    return res.data.data;
   },
 };
 
+export default adminContractService;
