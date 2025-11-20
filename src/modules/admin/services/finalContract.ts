@@ -28,7 +28,6 @@ export interface FinalContract {
   terms?: string;
   status: "DRAFT" | "WAITING_SIGN" | "SIGNED" | "CANCELED";
   images?: FileInfo[];
-  cccdFiles?: FileInfo[];
   tenantSignedAt?: string;
   ownerApprovedAt?: string;
   finalizedAt?: string;
@@ -91,16 +90,7 @@ export const adminFinalContractService = {
     return res.data.data;
   },
 
-  async uploadCCCD(id: string, files: File[]): Promise<FinalContract> {
-    const formData = new FormData();
-    files.forEach((file) => formData.append("files", file));
-    const res = await api.post<SingleFinalContractResponse>(`/final-contracts/${id}/upload-cccd`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-    return res.data.data;
-  },
-
-  async deleteFile(id: string, type: "images" | "cccdFiles", index: number): Promise<void> {
+  async deleteFile(id: string, type: "images", index: number): Promise<void> {
     await api.delete(`/final-contracts/${id}/files/${type}/${index}`);
   },
 

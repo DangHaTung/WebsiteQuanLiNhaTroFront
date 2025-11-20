@@ -61,7 +61,6 @@ interface FinalContract {
   terms?: string;
   status: "DRAFT" | "WAITING_SIGN" | "SIGNED" | "CANCELED";
   images?: FileInfo[];
-  cccdFiles?: FileInfo[];
   tenantSignedAt?: string;
   ownerApprovedAt?: string;
   finalizedAt?: string;
@@ -77,7 +76,6 @@ const FinalContracts = () => {
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
   const [selectedContract, setSelectedContract] = useState<FinalContract | null>(null);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
-  const [cccdModalVisible, setCccdModalVisible] = useState(false);
   const [viewModalVisible, setViewModalVisible] = useState(false);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [contractBills, setContractBills] = useState<any[]>([]);
@@ -101,7 +99,7 @@ const FinalContracts = () => {
   const [pdfViewerVisible, setPdfViewerVisible] = useState(false);
   const [pdfViewerUrl, setPdfViewerUrl] = useState<string>("");
 
-  const handleViewFile = async (file: FileInfo, type: "images" | "cccdFiles", index: number) => {
+  const handleViewFile = async (file: FileInfo, type: "images", index: number) => {
     const isPdf = file.resource_type === "raw" || 
                   file.format === "pdf" || 
                   file.secure_url?.includes(".pdf") || 
@@ -112,7 +110,7 @@ const FinalContracts = () => {
         // Fetch PDF với Authorization header
         const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
         const token = localStorage.getItem("admin_token");
-        const typeParam = type === "cccdFiles" ? "cccd" : "contract";
+        const typeParam = "contract";
         
         const response = await fetch(`${apiUrl}/api/final-contracts/${selectedContract._id}/view/${typeParam}/${index}`, {
           headers: {
@@ -284,25 +282,46 @@ const FinalContracts = () => {
         try {
           const token = localStorage.getItem("admin_token");
           const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
-          const response = await fetch(`${apiUrl}/api/bills?contractId=${contractId}`, {
+          const response = await fetch(`${apiUrl}/api/bills?contractId=${contractId}&limit=100`, {
             headers: {
               "Authorization": `Bearer ${token}`,
             },
           });
           const data = await response.json();
           console.log("Bills API response:", data);
+          console.log("Sample bill data:", data.data?.[0]);
           
           const bills = data.data || [];
-          // Lọc chỉ lấy bill CONTRACT (tháng đầu) chưa thanh toán
-          const contractBills = bills.filter(
-            (bill: any) => bill.billType === "CONTRACT" && bill.status !== "PAID"
-          );
-          console.log("Unpaid CONTRACT bills:", contractBills);
-          setContractBills(contractBills);
+          // Debug: Log để kiểm tra amountDue và amountPaid
+          bills.forEach((bill: any, idx: number) => {
+            console.log(`Bill ${idx}:`, {
+              billType: bill.billType,
+              status: bill.status,
+              amountDue: bill.amountDue,
+              amountDueType: typeof bill.amountDue,
+              amountPaid: bill.amountPaid,
+              amountPaidType: typeof bill.amountPaid,
+            });
+          });
+          // Hiển thị tất cả bills của contract (CONTRACT, MONTHLY, RECEIPT)
+          // Ưu tiên hiển thị bills chưa thanh toán trước
+          const sortedBills = bills.sort((a: any, b: any) => {
+            // Chưa thanh toán trước
+            if (a.status !== "PAID" && b.status === "PAID") return -1;
+            if (a.status === "PAID" && b.status !== "PAID") return 1;
+            // Sau đó sort theo ngày tạo (mới nhất trước)
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          });
+          console.log("All bills for contract:", sortedBills);
+          setContractBills(sortedBills);
         } catch (err) {
           console.error("Load bills error:", err);
+          message.error("Lỗi khi tải danh sách hóa đơn");
           setContractBills([]);
         }
+      } else {
+        console.warn("No contractId found in final contract");
+        setContractBills([]);
       }
     } catch (error: any) {
       console.error("Load contract details error:", error);
@@ -325,17 +344,20 @@ const FinalContracts = () => {
           try {
             const token = localStorage.getItem("admin_token");
             const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
-            const response = await fetch(`${apiUrl}/api/bills?contractId=${contractId}`, {
+            const response = await fetch(`${apiUrl}/api/bills?contractId=${contractId}&limit=100`, {
               headers: {
                 "Authorization": `Bearer ${token}`,
               },
             });
             const data = await response.json();
             const bills = data.data || [];
-            const contractBills = bills.filter(
-              (bill: any) => bill.billType === "CONTRACT" && bill.status !== "PAID"
-            );
-            setContractBills(contractBills);
+            // Hiển thị tất cả bills, sort theo status và ngày
+            const sortedBills = bills.sort((a: any, b: any) => {
+              if (a.status !== "PAID" && b.status === "PAID") return -1;
+              if (a.status === "PAID" && b.status !== "PAID") return 1;
+              return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+            });
+            setContractBills(sortedBills);
           } catch (err) {
             console.error("Reload bills error:", err);
           }
@@ -563,25 +585,8 @@ const FinalContracts = () => {
     }
   };
 
-  const handleUploadCCCD = async () => {
-    if (!selectedContract || fileList.length === 0) {
-      message.warning("Vui lòng chọn file CCCD để upload");
-      return;
-    }
 
-    try {
-      const files = fileList.map((f) => f.originFileObj as File);
-      await adminFinalContractService.uploadCCCD(selectedContract._id, files);
-      message.success("Upload CCCD thành công");
-      setCccdModalVisible(false);
-      setFileList([]);
-      fetchContracts(pagination.current, pagination.pageSize);
-    } catch (error: any) {
-      message.error(error.response?.data?.message || "Lỗi khi upload CCCD");
-    }
-  };
-
-  const handleDeleteFile = async (contractId: string, type: "images" | "cccdFiles", index: number) => {
+  const handleDeleteFile = async (contractId: string, type: "images", index: number) => {
     try {
       await adminFinalContractService.deleteFile(contractId, type, index);
       message.success("Xóa file thành công");
@@ -787,27 +792,6 @@ const FinalContracts = () => {
           multiple
         >
           <Button icon={<UploadOutlined />}>Chọn file (ảnh hoặc PDF)</Button>
-        </Upload>
-      </Modal>
-
-      {/* Upload CCCD Modal */}
-      <Modal
-        title="Upload CCCD"
-        open={cccdModalVisible}
-        onOk={handleUploadCCCD}
-        onCancel={() => {
-          setCccdModalVisible(false);
-          setFileList([]);
-        }}
-      >
-        <Upload
-          fileList={fileList}
-          onChange={({ fileList }) => setFileList(fileList)}
-          beforeUpload={() => false}
-          accept="image/*,.pdf"
-          multiple
-        >
-          <Button icon={<UploadOutlined />}>Chọn file CCCD (ảnh hoặc PDF)</Button>
         </Upload>
       </Modal>
 
@@ -1107,12 +1091,32 @@ const FinalContracts = () => {
                   {
                     title: "Số tiền",
                     dataIndex: "amountDue",
-                    render: (val: number) => `${val?.toLocaleString("vi-VN")} đ`,
-                  },
-                  {
-                    title: "Đã thanh toán",
-                    dataIndex: "amountPaid",
-                    render: (val: number) => `${val?.toLocaleString("vi-VN")} đ`,
+                    align: "right" as const,
+                    render: (val: any, record: any) => {
+                      // Convert Decimal128 hoặc number sang number
+                      const convertToNumber = (value: any): number => {
+                        if (typeof value === 'number' && !isNaN(value)) {
+                          return value;
+                        } else if (typeof value === 'string') {
+                          return parseFloat(value) || 0;
+                        } else if (value && typeof value.toString === 'function') {
+                          return parseFloat(value.toString()) || 0;
+                        }
+                        return 0;
+                      };
+                      
+                      const amountDue = convertToNumber(record.amountDue);
+                      const amountPaid = convertToNumber(record.amountPaid);
+                      
+                      // Hiển thị số tiền ban đầu của hóa đơn (tổng số tiền cần thanh toán ban đầu)
+                      // Khi PAID: amountDue = 0, amountPaid = số tiền ban đầu
+                      // Khi UNPAID: amountDue = số tiền ban đầu, amountPaid = 0
+                      // Khi PARTIALLY_PAID: amountDue = số tiền còn lại, amountPaid = số tiền đã trả
+                      // => Tổng ban đầu = amountDue + amountPaid
+                      const totalAmount = amountDue + amountPaid;
+                      
+                      return <strong style={{ color: "#1890ff", fontSize: 16 }}>{totalAmount.toLocaleString("vi-VN")} đ</strong>;
+                    },
                   },
                   {
                     title: "Trạng thái",
@@ -1132,8 +1136,30 @@ const FinalContracts = () => {
                     title: "Thao tác",
                     key: "action",
                     width: 200,
+                    align: "center" as const,
                     render: (_: any, record: any) => {
-                      if (record.status === "PENDING_CASH_CONFIRM" || record.status === "UNPAID") {
+                      if (record.status === "PENDING_CASH_CONFIRM" || record.status === "UNPAID" || record.status === "PARTIALLY_PAID") {
+                        // Convert amountDue để tính số tiền còn lại
+                        let amountDue = 0;
+                        if (typeof record.amountDue === 'number') {
+                          amountDue = record.amountDue;
+                        } else if (typeof record.amountDue === 'string') {
+                          amountDue = parseFloat(record.amountDue) || 0;
+                        } else if (record.amountDue && typeof record.amountDue.toString === 'function') {
+                          amountDue = parseFloat(record.amountDue.toString()) || 0;
+                        }
+                        
+                        let amountPaid = 0;
+                        if (typeof record.amountPaid === 'number') {
+                          amountPaid = record.amountPaid;
+                        } else if (typeof record.amountPaid === 'string') {
+                          amountPaid = parseFloat(record.amountPaid) || 0;
+                        } else if (record.amountPaid && typeof record.amountPaid.toString === 'function') {
+                          amountPaid = parseFloat(record.amountPaid.toString()) || 0;
+                        }
+                        
+                        const remaining = Math.max(amountDue - amountPaid, 0);
+                        
                         return (
                           <Space>
                             <Popconfirm
@@ -1149,14 +1175,14 @@ const FinalContracts = () => {
                             <Button 
                               size="small" 
                               type="default" 
-                              onClick={() => handleOnlinePayment(record._id, record.amountDue)}
+                              onClick={() => handleOnlinePayment(record._id, remaining)}
                             >
                               Online
                             </Button>
                           </Space>
                         );
                       }
-                      return <Tag color="success">Đã thanh toán</Tag>;
+                      return null; // Không hiển thị gì khi đã thanh toán
                     },
                   },
                 ]}
@@ -1213,53 +1239,6 @@ const FinalContracts = () => {
               <p style={{ color: "#999", textAlign: "center" }}>Chưa có file hợp đồng</p>
             )}
 
-            <Divider orientation="left">Files CCCD ({selectedContract.cccdFiles?.length || 0})</Divider>
-            {selectedContract.cccdFiles && selectedContract.cccdFiles.length > 0 ? (
-              <Space wrap direction="vertical" style={{ width: "100%" }}>
-                {selectedContract.cccdFiles.map((file, idx) => {
-                  const isPdf = file.resource_type === "raw" || 
-                                file.format === "pdf" || 
-                                file.secure_url?.includes(".pdf") || 
-                                file.secure_url?.includes("/raw/");
-                  
-                  return (
-                    <Card key={idx} size="small" style={{ width: "100%" }}>
-                      <Space style={{ width: "100%", justifyContent: "space-between" }}>
-                        <Space>
-                          {isPdf ? (
-                            <>
-                              <FilePdfOutlined style={{ fontSize: 24, color: "#52c41a" }} />
-                              <span>CCCD PDF {idx + 1}</span>
-                            </>
-                          ) : (
-                            <>
-                              <Image src={file.secure_url} width={60} height={60} style={{ objectFit: "cover" }} />
-                              <span>CCCD {idx + 1}</span>
-                            </>
-                          )}
-                        </Space>
-                        <Space>
-                          <Button
-                            type="primary"
-                            icon={<EyeOutlined />}
-                            onClick={() => handleViewFile(file, "cccdFiles", idx)}
-                          >
-                            Xem
-                          </Button>
-                          <Popconfirm title="Xóa file này?" onConfirm={() => handleDeleteFile(selectedContract._id, "cccdFiles", idx)}>
-                            <Button danger icon={<DeleteOutlined />}>
-                              Xóa
-                            </Button>
-                          </Popconfirm>
-                        </Space>
-                      </Space>
-                    </Card>
-                  );
-                })}
-              </Space>
-            ) : (
-              <p style={{ color: "#999", textAlign: "center" }}>Chưa có file CCCD</p>
-            )}
           </div>
         )}
       </Modal>

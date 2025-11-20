@@ -74,6 +74,11 @@ export const adminBillService = {
     const res = await api.get<BillResponse>(`/bills?contractId=${contractId}`);
     return res.data.data;
   },
+
+  async generatePaymentLink(billId: string, email?: string): Promise<{ paymentUrl: string; token: string; expiresAt: string; emailSent: boolean; recipientEmail: string }> {
+    const res = await api.post(`/bills/${billId}/generate-payment-link`, email ? { email } : {});
+    return res.data.data;
+  },
 };
 
 // Tenant bill service
