@@ -29,6 +29,7 @@ import {
   DeleteOutlined,
   DollarOutlined,
   CheckOutlined,
+  SendOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import dayjs, { Dayjs } from "dayjs";
@@ -52,6 +53,7 @@ interface CheckinFormValues {
   paymentMethod: "cash" | "online";
   fullName: string;
   phone: string;
+  email?: string;
   identityNo?: string;
   address?: string;
   tenantNote?: string;
@@ -64,6 +66,9 @@ const CheckinsAD: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [form] = Form.useForm<CheckinFormValues>();
+  const [emailModalVisible, setEmailModalVisible] = useState<boolean>(false);
+  const [emailForm] = Form.useForm();
+  const [pendingBillId, setPendingBillId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | "ALL">("ALL");
   const [keyword, setKeyword] = useState<string>("");
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
@@ -169,6 +174,7 @@ const CheckinsAD: React.FC = () => {
         notes: values.notes,
         fullName: values.fullName,
         phone: values.phone,
+        email: values.email,
         identityNo: values.identityNo,
         address: values.address,
         tenantNote: values.tenantNote,
@@ -226,121 +232,47 @@ const CheckinsAD: React.FC = () => {
     }
   };
 
-  const handleOnlinePayment = async (billId: string, amount: number) => {
-    const createPayment = async (provider: "vnpay" | "momo" | "zalopay") => {
-      try {
-        const token = localStorage.getItem("admin_token");
-        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
-        
-        const endpoint = provider === "zalopay" 
-          ? `${apiUrl}/api/payment/zalopay/create`
-          : `${apiUrl}/api/payment/${provider}/create`;
-
-        console.log(`[${provider.toUpperCase()}] Calling endpoint:`, endpoint);
-        console.log(`[${provider.toUpperCase()}] Request body:`, { billId, amount });
-
-        const response = await fetch(endpoint, {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({ 
-            billId, 
-            amount,
-            returnUrl: `${window.location.origin}/admin/checkins`
-          }),
-        });
-        
-        console.log(`[${provider.toUpperCase()}] Response status:`, response.status);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`[${provider.toUpperCase()}] Error response:`, errorText);
-          throw new Error(`HTTP ${response.status}: ${errorText}`);
-        }
-        
-        const data = await response.json();
-        
-        console.log(`[${provider.toUpperCase()}] Response data:`, data);
-
-        let paymentUrl = null;
-        if (provider === "vnpay") {
-          paymentUrl = data.url || data.paymentUrl;
-        } else if (provider === "momo") {
-          paymentUrl = data.payUrl || data.data?.payUrl;
-        } else if (provider === "zalopay") {
-          // ZaloPay có thể trả về order_url trong nhiều nơi
-          paymentUrl = data.payUrl || data.zaloData?.order_url || data.order_url;
-          console.log("[ZALOPAY] Extracted paymentUrl:", paymentUrl);
-          console.log("[ZALOPAY] data.payUrl:", data.payUrl);
-          console.log("[ZALOPAY] data.zaloData:", data.zaloData);
-        }
-
-        if (paymentUrl) {
-          console.log(`[${provider.toUpperCase()}] Opening URL:`, paymentUrl);
-          window.open(paymentUrl, "_blank");
-          message.success(`Đã mở cổng thanh toán ${provider.toUpperCase()}`);
-        } else {
-          console.error("Payment error - No payment URL found:", data);
-          message.error(data.message || data.error || "Lỗi tạo link thanh toán");
-        }
-      } catch (error: any) {
-        message.error("Lỗi kết nối payment gateway");
+  const handleSendPaymentLink = async (billId: string, tenantEmail?: string) => {
+    try {
+      const result = await adminBillService.generatePaymentLink(billId, tenantEmail);
+      message.success(
+        `Đã gửi link thanh toán đến email ${result.recipientEmail}! Link: ${result.paymentUrl}`,
+        10
+      );
+      
+      // Copy link to clipboard
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(result.paymentUrl);
+        message.info("Đã copy link vào clipboard");
       }
-    };
+      
+      // Close email modal if open
+      if (emailModalVisible) {
+        setEmailModalVisible(false);
+        emailForm.resetFields();
+        setPendingBillId(null);
+      }
+    } catch (error: any) {
+      const errorData = error?.response?.data;
+      // Nếu server yêu cầu email, hiển thị modal nhập email
+      if (errorData?.requiresEmail) {
+        setPendingBillId(billId);
+        setEmailModalVisible(true);
+      } else {
+        message.error(errorData?.message || "Lỗi khi gửi link thanh toán");
+      }
+    }
+  };
 
-    Modal.info({
-      title: "Chọn phương thức thanh toán online",
-      width: 500,
-      content: (
-        <div style={{ marginTop: 16 }}>
-          <p style={{ fontSize: 16, marginBottom: 16 }}>
-            Số tiền: <strong style={{ color: "#1890ff" }}>{amount.toLocaleString("vi-VN")} đ</strong>
-          </p>
-          <Space direction="vertical" style={{ width: "100%" }}>
-            <Button 
-              type="primary" 
-              block 
-              size="large"
-              onClick={() => {
-                Modal.destroyAll();
-                createPayment("vnpay");
-              }}
-              style={{ backgroundColor: "#1890ff" }}
-            >
-              💳 VNPAY
-            </Button>
-            <Button 
-              type="primary" 
-              block 
-              size="large"
-              onClick={() => {
-                Modal.destroyAll();
-                createPayment("momo");
-              }}
-              style={{ backgroundColor: "#a50064" }}
-            >
-              🟣 MOMO
-            </Button>
-            <Button 
-              type="primary" 
-              block 
-              size="large"
-              onClick={() => {
-                Modal.destroyAll();
-                createPayment("zalopay");
-              }}
-              style={{ backgroundColor: "#0068ff" }}
-            >
-              💙 ZaloPay
-            </Button>
-          </Space>
-        </div>
-      ),
-      okText: "Đóng",
-      onOk: () => Modal.destroyAll(),
-    });
+  const handleSubmitEmail = async () => {
+    try {
+      const values = await emailForm.validateFields();
+      if (pendingBillId && values.email) {
+        await handleSendPaymentLink(pendingBillId, values.email);
+      }
+    } catch (error) {
+      // Validation error, do nothing
+    }
   };
 
   const handleComplete = async (id: string) => {
@@ -565,14 +497,14 @@ const CheckinsAD: React.FC = () => {
       title: "Thao tác",
       key: "actions",
       align: "center",
-      width: 220,
+      width: 200,
       render: (_: any, record: Checkin) => {
         const receiptBill = typeof record.receiptBillId === "object" ? record.receiptBillId : null;
         const isPendingCash = receiptBill && (receiptBill as any).status === "PENDING_CASH_CONFIRM";
         const isPaid = receiptBill && (receiptBill as any).status === "PAID";
 
         return (
-          <Space wrap>
+          <Space size="small" wrap={false}>
             {(isPendingCash || (receiptBill && (receiptBill as any).status === "UNPAID")) && (
               <>
                 <Tooltip title="Xác nhận đã nhận tiền mặt">
@@ -586,18 +518,17 @@ const CheckinsAD: React.FC = () => {
                       size="small"
                       type="primary"
                       icon={<DollarOutlined />}
-                    >
-                      TM
-                    </Button>
+                    />
                   </Popconfirm>
                 </Tooltip>
-                <Button
-                  size="small"
-                  type="default"
-                  onClick={() => handleOnlinePayment((record.receiptBillId as any)._id, record.deposit)}
-                >
-                  Online
-                </Button>
+                <Tooltip title="Gửi link thanh toán qua email">
+                  <Button
+                    size="small"
+                    type="default"
+                    icon={<SendOutlined />}
+                    onClick={() => handleSendPaymentLink((record.receiptBillId as any)._id)}
+                  />
+                </Tooltip>
               </>
             )}
             {isPaid && record.status === "CREATED" && (
@@ -612,9 +543,7 @@ const CheckinsAD: React.FC = () => {
                     size="small"
                     type="primary"
                     icon={<CheckOutlined />}
-                  >
-                    Hoàn thành
-                  </Button>
+                  />
                 </Popconfirm>
               </Tooltip>
             )}
@@ -810,6 +739,18 @@ const CheckinsAD: React.FC = () => {
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
+              <Form.Item 
+                label="Email" 
+                name="email" 
+                rules={[
+                  { type: "email", message: "Email không hợp lệ" },
+                  { required: true, message: "Nhập email để gửi link thanh toán" }
+                ]}
+              >
+                <Input placeholder="example@email.com" />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
               <Form.Item label="CMND/CCCD" name="identityNo">
                 <Input />
               </Form.Item>
@@ -827,6 +768,36 @@ const CheckinsAD: React.FC = () => {
             <Col xs={24}>
             </Col>
           </Row>
+        </Form>
+      </Modal>
+
+      {/* Email Modal for payment link */}
+      <Modal
+        title="Nhập email người thuê"
+        open={emailModalVisible}
+        onOk={handleSubmitEmail}
+        onCancel={() => {
+          setEmailModalVisible(false);
+          emailForm.resetFields();
+          setPendingBillId(null);
+        }}
+        okText="Gửi link"
+        cancelText="Hủy"
+      >
+        <Form form={emailForm} layout="vertical">
+          <Form.Item
+            label="Email"
+            name="email"
+            rules={[
+              { required: true, message: "Vui lòng nhập email" },
+              { type: "email", message: "Email không hợp lệ" },
+            ]}
+          >
+            <Input placeholder="example@email.com" />
+          </Form.Item>
+          <p style={{ color: "#999", fontSize: 12, marginTop: -8 }}>
+            Email này sẽ được lưu vào hợp đồng và dùng để gửi link thanh toán
+          </p>
         </Form>
       </Modal>
 

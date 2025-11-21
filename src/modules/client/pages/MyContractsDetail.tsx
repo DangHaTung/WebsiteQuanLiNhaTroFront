@@ -14,7 +14,6 @@ interface FinalContract {
   monthlyRent: number;
   status: "DRAFT" | "WAITING_SIGN" | "SIGNED" | "CANCELED";
   images?: Array<{ url: string; secure_url: string; viewUrl?: string; format?: string }>;
-  cccdFiles?: Array<{ url: string; secure_url: string; viewUrl?: string; format?: string }>;
   createdAt: string;
 }
 
@@ -29,7 +28,7 @@ const MyContractsDetail = () => {
   const [pdfViewerVisible, setPdfViewerVisible] = useState(false);
   const [pdfViewerUrl, setPdfViewerUrl] = useState<string>("");
 
-  const handleViewFile = async (file: any, type: "images" | "cccdFiles", index: number) => {
+  const handleViewFile = async (file: any, type: "images", index: number) => {
     const isPdf = file.format === "pdf" || 
                   file.secure_url?.includes(".pdf") || 
                   file.secure_url?.includes("/raw/");
@@ -39,7 +38,7 @@ const MyContractsDetail = () => {
         // Fetch PDF với Authorization header
         const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
         const token = localStorage.getItem("token");
-        const typeParam = type === "cccdFiles" ? "cccd" : "contract";
+        const typeParam = "contract";
         
         const response = await fetch(`${apiUrl}/api/final-contracts/${selectedContract._id}/view/${typeParam}/${index}`, {
           headers: {
@@ -303,39 +302,6 @@ const MyContractsDetail = () => {
               <p style={{ color: "#999", textAlign: "center" }}>Chưa có file hợp đồng</p>
             )}
 
-            <Divider orientation="left">Files CCCD ({selectedContract.cccdFiles?.length || 0})</Divider>
-            {selectedContract.cccdFiles && selectedContract.cccdFiles.length > 0 ? (
-              <Space direction="vertical" style={{ width: "100%" }}>
-                {selectedContract.cccdFiles.map((file, idx) => (
-                  <Card key={idx} size="small">
-                    <Space style={{ width: "100%", justifyContent: "space-between" }}>
-                      <Space>
-                        {file.format === "pdf" || file.secure_url?.includes(".pdf") || file.secure_url?.includes("/raw/") ? (
-                          <>
-                            <FilePdfOutlined style={{ fontSize: 24, color: "#52c41a" }} />
-                            <span>CCCD PDF {idx + 1}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Image src={file.secure_url} width={60} height={60} style={{ objectFit: "cover" }} />
-                            <span>CCCD {idx + 1}</span>
-                          </>
-                        )}
-                      </Space>
-                      <Button
-                        type="primary"
-                        icon={<EyeOutlined />}
-                        onClick={() => handleViewFile(file, "cccdFiles", idx)}
-                      >
-                        Xem file
-                      </Button>
-                    </Space>
-                  </Card>
-                ))}
-              </Space>
-            ) : (
-              <p style={{ color: "#999", textAlign: "center" }}>Chưa có file CCCD</p>
-            )}
           </div>
         )}
       </Modal>

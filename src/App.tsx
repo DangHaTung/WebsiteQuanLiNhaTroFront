@@ -13,11 +13,16 @@ import adminRoutes from "./routes/AdminRoutes";
 import Contracts from "./modules/client/pages/Contracts";
 import Invoices from "./modules/client/pages/Invoices";
 import Login from "./modules/client/pages/Login";
-import Register from "./modules/client/pages/Register"; 
+import Register from "./modules/client/pages/Register";
+import PublicPayment from "./modules/client/pages/PublicPayment"; 
 
 const App = () => {
   return (
     <Routes>
+      {/* Public Payment Route - không cần layout */}
+      <Route path="/public/payment/:billId/:token" element={<PublicPayment />} />
+      <Route path="/public/payment/:billId/:token/success" element={<PublicPayment />} />
+
       {/* Authentication Routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
