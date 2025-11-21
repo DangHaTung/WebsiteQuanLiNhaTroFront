@@ -69,6 +69,7 @@ const PublicPayment: React.FC = () => {
         return;
       }
 
+      // Luôn hiển thị thông tin bill, dù đã thanh toán hay chưa
       setBillInfo(data.data);
     } catch (error: any) {
       console.error("Verify token error:", error);
@@ -224,14 +225,34 @@ const PublicPayment: React.FC = () => {
     );
   }
 
-  if (error || !billInfo) {
+  if (error) {
     return (
       <div style={{ padding: 24, maxWidth: 800, margin: "0 auto" }}>
         <Card>
           <Alert
             message="Lỗi"
-            description={error || "Không tìm thấy thông tin hóa đơn"}
+            description={error}
             type="error"
+            showIcon
+            action={
+              <Button size="small" icon={<HomeOutlined />} onClick={() => navigate("/")}>
+                Về trang chủ
+              </Button>
+            }
+          />
+        </Card>
+      </div>
+    );
+  }
+
+  if (!billInfo) {
+    return (
+      <div style={{ padding: 24, maxWidth: 800, margin: "0 auto" }}>
+        <Card>
+          <Alert
+            message="Không tìm thấy"
+            description="Không tìm thấy thông tin hóa đơn"
+            type="warning"
             showIcon
             action={
               <Button size="small" icon={<HomeOutlined />} onClick={() => navigate("/")}>

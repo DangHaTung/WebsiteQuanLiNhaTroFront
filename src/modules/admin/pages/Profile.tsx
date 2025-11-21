@@ -223,27 +223,7 @@ const Profile = () => {
                 </Card>
             ),
         },
-        {
-            key: "3",
-            label: "Hoạt động gần đây",
-            children: (
-                <Card style={cardStyle}>
-                    <List
-                        itemLayout="horizontal"
-                        dataSource={activities}
-                        renderItem={(item) => (
-                            <List.Item>
-                                <List.Item.Meta
-                                    avatar={<ClockCircleOutlined style={{ fontSize: 20 }} />}
-                                    title={item.action}
-                                    description={item.time}
-                                />
-                            </List.Item>
-                        )}
-                    />
-                </Card>
-            ),
-        },
+ 
     ];
 
     return (

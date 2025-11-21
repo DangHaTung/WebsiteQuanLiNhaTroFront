@@ -525,15 +525,20 @@ const DraftBills: React.FC = () => {
       title: "Số xe",
       key: "vehicle",
       width: 120,
-      render: (_: any, record: DraftBillWithElectricity) => (
-        <InputNumber
-          min={0}
-          value={record.vehicleCount}
-          onChange={(value) => handleVehicleChange(record._id, value)}
-          placeholder="Nhập số xe"
-          style={{ width: "100%" }}
-        />
-      ),
+      render: (_: any, record: DraftBillWithElectricity) => {
+        const isInvalid = (record.vehicleCount || 0) > (record.occupantCount || 1);
+        return (
+          <InputNumber
+            min={0}
+            max={record.occupantCount || 1}
+            value={record.vehicleCount}
+            onChange={(value) => handleVehicleChange(record._id, value)}
+            placeholder="Nhập số xe"
+            style={{ width: "100%" }}
+            status={isInvalid ? "error" : undefined}
+          />
+        );
+      },
     },
     {
       title: "Tiền phòng (₫)",
