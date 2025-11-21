@@ -460,7 +460,7 @@ const CheckinsAD: React.FC = () => {
       render: (v: number) => v.toLocaleString("vi-VN"),
     },
     {
-      title: "Tiền thuê (VNĐ)",
+      title: "Tiền thuê chưa thu(VNĐ)",
       dataIndex: "monthlyRent",
       key: "monthlyRent",
       align: "right",

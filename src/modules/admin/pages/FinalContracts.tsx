@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Table, Button, Tag, Modal, Upload, message, Space, Popconfirm, Image, Tooltip, Select, Descriptions, Divider, Form, Input, Card, Tabs, Avatar } from "antd";
-import { UploadOutlined, EyeOutlined, DeleteOutlined, FilePdfOutlined, PlusOutlined, DollarOutlined, SearchOutlined, UserOutlined } from "@ant-design/icons";
+import { UploadOutlined, EyeOutlined, DeleteOutlined, FilePdfOutlined, PlusOutlined, DollarOutlined, SearchOutlined, UserOutlined, ClockCircleOutlined } from "@ant-design/icons";
+import ExtendContractModal from "../components/ExtendContractModal";
 import type { UploadFile } from "antd";
 import dayjs from "dayjs";
 
@@ -98,6 +99,10 @@ const FinalContracts = () => {
   // PDF viewer modal
   const [pdfViewerVisible, setPdfViewerVisible] = useState(false);
   const [pdfViewerUrl, setPdfViewerUrl] = useState<string>("");
+  
+  // Extend contract modal
+  const [extendModalVisible, setExtendModalVisible] = useState(false);
+  const [extendingContract, setExtendingContract] = useState<FinalContract | null>(null);
 
   const handleViewFile = async (file: FileInfo, type: "images", index: number) => {
     const isPdf = file.resource_type === "raw" || 
@@ -292,27 +297,33 @@ const FinalContracts = () => {
           console.log("Sample bill data:", data.data?.[0]);
           
           const bills = data.data || [];
-          // Debug: Log để kiểm tra amountDue và amountPaid
-          bills.forEach((bill: any, idx: number) => {
-            console.log(`Bill ${idx}:`, {
-              billType: bill.billType,
-              status: bill.status,
-              amountDue: bill.amountDue,
-              amountDueType: typeof bill.amountDue,
-              amountPaid: bill.amountPaid,
-              amountPaidType: typeof bill.amountPaid,
-            });
+          
+          // ✅ FILTER: Chỉ hiển thị bills của người này
+          // 1. Bill CONTRACT (tháng đầu) - không có finalContractId
+          // 2. Bills có finalContractId khớp với FinalContract hiện tại
+          const filteredBills = bills.filter((bill: any) => {
+            // Bill CONTRACT (tháng đầu) - luôn hiển thị
+            if (bill.billType === "CONTRACT") {
+              return true;
+            }
+            // Bills khác: chỉ hiển thị nếu finalContractId khớp
+            const billFinalContractId = typeof bill.finalContractId === 'string' 
+              ? bill.finalContractId 
+              : bill.finalContractId?._id;
+            return billFinalContractId === fullContract._id;
           });
-          // Hiển thị tất cả bills của contract (CONTRACT, MONTHLY, RECEIPT)
+          
+          console.log(`Filtered bills: ${filteredBills.length}/${bills.length} (showing only CONTRACT + this tenant's bills)`);
+          
           // Ưu tiên hiển thị bills chưa thanh toán trước
-          const sortedBills = bills.sort((a: any, b: any) => {
+          const sortedBills = filteredBills.sort((a: any, b: any) => {
             // Chưa thanh toán trước
             if (a.status !== "PAID" && b.status === "PAID") return -1;
             if (a.status === "PAID" && b.status !== "PAID") return 1;
             // Sau đó sort theo ngày tạo (mới nhất trước)
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
           });
-          console.log("All bills for contract:", sortedBills);
+          console.log("Filtered & sorted bills:", sortedBills);
           setContractBills(sortedBills);
         } catch (err) {
           console.error("Load bills error:", err);
@@ -351,8 +362,18 @@ const FinalContracts = () => {
             });
             const data = await response.json();
             const bills = data.data || [];
-            // Hiển thị tất cả bills, sort theo status và ngày
-            const sortedBills = bills.sort((a: any, b: any) => {
+            
+            // ✅ FILTER: Chỉ hiển thị bills của người này
+            const filteredBills = bills.filter((bill: any) => {
+              if (bill.billType === "CONTRACT") return true;
+              const billFinalContractId = typeof bill.finalContractId === 'string' 
+                ? bill.finalContractId 
+                : bill.finalContractId?._id;
+              return billFinalContractId === selectedContract._id;
+            });
+            
+            // Sort theo status và ngày
+            const sortedBills = filteredBills.sort((a: any, b: any) => {
               if (a.status !== "PAID" && b.status === "PAID") return -1;
               if (a.status === "PAID" && b.status !== "PAID") return 1;
               return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -581,7 +602,9 @@ const FinalContracts = () => {
       setFileList([]);
       fetchContracts(pagination.current, pagination.pageSize);
     } catch (error: any) {
-      message.error(error.response?.data?.message || "Lỗi khi upload hợp đồng");
+      const errorMsg = error.response?.data?.message || "Lỗi khi upload hợp đồng";
+      message.error(errorMsg);
+      console.error("Upload error:", error);
     }
   };
 
@@ -618,6 +641,12 @@ const FinalContracts = () => {
     } catch (error: any) {
       message.error(error.response?.data?.message || "Lỗi khi hủy hợp đồng");
     }
+  };
+
+  // Helper: Kiểm tra bill CONTRACT đã thanh toán chưa
+  const isContractBillPaid = (bills: any[]): boolean => {
+    const contractBill = bills.find((bill: any) => bill.billType === "CONTRACT");
+    return contractBill?.status === "PAID";
   };
 
   const getStatusTag = (status: string, record?: FinalContract) => {
@@ -726,16 +755,33 @@ const FinalContracts = () => {
           >
             Xem
           </Button>
-          <Button
-            size="small"
-            icon={<UploadOutlined />}
-            onClick={() => {
-              setSelectedContract(record);
-              setUploadModalVisible(true);
-            }}
-          >
-            Upload HĐ
-          </Button>
+          {record.status === "SIGNED" && (
+            <Tooltip title="Gia hạn hợp đồng">
+              <Button
+                size="small"
+                icon={<ClockCircleOutlined />}
+                onClick={() => {
+                  setExtendingContract(record);
+                  setExtendModalVisible(true);
+                }}
+              >
+                Gia hạn
+              </Button>
+            </Tooltip>
+          )}
+          <Tooltip title={record.status === "SIGNED" ? "Hợp đồng đã upload" : "Upload hợp đồng đã ký"}>
+            <Button
+              size="small"
+              icon={<UploadOutlined />}
+              onClick={() => {
+                setSelectedContract(record);
+                setUploadModalVisible(true);
+              }}
+              disabled={record.status === "SIGNED"}
+            >
+              Upload HĐ
+            </Button>
+          </Tooltip>
           {record.status !== "CANCELED" && (
             <Popconfirm title="Xác nhận hủy hợp đồng?" onConfirm={() => handleCancelContract(record._id)}>
             <Button size="small" danger icon={<DeleteOutlined />}>
@@ -783,7 +829,14 @@ const FinalContracts = () => {
           setUploadModalVisible(false);
           setFileList([]);
         }}
+        okText="Upload hợp đồng"
+        okButtonProps={{ disabled: fileList.length === 0 }}
       >
+        <p style={{ marginBottom: 16 }}>
+          Phòng: <strong>{selectedContract?.roomId?.roomNumber}</strong>
+          <br />
+          Người thuê: <strong>{selectedContract?.tenantId?.fullName || "Chưa gán"}</strong>
+        </p>
         <Upload
           fileList={fileList}
           onChange={({ fileList }) => setFileList(fileList)}
@@ -1108,14 +1161,9 @@ const FinalContracts = () => {
                       const amountDue = convertToNumber(record.amountDue);
                       const amountPaid = convertToNumber(record.amountPaid);
                       
-                      // Hiển thị số tiền ban đầu của hóa đơn (tổng số tiền cần thanh toán ban đầu)
-                      // Khi PAID: amountDue = 0, amountPaid = số tiền ban đầu
-                      // Khi UNPAID: amountDue = số tiền ban đầu, amountPaid = 0
-                      // Khi PARTIALLY_PAID: amountDue = số tiền còn lại, amountPaid = số tiền đã trả
-                      // => Tổng ban đầu = amountDue + amountPaid
-                      const totalAmount = amountDue + amountPaid;
-                      
-                      return <strong style={{ color: "#1890ff", fontSize: 16 }}>{totalAmount.toLocaleString("vi-VN")} đ</strong>;
+                      // Hiển thị số tiền ban đầu của hóa đơn
+                      // amountDue là số tiền ban đầu của bill, không thay đổi
+                      return <strong style={{ color: "#1890ff", fontSize: 16 }}>{amountDue.toLocaleString("vi-VN")} đ</strong>;
                     },
                   },
                   {
@@ -1269,6 +1317,19 @@ const FinalContracts = () => {
           )}
         </div>
       </Modal>
+
+      {/* Extend Contract Modal */}
+      <ExtendContractModal
+        visible={extendModalVisible}
+        contract={extendingContract}
+        onClose={() => {
+          setExtendModalVisible(false);
+          setExtendingContract(null);
+        }}
+        onSuccess={() => {
+          fetchContracts(pagination.current, pagination.pageSize);
+        }}
+      />
     </div>
   );
 };

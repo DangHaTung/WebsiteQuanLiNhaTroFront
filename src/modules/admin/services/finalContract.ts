@@ -113,4 +113,20 @@ export const adminFinalContractService = {
     const res = await api.put<SingleFinalContractResponse>(`/final-contracts/${id}/cancel`);
     return res.data.data;
   },
+
+  async extend(id: string, extensionMonths: number): Promise<{ finalContract: FinalContract; extension: any }> {
+    const res = await api.put<{ success: boolean; message: string; data: { finalContract: FinalContract; extension: any } }>(
+      `/final-contracts/${id}/extend`,
+      { extensionMonths }
+    );
+    return res.data.data;
+  },
+
+  async getExpiringSoon(days: number = 30): Promise<FinalContract[]> {
+    const res = await api.get<{ success: boolean; data: FinalContract[]; count: number }>(
+      `/final-contracts/expiring-soon`,
+      { params: { days } }
+    );
+    return res.data.data;
+  },
 };

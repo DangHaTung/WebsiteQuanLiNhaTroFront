@@ -40,11 +40,13 @@ const Invoices: React.FC = () => {
     try {
       setLoading(true);
       const response = await clientBillService.getMyBills({ limit: 100 });
-      // Chỉ lấy bill MONTHLY (hóa đơn hàng tháng)
-      const monthlyBills = (response.data || []).filter(bill => bill.billType === "MONTHLY");
-      setBills(monthlyBills);
+      // Lấy bill MONTHLY và CONTRACT (hóa đơn hàng tháng + tiền tháng đầu)
+      const payableBills = (response.data || []).filter(bill => 
+        bill.billType === "MONTHLY" || bill.billType === "CONTRACT"
+      );
+      setBills(payableBills);
       
-      console.log("📋 Loaded bills:", monthlyBills.length);
+
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Lỗi khi tải hóa đơn");
     } finally {
