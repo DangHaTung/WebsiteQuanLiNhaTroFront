@@ -18,7 +18,7 @@ export const adminUserService = {
         role: u.role,
         createdAt: u.createdAt,
       }));
-
+// Include current admin user if not in list
       const adminList = current
         ? [{
             _id: current.id || current._id,
@@ -52,7 +52,7 @@ export const adminUserService = {
         role: "USER",
         createdAt: t.createdAt,
       }));
-
+// Include current admin user if not in list
       const adminList = current
         ? [{
             _id: current.id || current._id,
@@ -87,7 +87,7 @@ export const adminUserService = {
       createdAt: u.createdAt,
     } as User;
   },
-
+// Update user details
   async update(id: string, payload: Partial<Pick<User, "fullName" | "email" | "role" | "phone">> & { password?: string }): Promise<User> {
     const body = { ...payload } as any;
     if (body.role === "USER") body.role = "TENANT";
@@ -102,11 +102,11 @@ export const adminUserService = {
       createdAt: u.createdAt,
     } as User;
   },
-
+//  Delete user by ID
   async remove(id: string): Promise<void> {
     await api.delete(`/users/${id}`);
   },
-
+// Search tenants by keyword
   async searchTenants(keyword?: string): Promise<User[]> {
     const params: any = { role: "TENANT", limit: 100 };
     if (keyword) {
