@@ -546,7 +546,32 @@ const RoomsAD: React.FC = () => {
         <Form form={form} layout="vertical">
           <Row gutter={16}>
             <Col xs={24} md={12}>
-              <Form.Item label="Số phòng" name="roomNumber" rules={[{ required: true, message: "Nhập số phòng!" }]}>
+              <Form.Item 
+                label="Số phòng" 
+                name="roomNumber" 
+                rules={[
+                  { required: true, message: "Nhập số phòng!" },
+                  {
+                    validator: async (_, value) => {
+                      if (!value) return Promise.resolve();
+                      const trimmedValue = value.trim();
+                      if (!trimmedValue) {
+                        return Promise.reject(new Error("Số phòng không được để trống"));
+                      }
+                      // Kiểm tra trùng với các phòng khác (trừ phòng đang edit)
+                      const duplicateRoom = rooms.find(
+                        (room) => 
+                          room.roomNumber?.trim().toLowerCase() === trimmedValue.toLowerCase() &&
+                          (!editingRoom || room._id !== editingRoom._id)
+                      );
+                      if (duplicateRoom) {
+                        return Promise.reject(new Error(`Số phòng "${trimmedValue}" đã tồn tại`));
+                      }
+                      return Promise.resolve();
+                    },
+                  },
+                ]}
+              >
                 <Input placeholder="VD: 101" />
               </Form.Item>
             </Col>
