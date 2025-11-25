@@ -10,7 +10,7 @@ export type Complaint = {
   createdAt?: string;
   updatedAt?: string;
 };
-
+// Paginated response type
 export type Paginated<T> = {
   message: string;
   success: boolean;
@@ -22,18 +22,18 @@ export type Paginated<T> = {
     limit: number;
   };
 };
-
+// Admin Complaint Service
 export const adminComplaintService = {
   async list(page = 1, limit = 10) {
     const { data } = await api.get("/admin/complaints", { params: { page, limit } });
     return data as Paginated<Complaint>;
   },
-
+// Update complaint status
   async updateStatus(id: string, status: string) {
     const { data } = await api.put(`/admin/complaints/${id}/status`, { status });
     return data as { message: string; success: boolean; data: Complaint };
   },
-
+// Remove complaint by ID
   async remove(id: string) {
     const { data } = await api.delete(`/admin/complaints/${id}`);
     return data as { message: string; success: boolean };
