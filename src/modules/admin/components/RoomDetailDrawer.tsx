@@ -10,6 +10,7 @@ interface RoomDetailDrawerProps {
   roomId: string | null;
 }
 
+// Destructure Typography components for easier use
 const { Title, Text } = Typography;
 
 const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, roomId }) => {
@@ -52,6 +53,7 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
   const processedImages = room?.images?.map(img =>
     typeof img === "string" ? img : (img as any).url
   );
+    // Render the Drawer component with room details
 
   return (
     <Drawer
@@ -143,6 +145,7 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
           ) : (
             <Text type="secondary">Không có hình ảnh</Text>
           )}
+          
 
           <style>{`
             .image-hover:hover {
