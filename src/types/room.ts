@@ -5,7 +5,8 @@ export interface Room {
   pricePerMonth: number;
   areaM2: number;
   floor: number;
-  status: "AVAILABLE" | "OCCUPIED" | "MAINTENANCE";
+  status: "AVAILABLE" | "DEPOSITED" | "OCCUPIED" | "MAINTENANCE";
+  occupantCount?: number;
   image: string;
   images?: string[];
   createdAt: string;

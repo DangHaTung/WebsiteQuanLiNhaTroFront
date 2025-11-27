@@ -80,9 +80,29 @@ export const adminCheckinService = {
     return res.data;
   },
 
+  // Tạo check-in thanh toán tiền mặt với upload file
+  async createCashWithFiles(formData: FormData): Promise<SingleCheckinResponse> {
+    const res = await api.post<SingleCheckinResponse>("/checkin/cash", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return res.data;
+  },
+
   // Tạo check-in thanh toán online
   async createOnline(payload: CashCheckinPayload): Promise<SingleCheckinResponse> {
     const res = await api.post<SingleCheckinResponse>("/checkin/online", payload);
+    return res.data;
+  },
+
+  // Tạo check-in thanh toán online với upload file
+  async createOnlineWithFiles(formData: FormData): Promise<SingleCheckinResponse> {
+    const res = await api.post<SingleCheckinResponse>("/checkin/online", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
     return res.data;
   },
 

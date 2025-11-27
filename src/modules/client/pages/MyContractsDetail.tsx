@@ -127,7 +127,7 @@ const MyContractsDetail = () => {
     const statusMap: Record<string, { color: string; text: string }> = {
       PAID: { color: "success", text: "Đã thanh toán" },
       UNPAID: { color: "error", text: "Chưa thanh toán" },
-      PENDING_CASH_CONFIRM: { color: "warning", text: "Chờ xác nhận" },
+      PENDING_CASH_CONFIRM: { color: "gold", text: "Chờ xác nhận tiền mặt" },
       PARTIALLY_PAID: { color: "processing", text: "Thanh toán 1 phần" },
     };
     const s = statusMap[status] || { color: "default", text: status };

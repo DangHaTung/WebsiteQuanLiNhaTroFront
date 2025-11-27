@@ -1,138 +1,86 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Button,
-  Card,
-  Col,
   DatePicker,
   Form,
   Input,
   InputNumber,
-  message,
   Modal,
-  Popconfirm,
-  Radio,
-  Row,
   Select,
-  Space,
-  Statistic,
   Table,
   Tag,
+  message,
+  Row,
+  Col,
+  Space,
   Tooltip,
-  Typography,
+  Popconfirm,
 } from "antd";
 import {
   PlusOutlined,
+  UploadOutlined,
+  DeleteOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
-  CloseCircleOutlined,
-  DownloadOutlined,
-  DeleteOutlined,
   DollarOutlined,
   CheckOutlined,
   SendOutlined,
+  DownloadOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
+import type { Checkin } from "../../../types/checkin";
+import type { Room } from "../../../types/room";
+import type { User } from "../../../types/user";
 import dayjs, { Dayjs } from "dayjs";
 import { adminCheckinService } from "../services/checkin";
 import { adminRoomService } from "../services/room";
+import { adminUserService } from "../services/user";
 import { adminBillService } from "../services/bill";
-import type { Checkin, CheckinStatus } from "../../../types/checkin";
-import type { Room } from "../../../types/room";
-import ExpandableSearch from "../components/ExpandableSearch";
-import BillDetailDrawer from "../components/BillDetailDrawer";
 
-const { Title } = Typography;
 const { Option } = Select;
-const { TextArea } = Input;
 
 interface CheckinFormValues {
   roomId: string;
   checkinDate: Dayjs;
   duration: number;
   deposit: number;
-  paymentMethod: "cash" | "online";
-  fullName: string;
-  phone: string;
-  email?: string;
   identityNo?: string;
-  address?: string;
-  tenantNote?: string;
+  tenantId?: string;
   notes?: string;
 }
 
 const CheckinsAD: React.FC = () => {
   const [checkins, setCheckins] = useState<Checkin[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm<CheckinFormValues>();
-  const [emailModalVisible, setEmailModalVisible] = useState<boolean>(false);
-  const [emailForm] = Form.useForm();
-  const [pendingBillId, setPendingBillId] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string | "ALL">("ALL");
-  const [keyword, setKeyword] = useState<string>("");
-  const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
-  const [moveOutRequests, setMoveOutRequests] = useState<any[]>([]);
-  const [receiptDetailVisible, setReceiptDetailVisible] = useState(false);
-  const [selectedReceiptBillId, setSelectedReceiptBillId] = useState<string | null>(null);
+
+  // CCCD Upload Modal States
+  const [cccdUploadModalVisible, setCccdUploadModalVisible] = useState(false);
+  const [cccdFrontFile, setCccdFrontFile] = useState<File | null>(null);
+  const [cccdBackFile, setCccdBackFile] = useState<File | null>(null);
+  const [cccdFrontPreview, setCccdFrontPreview] = useState<string | null>(null);
+  const [cccdBackPreview, setCccdBackPreview] = useState<string | null>(null);
+
+  // File input refs
+  const cccdFrontInputRef = useRef<HTMLInputElement>(null);
+  const cccdBackInputRef = useRef<HTMLInputElement>(null);
+
+  // State để theo dõi đã load các dữ liệu phụ chưa
+  const [hasLoadedRooms, setHasLoadedRooms] = useState(false);
+  const [hasLoadedUsers, setHasLoadedUsers] = useState(false);
 
   useEffect(() => {
     loadCheckins();
-    loadRooms();
-    loadMoveOutRequests();
-    
-    // Kiểm tra URL params để hiển thị thông báo thanh toán
-    const urlParams = new URLSearchParams(window.location.search);
-    const paymentStatus = urlParams.get("payment");
-    const provider = urlParams.get("provider");
-    const transactionId = urlParams.get("transactionId");
-    
-    if (paymentStatus === "success" && provider) {
-      message.success({
-        content: `Thanh toán ${provider.toUpperCase()} thành công! Mã GD: ${transactionId || "N/A"}`,
-        duration: 5,
-      });
-      
-      // Xóa params khỏi URL
-      window.history.replaceState({}, document.title, window.location.pathname);
-      
-      // Reload data sau 1 giây để cập nhật trạng thái
-      setTimeout(() => {
-        loadCheckins();
-      }, 1000);
-    }
   }, []);
 
-  const loadMoveOutRequests = async () => {
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
-      const token = localStorage.getItem("admin_token");
-      const response = await fetch(`${apiUrl}/api/move-out-requests`, {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
-      if (data.success) {
-        setMoveOutRequests(data.data || []);
-      }
-    } catch (error: any) {
-      console.error("Error loading move-out requests:", error);
-    }
-  };
-
-  const loadCheckins = async (page = 1, limit = 10) => {
+  const loadCheckins = async () => {
     try {
       setLoading(true);
-      const response = await adminCheckinService.getAll({ page, limit });
-      setCheckins(response.data);
-      setPagination({
-        current: response.pagination?.currentPage || 1,
-        pageSize: response.pagination?.limit || 10,
-        total: response.pagination?.totalRecords || 0,
-      });
-      // Load move-out requests để kiểm tra yêu cầu hoàn cọc
-      await loadMoveOutRequests();
+      const response = await adminCheckinService.getAll({ limit: 100 });
+      setCheckins(response.data || []);
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu check-in");
     } finally {
@@ -140,58 +88,192 @@ const CheckinsAD: React.FC = () => {
     }
   };
 
-  const loadRooms = async () => {
+  const loadRoomsIfNeeded = async () => {
+    if (!hasLoadedRooms) {
     try {
-      const roomsData = await adminRoomService.getAll();
+        const roomsData = await adminRoomService.getAll({ limit: 100 });
       setRooms(roomsData);
+        setHasLoadedRooms(true);
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu phòng");
+      }
+    }
+  };
+
+  const loadUsersIfNeeded = async () => {
+    if (!hasLoadedUsers) {
+      try {
+        const usersData = await adminUserService.list();
+        setUsers(usersData);
+        setHasLoadedUsers(true);
+      } catch (error: any) {
+        message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu người dùng");
+      }
     }
   };
 
   const openModal = () => {
-    form.resetFields();
-    form.setFieldsValue({
-      paymentMethod: "cash",
-      checkinDate: dayjs(),
-      duration: 6,
-    });
     setIsModalOpen(true);
+    form.resetFields();
+    setCccdFrontFile(null);
+    setCccdBackFile(null);
+    setCccdFrontPreview(null);
+    setCccdBackPreview(null);
+    loadRoomsIfNeeded();
+    loadUsersIfNeeded();
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
+    form.resetFields();
+    setCccdFrontFile(null);
+    setCccdBackFile(null);
+    setCccdFrontPreview(null);
+    setCccdBackPreview(null);
+  };
+
+  const openCccdUploadModal = () => {
+    setCccdUploadModalVisible(true);
+  };
+
+  const closeCccdUploadModal = () => {
+    setCccdUploadModalVisible(false);
+  };
+
+  const handleCccdUpload = (type: "front" | "back", file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const preview = e.target?.result as string;
+      if (type === "front") {
+        setCccdFrontFile(file);
+        setCccdFrontPreview(preview);
+      } else {
+        setCccdBackFile(file);
+        setCccdBackPreview(preview);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveCccdImage = (type: "front" | "back") => {
+    if (type === "front") {
+      setCccdFrontFile(null);
+      setCccdFrontPreview(null);
+    } else {
+      setCccdBackFile(null);
+      setCccdBackPreview(null);
+    }
+  };
+
+  const handleFinishCccdUpload = () => {
+    if (cccdFrontFile && cccdBackFile) {
+      closeCccdUploadModal();
+      message.success("Đã upload ảnh CCCD thành công");
+    } else {
+      message.warning("Vui lòng upload đầy đủ ảnh mặt trước và mặt sau");
+    }
   };
 
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
-      const payload = {
-        roomId: values.roomId,
-        checkinDate: values.checkinDate.toISOString(),
-        duration: values.duration,
-        deposit: values.deposit,
-        notes: values.notes,
-        fullName: values.fullName,
-        phone: values.phone,
-        email: values.email,
-        identityNo: values.identityNo,
-        address: values.address,
-        tenantNote: values.tenantNote,
-      };
-
-      if (values.paymentMethod === "cash") {
-        await adminCheckinService.createCash(payload);
-        message.success("Tạo check-in thanh toán tiền mặt thành công!");
-      } else {
-        await adminCheckinService.createOnline(payload);
-        message.success("Tạo check-in thanh toán online thành công!");
+      
+      // Validate CCCD images
+      if (!cccdFrontFile || !cccdBackFile) {
+        message.error("Vui lòng upload đầy đủ ảnh CCCD mặt trước và mặt sau");
+        return;
       }
 
+      const formData = new FormData();
+      formData.append("roomId", values.roomId);
+      formData.append("checkinDate", values.checkinDate.format("YYYY-MM-DD"));
+      formData.append("duration", values.duration.toString());
+      formData.append("deposit", values.deposit.toString());
+      // Mặc định là ONLINE vì khách hàng sẽ tự chọn phương thức thanh toán ở client
+      formData.append("paymentMethod", "ONLINE");
+      
+      if (values.identityNo) {
+        formData.append("identityNo", values.identityNo);
+      }
+      if (values.tenantId) {
+        formData.append("tenantId", values.tenantId);
+      }
+      if (values.notes) {
+        formData.append("notes", values.notes);
+      }
+
+      formData.append("cccdFront", cccdFrontFile);
+      formData.append("cccdBack", cccdBackFile);
+
+      setLoading(true);
+      
+      // Luôn dùng createOnlineWithFiles vì khách sẽ thanh toán online ở client
+      await adminCheckinService.createOnlineWithFiles(formData);
+
+      message.success("Tạo phiếu thu thành công");
       closeModal();
-      loadCheckins(pagination.current, pagination.pageSize);
+      loadCheckins();
     } catch (error: any) {
-      message.error(error?.response?.data?.message || "Có lỗi xảy ra");
+      if (error?.errorFields) {
+        // Form validation error
+        return;
+      }
+      message.error(error?.response?.data?.message || "Lỗi khi tạo phiếu thu");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getStatusTag = (status: string) => {
+    const map: Record<string, { color: string; text: string; icon: React.ReactNode }> = {
+      CREATED: { color: "processing", text: "Đã tạo", icon: <ClockCircleOutlined /> },
+      COMPLETED: { color: "success", text: "Hoàn thành", icon: <CheckCircleOutlined /> },
+      CANCELED: { color: "error", text: "Đã hủy", icon: <DeleteOutlined /> },
+    };
+    const m = map[status] || { color: "default", text: status, icon: null };
+    return <Tag color={m.color} icon={m.icon}>{m.text}</Tag>;
+  };
+
+  const handleConfirmCashPayment = async (receiptBillId: string) => {
+    try {
+      await adminBillService.confirmPayment(receiptBillId);
+      message.success("Xác nhận thanh toán tiền mặt thành công!");
+      loadCheckins();
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || "Lỗi khi xác nhận thanh toán");
+    }
+  };
+
+  const handleSendPaymentLink = async (billId: string) => {
+    try {
+      const result = await adminBillService.generatePaymentLink(billId);
+      message.success(
+        `Đã tạo link thanh toán! Link: ${result.paymentUrl}`,
+        10
+      );
+      
+      // Copy link to clipboard
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(result.paymentUrl);
+        message.info("Đã copy link vào clipboard");
+      }
+    } catch (error: any) {
+      const errorData = error?.response?.data;
+      if (errorData?.message) {
+        message.error(errorData.message);
+      } else {
+        message.error(errorData?.message || "Lỗi khi gửi link thanh toán");
+      }
+    }
+  };
+
+  const handleComplete = async (id: string) => {
+    try {
+      await adminCheckinService.complete(id);
+      message.success("Đã đánh dấu check-in hoàn thành!");
+      loadCheckins();
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || "Lỗi khi hoàn thành check-in");
     }
   };
 
@@ -199,7 +281,7 @@ const CheckinsAD: React.FC = () => {
     try {
       await adminCheckinService.cancel(id, "Hủy bởi admin");
       message.success("Đã hủy check-in!");
-      loadCheckins(pagination.current, pagination.pageSize);
+      loadCheckins();
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Lỗi khi hủy check-in");
     }
@@ -222,275 +304,97 @@ const CheckinsAD: React.FC = () => {
     }
   };
 
-  const handleConfirmCashPayment = async (receiptBillId: string) => {
-    try {
-      await adminBillService.confirmPayment(receiptBillId);
-      message.success("Xác nhận thanh toán tiền mặt thành công!");
-      loadCheckins(pagination.current, pagination.pageSize);
-    } catch (error: any) {
-      message.error(error?.response?.data?.message || "Lỗi khi xác nhận thanh toán");
-    }
-  };
-
-  const handleSendPaymentLink = async (billId: string, tenantEmail?: string) => {
-    try {
-      const result = await adminBillService.generatePaymentLink(billId, tenantEmail);
-      message.success(
-        `Đã gửi link thanh toán đến email ${result.recipientEmail}! Link: ${result.paymentUrl}`,
-        10
-      );
-      
-      // Copy link to clipboard
-      if (navigator.clipboard) {
-        await navigator.clipboard.writeText(result.paymentUrl);
-        message.info("Đã copy link vào clipboard");
-      }
-      
-      // Close email modal if open
-      if (emailModalVisible) {
-        setEmailModalVisible(false);
-        emailForm.resetFields();
-        setPendingBillId(null);
-      }
-    } catch (error: any) {
-      const errorData = error?.response?.data;
-      // Nếu server yêu cầu email, hiển thị modal nhập email
-      if (errorData?.requiresEmail) {
-        setPendingBillId(billId);
-        setEmailModalVisible(true);
-      } else {
-        message.error(errorData?.message || "Lỗi khi gửi link thanh toán");
-      }
-    }
-  };
-
-  const handleSubmitEmail = async () => {
-    try {
-      const values = await emailForm.validateFields();
-      if (pendingBillId && values.email) {
-        await handleSendPaymentLink(pendingBillId, values.email);
-      }
-    } catch (error) {
-      // Validation error, do nothing
-    }
-  };
-
-  const handleComplete = async (id: string) => {
-    try {
-      await adminCheckinService.complete(id);
-      message.success("Đã đánh dấu check-in hoàn thành!");
-      loadCheckins(pagination.current, pagination.pageSize);
-    } catch (error: any) {
-      message.error(error?.response?.data?.message || "Lỗi khi hoàn thành check-in");
-    }
-  };
-
-  const getRoomNumber = (roomId: string | Room): string => {
-    if (typeof roomId === "object" && roomId?.roomNumber) {
-      return roomId.roomNumber;
-    }
-    const room = rooms.find((r) => r._id === roomId);
-    return room?.roomNumber || (typeof roomId === "string" ? roomId : "N/A");
-  };
-
-  const getTenantName = (checkin: Checkin): string => {
-    if (checkin.tenantSnapshot?.fullName) {
-      return checkin.tenantSnapshot.fullName;
-    }
-    if (typeof checkin.tenantId === "object" && checkin.tenantId?.fullName) {
-      return checkin.tenantId.fullName;
-    }
-    return "N/A";
-  };
-
-  const filteredCheckins = useMemo(() => {
-    let data = [...checkins];
-
-    if (statusFilter && statusFilter !== "ALL") {
-      data = data.filter((c) => c.status === statusFilter);
-    }
-
-    if (keyword.trim() !== "") {
-      const k = keyword.toLowerCase();
-      data = data.filter((c) => {
-        const tenantName = getTenantName(c).toLowerCase();
-        const roomNumber = getRoomNumber(c.roomId).toLowerCase();
-        const checkinId = c._id.toLowerCase();
-        return tenantName.includes(k) || roomNumber.includes(k) || checkinId.includes(k);
-      });
-    }
-
-    return data;
-  }, [checkins, statusFilter, keyword]);
-
-  const createdCount = useMemo(() => checkins.filter((c) => c.status === "CREATED").length, [checkins]);
-  const completedCount = useMemo(() => checkins.filter((c) => c.status === "COMPLETED").length, [checkins]);
-  const canceledCount = useMemo(() => checkins.filter((c) => c.status === "CANCELED").length, [checkins]);
-
-  const getStatusTag = (status: CheckinStatus) => {
-    const statusMap: Record<CheckinStatus, { color: string; text: string }> = {
-      CREATED: { color: "#faad14", text: "Chờ xử lý" },
-      COMPLETED: { color: "#52c41a", text: "Hoàn thành" },
-      CANCELED: { color: "#ff4d4f", text: "Đã hủy" },
-    };
-    const s = statusMap[status];
-    return (
-      <Tag
-        style={{
-          fontWeight: 600,
-          borderRadius: 12,
-          color: "#fff",
-          backgroundColor: s.color,
-          boxShadow: "0 2px 6px rgba(0,0,0,0.1)",
-        }}
-      >
-        {s.text}
-      </Tag>
-    );
-  };
-
-  const getDepositDispositionTag = (disposition?: string, record?: Checkin) => {
-    // Nếu đã có depositDisposition, hiển thị trạng thái tương ứng
-    if (disposition) {
-    const map: Record<string, { color: string; text: string }> = {
-      FORFEIT: { color: "#ff4d4f", text: "Mất cọc" },
-      APPLIED: { color: "#1890ff", text: "Áp dụng" },
-        REFUNDED: { color: "#52c41a", text: "Đã Hoàn Cọc" },
-    };
-    const d = map[disposition];
-      if (!d) {
-        return <Tag color="default" style={{ borderRadius: 8 }}>{disposition}</Tag>;
-      }
-    return (
-      <Tag color={d.color} style={{ borderRadius: 8 }}>
-        {d.text}
-      </Tag>
-    );
-    }
-    
-    // Nếu chưa có depositDisposition, kiểm tra xem có yêu cầu hoàn cọc không
-    if (record?.contractId) {
-      const contractId = typeof record.contractId === 'object' 
-        ? (record.contractId as any)?._id 
-        : record.contractId;
-      
-      if (contractId) {
-        // Kiểm tra xem có move-out-request nào cho contract này không
-        const hasRequest = moveOutRequests.some((req: any) => {
-          const reqContractId = typeof req.contractId === 'object' 
-            ? req.contractId?._id 
-            : req.contractId;
-          return reqContractId === contractId;
-        });
-        
-        if (hasRequest) {
-          // Có yêu cầu nhưng chưa xử lý
-          return <Tag color="warning" style={{ borderRadius: 8 }}>Chưa xử lý</Tag>;
-        }
-      }
-    }
-    
-    // Chưa có yêu cầu hoàn cọc
-    return <Tag color="default" style={{ borderRadius: 8 }}>Chưa có yêu cầu</Tag>;
-  };
-
   const columns: ColumnsType<Checkin> = [
- 
-    {
-      title: "Khách thuê",
-      key: "tenant",
-      render: (_: any, record: Checkin) => {
-        const receiptBill = typeof record.receiptBillId === "object" 
-          ? record.receiptBillId 
-          : null;
-        const hasReceipt = !!receiptBill;
-        
-        return (
-          <span 
-            style={{ 
-              whiteSpace: "normal", 
-              wordBreak: "break-word",
-              cursor: hasReceipt ? "pointer" : "default",
-              color: hasReceipt ? "#1890ff" : "inherit",
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (hasReceipt) {
-                const billId = typeof receiptBill === "object" 
-                  ? (receiptBill as any)._id 
-                  : receiptBill;
-                setSelectedReceiptBillId(billId);
-                setReceiptDetailVisible(true);
-              }
-            }}
-          >
-            {getTenantName(record)}
-          </span>
-        );
-      },
-    },
     {
       title: "Phòng",
       dataIndex: "roomId",
       key: "roomId",
-      render: (v: string | Room) => (
-        <span style={{ whiteSpace: "normal", wordBreak: "break-word" }}>
-          {getRoomNumber(v)}
-        </span>
-      ),
+      render: (roomId: string | Room) => {
+        const room = typeof roomId === "object" ? roomId : rooms.find((r) => r._id === roomId);
+        return room?.roomNumber || (typeof roomId === "string" ? roomId : "");
+      },
     },
     {
       title: "Ngày Check-in",
       dataIndex: "checkinDate",
       key: "checkinDate",
-      render: (v: string) => dayjs(v).format("DD/MM/YYYY"),
+      render: (date: string) => dayjs(date).format("DD/MM/YYYY"),
     },
     {
-      title: "Thời hạn",
+      title: "Thời hạn (tháng)",
       dataIndex: "durationMonths",
       key: "durationMonths",
-      align: "center",
-      render: (v: number) => `${v} tháng`,
     },
     {
-      title: "Tiền cọc (VNĐ)",
+      title: "Tiền cọc",
       dataIndex: "deposit",
       key: "deposit",
-      align: "right",
-      render: (v: number) => v.toLocaleString("vi-VN"),
-    },
-    {
-      title: "Tiền thuê chưa thu(VNĐ)",
-      dataIndex: "monthlyRent",
-      key: "monthlyRent",
-      align: "right",
-      render: (v: number) => v.toLocaleString("vi-VN"),
+      render: (val: number) => val?.toLocaleString("vi-VN") + " đ",
     },
     {
       title: "Trạng thái",
       dataIndex: "status",
       key: "status",
-      align: "center",
-      render: (s: CheckinStatus) => getStatusTag(s),
+      render: (_: any, record: Checkin) => {
+        // Hiển thị trạng thái của receiptBill thay vì trạng thái checkin
+        const receiptBill = typeof record.receiptBillId === "object" ? record.receiptBillId : null;
+        if (receiptBill) {
+          const billStatus = (receiptBill as any).status;
+          const map: Record<string, { color: string; text: string }> = {
+            DRAFT: { color: "orange", text: "Nháp" },
+            PAID: { color: "green", text: "Đã thanh toán" },
+            UNPAID: { color: "red", text: "Chờ thanh toán" },
+            PARTIALLY_PAID: { color: "orange", text: "Một phần" },
+            VOID: { color: "default", text: "Đã hủy" },
+            PENDING_CASH_CONFIRM: { color: "gold", text: "Chờ xác nhận tiền mặt" },
+          };
+          const m = map[billStatus] || { color: "default", text: billStatus || "Trạng thái" };
+          return <Tag color={m.color}>{m.text}</Tag>;
+        }
+        // Fallback: hiển thị trạng thái checkin nếu chưa có bill
+        return getStatusTag(record.status);
+      },
     },
     {
-      title: "Xử lý hoàn cọc",
-      dataIndex: "depositDisposition",
-      key: "depositDisposition",
+      title: "Ngày tạo",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      render: (date: string) => dayjs(date).format("DD/MM/YYYY HH:mm"),
+    },
+    {
+      title: "Thời hạn",
+      key: "expiration",
       align: "center",
-      render: (d?: string, record?: Checkin) => {
-        // Ưu tiên lấy từ Checkin.depositDisposition
-        let disposition = record?.depositDisposition || d;
-        
-        // Nếu Checkin chưa có depositDisposition, kiểm tra từ Contract.depositRefunded
-        if (!disposition && record?.contractId) {
-          const contract = typeof record.contractId === 'object' ? record.contractId : null;
-          if (contract && (contract as any).depositRefunded) {
-            disposition = "REFUNDED";
-          }
+      render: (_: any, record: Checkin) => {
+        if (!record.receiptPaidAt) {
+          return <Tag color="default">Chưa bắt đầu</Tag>;
         }
         
-        return getDepositDispositionTag(disposition, record);
+        const receiptPaidAt = dayjs(record.receiptPaidAt);
+        const now = dayjs();
+        const expirationDate = receiptPaidAt.add(3, 'day');
+        const daysRemaining = expirationDate.diff(now, 'day', true);
+        const hoursRemaining = expirationDate.diff(now, 'hour', true);
+        
+        if (daysRemaining < 0) {
+          return <Tag color="error">Đã hết hạn</Tag>;
+        } else if (daysRemaining < 1) {
+          const hours = Math.floor(hoursRemaining);
+          const minutes = Math.floor((hoursRemaining - hours) * 60);
+          return (
+            <Tag color="warning">
+              Còn {hours}h {minutes}m
+            </Tag>
+          );
+        } else {
+          const days = Math.floor(daysRemaining);
+          const hours = Math.floor((daysRemaining - days) * 24);
+          return (
+            <Tag color={days <= 1 ? "warning" : "blue"}>
+              Còn {days} ngày {hours > 0 ? `${hours}h` : ''}
+            </Tag>
+          );
+        }
       },
     },
     {
@@ -500,19 +404,21 @@ const CheckinsAD: React.FC = () => {
       width: 200,
       render: (_: any, record: Checkin) => {
         const receiptBill = typeof record.receiptBillId === "object" ? record.receiptBillId : null;
+        const receiptBillId = receiptBill ? (receiptBill as any)._id : (typeof record.receiptBillId === "string" ? record.receiptBillId : null);
         const isPendingCash = receiptBill && (receiptBill as any).status === "PENDING_CASH_CONFIRM";
+        const isUnpaid = receiptBill && (receiptBill as any).status === "UNPAID";
         const isPaid = receiptBill && (receiptBill as any).status === "PAID";
 
         return (
           <Space size="small" wrap={false}>
-            {(isPendingCash || (receiptBill && (receiptBill as any).status === "UNPAID")) && (
+            {(isPendingCash || isUnpaid) && receiptBillId && (
               <>
                 <Tooltip title="Xác nhận đã nhận tiền mặt">
                   <Popconfirm
                     title="Xác nhận đã nhận tiền mặt?"
                     okText="Xác nhận"
                     cancelText="Hủy"
-                    onConfirm={() => handleConfirmCashPayment((record.receiptBillId as any)._id)}
+                    onConfirm={() => handleConfirmCashPayment(receiptBillId)}
                   >
                     <Button
                       size="small"
@@ -526,7 +432,7 @@ const CheckinsAD: React.FC = () => {
                     size="small"
                     type="default"
                     icon={<SendOutlined />}
-                    onClick={() => handleSendPaymentLink((record.receiptBillId as any)._id)}
+                    onClick={() => handleSendPaymentLink(receiptBillId)}
                   />
                 </Tooltip>
               </>
@@ -579,242 +485,300 @@ const CheckinsAD: React.FC = () => {
   ];
 
   return (
-    <div style={{ padding: 24, minHeight: "100vh" }}>
-      <div style={{ background: "#fff", padding: 24, borderRadius: 16, boxShadow: "0 8px 24px rgba(0,0,0,0.08)" }}>
-        {/* Header */}
-        <Row justify="space-between" align="middle" style={{ marginBottom: 24 }}>
-          <Col>
-            <Title level={3} style={{ margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
-              <CheckCircleOutlined style={{ color: "#1890ff", fontSize: 28 }} /> Quản lý phiếu thu
-            </Title>
-          </Col>
-          <Col>
-            <Button
-              type="primary"
-              icon={<PlusOutlined />}
-              size="large"
-              onClick={openModal}
-              className="btn-hover-gradient"
-            >
-              Tạo phiếu thu
+    <div style={{ padding: "24px" }}>
+      <div style={{ marginBottom: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h2>Quản lý Check-in</h2>
+        <Button type="primary" icon={<PlusOutlined />} onClick={openModal}>
+          Tạo phiếu thu mới
             </Button>
-          </Col>
-        </Row>
-
-        {/* Statistic */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-          <Col span={24}>
-            <Row gutter={[16, 16]} align="middle" justify="space-between">
-              <Col xs={24} sm={12} md={8}>
-                <ExpandableSearch
-                  value={keyword}
-                  onChange={(e) => setKeyword(e.target.value)}
-                  placeholder="Tìm khách thuê, phòng, mã check-in..."
-                />
-              </Col>
-
-              <Col xs={24} sm={24} md={16}>
-                <Row gutter={[16, 16]} justify="end">
-                  {[
-                    { title: "Chờ xử lý", color: "#faad14", value: createdCount, icon: <ClockCircleOutlined /> },
-                    { title: "Hoàn thành", color: "#52c41a", value: completedCount, icon: <CheckCircleOutlined /> },
-                    { title: "Đã hủy", color: "#ff4d4f", value: canceledCount, icon: <CloseCircleOutlined /> },
-                  ].map((item, idx) => (
-                    <Col xs={24} sm={12} md={7} key={idx}>
-                      <Card
-                        size="small"
-                        bordered={false}
-                        style={{
-                          textAlign: "center",
-                          borderRadius: 16,
-                          background: "white",
-                          boxShadow: "0 3px 10px rgba(0,0,0,0.06)",
-                          padding: 12,
-                        }}
-                      >
-                        {React.cloneElement(item.icon as React.ReactElement<any>, {
-                          style: { fontSize: 24, color: item.color, marginBottom: 4 },
-                        })}
-                        <Statistic
-                          title={item.title}
-                          value={item.value}
-                          valueStyle={{ color: item.color, fontWeight: 600, fontSize: 18 }}
-                        />
-                      </Card>
-                    </Col>
-                  ))}
-                </Row>
-              </Col>
-            </Row>
-          </Col>
-        </Row>
-
-        {/* Table */}
-        <Table<Checkin>
-          columns={columns}
-          dataSource={filteredCheckins}
-          rowKey={(r) => r._id}
-          loading={loading}
-          pagination={{
-            ...pagination,
-            showSizeChanger: true,
-            pageSizeOptions: [5, 10, 20, 50],
-            onChange: (page, pageSize) => loadCheckins(page, pageSize),
-          }}
-          size="middle"
-        />
       </div>
 
-      {/* Modal Create Check-in */}
+        <Table<Checkin>
+          columns={columns}
+        dataSource={checkins}
+          rowKey={(r) => r._id}
+          loading={loading}
+        pagination={{ pageSize: 10 }}
+        />
+
+      {/* Modal tạo phiếu thu */}
       <Modal
         title="Tạo phiếu thu mới"
         open={isModalOpen}
-        onCancel={closeModal}
         onOk={handleSave}
-        okText="Tạo"
+        onCancel={closeModal}
+        okText="Lưu"
         cancelText="Hủy"
         width={800}
         centered
+        okButtonProps={{ loading, style: { background: "#1890ff", borderColor: "#1890ff" } }}
       >
-        <Form<CheckinFormValues> form={form} layout="vertical">
+        <Form form={form} layout="vertical">
           <Row gutter={16}>
             <Col xs={24} md={12}>
-              <Form.Item label="Phòng" name="roomId" rules={[{ required: true, message: "Chọn phòng" }]}>
-                <Select
-                  showSearch
-                  placeholder="Chọn phòng"
-                  optionFilterProp="children"
-                  onChange={(roomId) => {
-                    const room = rooms.find((r) => r._id === roomId);
-                    if (room && room.pricePerMonth) {
-                      form.setFieldValue("deposit", Number(room.pricePerMonth));
-                    }
-                  }}
-                >
-                  {rooms
-                    .filter((r) => r.status === "AVAILABLE")
-                    .map((room) => (
+              <Form.Item
+                label="Phòng"
+                name="roomId"
+                rules={[{ required: true, message: "Chọn phòng!" }]}
+              >
+                <Select placeholder="Chọn phòng" showSearch optionFilterProp="children">
+                  {rooms.map((room) => (
                       <Option key={room._id} value={room._id}>
-                        {room.roomNumber} - {room.type} - {Number(room.pricePerMonth || 0).toLocaleString("vi-VN")}₫
+                      {room.roomNumber}
                       </Option>
                     ))}
                 </Select>
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item label="Ngày Check-in" name="checkinDate" rules={[{ required: true, message: "Chọn ngày" }]}>
+              <Form.Item
+                label="Ngày Check-in"
+                name="checkinDate"
+                rules={[{ required: true, message: "Chọn ngày Check-in!" }]}
+                initialValue={dayjs()}
+              >
                 <DatePicker style={{ width: "100%" }} format="DD/MM/YYYY" />
               </Form.Item>
             </Col>
-            <Col xs={24} md={12}>
-              <Form.Item label="Thời hạn thuê (tháng)" name="duration" rules={[{ required: true, message: "Nhập thời hạn" }]}>
-                <InputNumber min={1} style={{ width: "100%" }} />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item label="Tiền cọc (VNĐ)" name="deposit" rules={[{ required: true, message: "Nhập tiền cọc" }]}>
-                <InputNumber min={0} style={{ width: "100%" }} />
-              </Form.Item>
-            </Col>
-            <Col xs={24}>
-              <Form.Item label="Phương thức thanh toán" name="paymentMethod" rules={[{ required: true }]}>
-                <Radio.Group>
-                  <Radio value="cash">Tiền mặt</Radio>
-                  <Radio value="online">Online</Radio>
-                </Radio.Group>
-              </Form.Item>
-            </Col>
           </Row>
 
-          <Title level={5}>Thông tin khách thuê</Title>
           <Row gutter={16}>
             <Col xs={24} md={12}>
-              <Form.Item label="Họ tên" name="fullName" rules={[{ required: true, message: "Nhập họ tên" }]}>
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item label="Số điện thoại" name="phone" rules={[{ required: true, message: "Nhập số điện thoại" }]}>
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item 
-                label="Email" 
-                name="email" 
-                rules={[
-                  { type: "email", message: "Email không hợp lệ" },
-                  { required: true, message: "Nhập email để gửi link thanh toán" }
-                ]}
+              <Form.Item
+                label="Thời hạn thuê (tháng)"
+                name="duration"
+                rules={[{ required: true, message: "Nhập thời hạn thuê!" }]}
               >
-                <Input placeholder="example@email.com" />
+                <InputNumber min={1} style={{ width: "100%" }} placeholder="VD: 6" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
-              <Form.Item label="CMND/CCCD" name="identityNo">
-                <Input />
+              <Form.Item
+                label="Tiền cọc (VNĐ)"
+                name="deposit"
+                rules={[{ required: true, message: "Nhập tiền cọc!" }]}
+              >
+                <InputNumber
+                  min={0}
+                  style={{ width: "100%" }}
+                  formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                  placeholder="VD: 5000000"
+                />
               </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              <Form.Item label="Địa chỉ" name="address">
-                <Input />
-              </Form.Item>
-            </Col>
-            <Col xs={24}>
-              <Form.Item label="Ghi chú" name="tenantNote">
-                <TextArea rows={2} />
-              </Form.Item>
-            </Col>
-            <Col xs={24}>
             </Col>
           </Row>
-        </Form>
-      </Modal>
 
-      {/* Email Modal for payment link */}
-      <Modal
-        title="Nhập email người thuê"
-        open={emailModalVisible}
-        onOk={handleSubmitEmail}
-        onCancel={() => {
-          setEmailModalVisible(false);
-          emailForm.resetFields();
-          setPendingBillId(null);
-        }}
-        okText="Gửi link"
-        cancelText="Hủy"
-      >
-        <Form form={emailForm} layout="vertical">
-          <Form.Item
-            label="Email"
-            name="email"
-            rules={[
-              { required: true, message: "Vui lòng nhập email" },
-              { type: "email", message: "Email không hợp lệ" },
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item 
+            label="CMND/CCCD"
+            name="identityNo"
+                rules={[
+              { required: true, message: "Nhập số CMND/CCCD!" },
+              {
+                pattern: /^\d{12}$/,
+                message: "Số CMND/CCCD phải là 12 chữ số",
+              },
             ]}
           >
-            <Input placeholder="example@email.com" />
+            <Input placeholder="Nhập số CMND/CCCD" maxLength={12} />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Form.Item
+            label="Tài khoản khách hàng"
+            name="tenantId"
+            rules={[{ required: true, message: "Chọn tài khoản khách hàng!" }]}
+            tooltip="Chọn tài khoản để khách hàng có thể thấy và thanh toán phiếu thu tiền cọc này"
+          >
+            <Select
+              showSearch
+              placeholder="Chọn tài khoản"
+              optionFilterProp="children"
+              filterOption={(input, option: any) => {
+                const children = option?.children;
+                if (children && typeof children === "string") {
+                  return children.toLowerCase().includes(input.toLowerCase());
+                }
+                return false;
+              }}
+            >
+              {users.length === 0 ? (
+                <Option disabled value="">
+                  Không có tài khoản nào
+                </Option>
+              ) : (
+                users
+                  .filter((u) => u.role === "USER" || u.role === "TENANT")
+                  .map((user) => (
+                    <Option key={user._id} value={user._id}>
+                      {user.fullName} {user.email && `(${user.email})`}
+                    </Option>
+                  ))
+              )}
+            </Select>
           </Form.Item>
-          <p style={{ color: "#999", fontSize: 12, marginTop: -8 }}>
-            Email này sẽ được lưu vào hợp đồng và dùng để gửi link thanh toán
-          </p>
+
+          <Form.Item label="Upload ảnh CCCD">
+            <Button
+              type="default"
+              icon={<UploadOutlined />}
+              onClick={openCccdUploadModal}
+              block
+            >
+              Upload ảnh CCCD
+            </Button>
+            {cccdFrontFile && cccdBackFile && (
+              <div style={{ marginTop: "8px", color: "#52c41a" }}>
+                ✓ Đã upload đầy đủ ảnh CCCD
+              </div>
+            )}
+          </Form.Item>
+
+          <Form.Item label="Ghi chú" name="notes">
+            <Input.TextArea rows={3} placeholder="Nhập ghi chú (nếu có)" />
+          </Form.Item>
         </Form>
       </Modal>
 
-      {/* Receipt Detail Drawer */}
-      <BillDetailDrawer
-        open={receiptDetailVisible}
-        onClose={() => {
-          setReceiptDetailVisible(false);
-          setSelectedReceiptBillId(null);
-        }}
-        billId={selectedReceiptBillId}
-        contracts={[]}
-        tenants={[]}
-        rooms={rooms}
-      />
+      {/* Modal upload CCCD */}
+      <Modal
+        title="Upload ảnh CCCD"
+        open={cccdUploadModalVisible}
+        onCancel={closeCccdUploadModal}
+        footer={[
+          <Button key="cancel" onClick={closeCccdUploadModal}>
+            Hủy
+          </Button>,
+          <Button
+            key="finish"
+            type="primary"
+            onClick={handleFinishCccdUpload}
+            disabled={!cccdFrontFile || !cccdBackFile}
+          >
+            Hoàn thành
+          </Button>,
+        ]}
+        width={800}
+      >
+        <Row gutter={16}>
+          <Col xs={24} md={12}>
+            <div style={{ marginBottom: "16px" }}>
+              <h4 style={{ marginBottom: "12px" }}>Mặt trước CCCD</h4>
+              <input
+                ref={cccdFrontInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleCccdUpload("front", file);
+                  }
+                }}
+              />
+              {!cccdFrontPreview ? (
+                <Button
+                  type="primary"
+                  icon={<UploadOutlined />}
+                  onClick={() => cccdFrontInputRef.current?.click()}
+                  block
+                  size="large"
+                >
+                  Chọn ảnh mặt trước
+                </Button>
+              ) : (
+                <div>
+                  <img
+                    src={cccdFrontPreview}
+                    alt="CCCD mặt trước"
+                    style={{ width: "100%", maxHeight: "300px", objectFit: "contain", marginBottom: "12px", border: "1px solid #d9d9d9", borderRadius: "4px", padding: "8px" }}
+                  />
+                  <Space>
+                    <Button
+                      type="default"
+                      icon={<UploadOutlined />}
+                      onClick={() => cccdFrontInputRef.current?.click()}
+                    >
+                      Thay đổi
+                    </Button>
+                    <Button
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={() => handleRemoveCccdImage("front")}
+                    >
+                      Xóa
+                    </Button>
+                  </Space>
+                </div>
+              )}
+            </div>
+          </Col>
+          <Col xs={24} md={12}>
+            <div style={{ marginBottom: "16px" }}>
+              <h4 style={{ marginBottom: "12px" }}>Mặt sau CCCD</h4>
+              <input
+                ref={cccdBackInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleCccdUpload("back", file);
+                  }
+                }}
+              />
+              {!cccdBackPreview ? (
+                <Button
+                  type="primary"
+                  icon={<UploadOutlined />}
+                  onClick={() => cccdBackInputRef.current?.click()}
+                  block
+                  size="large"
+                >
+                  Chọn ảnh mặt sau
+                </Button>
+              ) : (
+                <div>
+                  <img
+                    src={cccdBackPreview}
+                    alt="CCCD mặt sau"
+                    style={{ width: "100%", maxHeight: "300px", objectFit: "contain", marginBottom: "12px", border: "1px solid #d9d9d9", borderRadius: "4px", padding: "8px" }}
+                  />
+                  <Space>
+                    <Button
+                      type="default"
+                      icon={<UploadOutlined />}
+                      onClick={() => cccdBackInputRef.current?.click()}
+                    >
+                      Thay đổi
+                    </Button>
+                    <Button
+                      danger
+                      icon={<DeleteOutlined />}
+                      onClick={() => handleRemoveCccdImage("back")}
+                    >
+                      Xóa
+                    </Button>
+                  </Space>
+                </div>
+              )}
+            </div>
+          </Col>
+        </Row>
+        {(!cccdFrontFile || !cccdBackFile) && (
+          <div style={{ marginTop: "16px", padding: "12px", backgroundColor: "#fff7e6", borderRadius: "4px", border: "1px solid #ffd591" }}>
+            <span style={{ color: "#d46b08" }}>
+              ⚠️ Vui lòng upload đầy đủ ảnh mặt trước và mặt sau
+            </span>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };
 
 export default CheckinsAD;
+

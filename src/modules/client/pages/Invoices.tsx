@@ -40,9 +40,9 @@ const Invoices: React.FC = () => {
     try {
       setLoading(true);
       const response = await clientBillService.getMyBills({ limit: 100 });
-      // Lấy bill MONTHLY và CONTRACT (hóa đơn hàng tháng + tiền tháng đầu)
+      // Lấy bill MONTHLY, CONTRACT và RECEIPT (hóa đơn hàng tháng + tiền tháng đầu + phiếu thu tiền cọc)
       const payableBills = (response.data || []).filter(bill => 
-        bill.billType === "MONTHLY" || bill.billType === "CONTRACT"
+        bill.billType === "MONTHLY" || bill.billType === "CONTRACT" || bill.billType === "RECEIPT"
       );
       setBills(payableBills);
       
@@ -212,14 +212,30 @@ const Invoices: React.FC = () => {
     const map: Record<string, { color: string; text: string; icon: React.ReactNode }> = {
       PAID: { color: "success", text: "Đã thanh toán", icon: <CheckCircleOutlined /> },
       UNPAID: { color: "error", text: "Chưa thanh toán", icon: <ClockCircleOutlined /> },
+      PENDING_CASH_CONFIRM: { color: "gold", text: "Chờ xác nhận tiền mặt", icon: <ClockCircleOutlined /> },
       PARTIALLY_PAID: { color: "warning", text: "Thanh toán 1 phần", icon: <ClockCircleOutlined /> },
-      PENDING_CASH_CONFIRM: { color: "processing", text: "Chờ xác nhận TM", icon: <ClockCircleOutlined /> },
     };
     const m = map[status] || { color: "default", text: status, icon: null };
     return <Tag color={m.color} icon={m.icon}>{m.text}</Tag>;
   };
 
+  const getBillTypeTag = (billType: string) => {
+    const map: Record<string, { color: string; text: string }> = {
+      RECEIPT: { color: "purple", text: "Phiếu thu (Cọc)" },
+      CONTRACT: { color: "cyan", text: "Hợp đồng" },
+      MONTHLY: { color: "magenta", text: "Hàng tháng" },
+    };
+    const m = map[billType] || { color: "default", text: billType };
+    return <Tag color={m.color}>{m.text}</Tag>;
+  };
+
   const columns = [
+    {
+      title: "Loại",
+      dataIndex: "billType",
+      key: "billType",
+      render: (type: string) => getBillTypeTag(type),
+    },
     {
       title: "Tháng",
       dataIndex: "billingDate",
@@ -292,10 +308,10 @@ const Invoices: React.FC = () => {
         <div style={{ marginBottom: 24 }}>
           <h2 style={{ display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
             <FileTextOutlined style={{ color: "#1890ff" }} />
-            Hóa đơn hàng tháng
+            Hóa đơn & Phiếu thu
           </h2>
           <p style={{ color: "#666", marginTop: 8, marginBottom: 0 }}>
-            💡 Nếu bạn ở chung phòng với người khác, cả hai đều có thể xem và thanh toán hóa đơn này.
+            💡 Nếu bạn ở chung phòng với người khác, cả hai đều có thể xem và thanh toán hóa đơn này. Phiếu thu tiền cọc sẽ hiển thị khi admin tạo và gán cho tài khoản của bạn.
           </p>
         </div>
 

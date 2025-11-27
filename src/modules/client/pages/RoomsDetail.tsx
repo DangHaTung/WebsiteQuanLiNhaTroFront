@@ -255,26 +255,9 @@ const RoomsDetail: React.FC = () => {
             <div
               style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}
             >
-              <Space size={12} align="baseline">
                 <Title level={3} style={{ margin: 0 }}>
                   Phòng {room.roomNumber}
                 </Title>
-                <Tag
-                  color={
-                    room.status === "AVAILABLE"
-                      ? "green"
-                      : room.status === "OCCUPIED"
-                        ? "red"
-                        : "orange"
-                  }
-                >
-                  {room.status === "AVAILABLE"
-                    ? "Có sẵn"
-                    : room.status === "OCCUPIED"
-                      ? "Đã thuê"
-                      : "Bảo trì"}
-                </Tag>
-              </Space>
               <Space>
                 <Rate allowHalf value={userRating} onChange={(v) => setUserRating(v)} />
                 <Text strong>{userRating.toFixed(1)}</Text>
@@ -296,13 +279,22 @@ const RoomsDetail: React.FC = () => {
                   color={
                     room.status === "AVAILABLE"
                       ? "green"
+                      : room.status === "DEPOSITED"
+                        ? "red"
                       : room.status === "OCCUPIED"
                         ? "red"
                         : "orange"
                   }
+                  style={{
+                    fontSize: room.status === "DEPOSITED" ? "16px" : undefined,
+                    fontWeight: room.status === "DEPOSITED" ? 600 : undefined,
+                    padding: room.status === "DEPOSITED" ? "4px 12px" : undefined,
+                  }}
                 >
                   {room.status === "AVAILABLE"
                     ? "Có sẵn"
+                    : room.status === "DEPOSITED"
+                      ? "Phòng đã được đặt cọc nên tạm đóng"
                     : room.status === "OCCUPIED"
                       ? "Đã thuê"
                       : "Bảo trì"}
@@ -578,7 +570,7 @@ const RoomsDetail: React.FC = () => {
               <Divider style={{ margin: "4px 0" }} />
 
               {/* --- Nút đặt phòng --- */}
-              {room.status === "AVAILABLE" ? (
+              {room.status === "AVAILABLE" || room.status === "DEPOSITED" ? (
                 <Button
                   htmlType="submit"
                   type="primary"
