@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Input, Badge, Drawer, Button, Dropdown, Avatar, Typography } from "antd";
-import { PhoneOutlined, MailOutlined, HeartOutlined, SearchOutlined, UserOutlined, MenuOutlined, CloseOutlined, CustomerServiceOutlined, SettingOutlined, LogoutOutlined, UserSwitchOutlined, MessageOutlined } from "@ant-design/icons";
+import { PhoneOutlined, MailOutlined, BellOutlined, SearchOutlined, UserOutlined, MenuOutlined, CloseOutlined, CustomerServiceOutlined, SettingOutlined, LogoutOutlined, UserSwitchOutlined, MessageOutlined } from "@ant-design/icons";
 import Logo from "../../assets/images/logo.png";
 import "../../assets/styles/nav.css";
 
@@ -172,7 +172,7 @@ const Navbar: React.FC = () => {
             {/* Chỉ hiển thị wishlist khi đã đăng nhập */}
             {isLoggedIn && (
               <Badge count={3} size="small">
-                <HeartOutlined className="nav-icon wishlist-icon" />
+                <BellOutlined className="nav-icon notification-icon" />
               </Badge>
             )}
 
@@ -254,8 +254,8 @@ const Navbar: React.FC = () => {
                 <Avatar size="small" icon={<UserOutlined />} />
                 <Text strong>{userName}</Text>
               </div>
-              <Link to="/wishlist" onClick={() => setOpenDrawer(false)}>
-                <HeartOutlined /> Danh sách yêu thích (3)
+              <Link to="/notifications" onClick={() => setOpenDrawer(false)}>
+                <BellOutlined /> Thông báo (3)
               </Link>
               <Link to="/profile" onClick={() => setOpenDrawer(false)}>
                 <UserSwitchOutlined /> Thông tin cá nhân
