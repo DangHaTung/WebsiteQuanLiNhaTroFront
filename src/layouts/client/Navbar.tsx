@@ -121,10 +121,10 @@ const Navbar: React.FC = () => {
         <div className="nav-container nav-top-inner">
           <div className="nav-top-contact">
             <span>
-              <PhoneOutlined /> <strong>0123 456 789</strong>
+              <PhoneOutlined /> <strong>0842 346 871</strong>
             </span>
             <span>
-              <MailOutlined /> support@tro360.com
+              <MailOutlined /> tro360@example.com
             </span>
           </div>
 
@@ -134,6 +134,9 @@ const Navbar: React.FC = () => {
             </Link>
             <Link to="/support" className="nav-top-link highlight">
               <CustomerServiceOutlined className="icon" /> Hỗ trợ
+            </Link>
+            <Link to="/" className="nav-top-link highlight">
+              <CustomerServiceOutlined className="icon" /> Thông tin hệ thống
             </Link>
           </div>
         </div>
