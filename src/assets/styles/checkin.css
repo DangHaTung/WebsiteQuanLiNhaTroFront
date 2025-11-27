@@ -1,0 +1,227 @@
+/* =============================
+   Checkin Page Styles - Modern
+   ============================= */
+
+/* Container */
+.checkin-container {
+  min-height: 100vh;
+  background: #f9fafb;
+  padding: 24px 0;
+  font-family: 'Inter', sans-serif;
+}
+
+/* -----------------------------
+   Cards
+   ----------------------------- */
+.checkin-card {
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+
+.checkin-card:hover {
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+  background: #fafafa;
+}
+
+/* Room Info Card */
+.room-info-card {
+  position: sticky;
+  top: 24px;
+  border-radius: 16px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.room-info-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+}
+
+.room-info-card .ant-card-head-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.room-info-card .ant-descriptions-item-label {
+  width: 120px;
+  font-weight: 600;
+  color: #666;
+}
+
+.room-info-card .ant-descriptions-item-content {
+  color: #333;
+}
+
+.room-info-card .ant-avatar {
+  border-radius: 12px;
+  transition: transform 0.3s ease;
+}
+
+.room-info-card:hover .ant-avatar {
+  transform: scale(1.05);
+}
+
+.room-info-card .ant-tag {
+  font-weight: 600;
+  text-transform: uppercase;
+  border-radius: 8px;
+}
+
+/* -----------------------------
+   Form Elements
+   ----------------------------- */
+.ant-form-item-label > label {
+  font-weight: 600;
+  color: #333;
+}
+
+.ant-input-affix-wrapper,
+.ant-picker,
+.ant-select-selector {
+  border-radius: 12px !important;
+  border: 1px solid #d9d9d9;
+  transition: all 0.3s ease, box-shadow 0.3s ease;
+}
+
+.ant-input-affix-wrapper:focus,
+.ant-input-affix-wrapper-focused,
+.ant-picker-focused,
+.ant-select-focused .ant-select-selector {
+  border-color: #1890ff !important;
+  box-shadow: 0 0 12px rgba(24,144,255,0.25) !important;
+}
+
+/* -----------------------------
+   Cost Breakdown
+   ----------------------------- */
+.cost-breakdown {
+  background: linear-gradient(135deg, #f0fff4, #e6fffb);
+  border: 1px solid #b7eb8f;
+  border-radius: 12px;
+  padding: 20px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.cost-breakdown:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+}
+
+.cost-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.cost-total {
+  border-top: 1px solid #d9d9d9;
+  padding-top: 12px;
+  margin-top: 12px;
+  font-size: 18px;
+  font-weight: bold;
+  color: #1890ff;
+}
+
+/* -----------------------------
+   Buttons
+   ----------------------------- */
+.btn-animated {
+  margin-top: 12px;
+  font-weight: 600;
+  position: relative;
+  overflow: hidden;
+  color: #fff !important;
+  background: linear-gradient(90deg, #4f46e5, #6366f1, #818cf8);
+  border: none;
+  border-radius: 12px;
+  padding: 14px 28px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.4s ease;
+}
+
+.btn-animated:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+
+.btn-animated::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255,255,255,0.4),
+    transparent
+  );
+  transition: all 0.6s ease;
+}
+
+.btn-animated:hover::before {
+  left: 100%;
+}
+
+/* -----------------------------
+   Success & Error Messages
+   ----------------------------- */
+.success-message, .error-message {
+  text-align: center;
+  padding: 40px 20px;
+  border-radius: 16px;
+  color: white;
+  font-weight: 600;
+}
+
+.success-message {
+  background: linear-gradient(135deg, #52c41a 0%, #73d13d 100%);
+}
+
+.error-message {
+  background: linear-gradient(135deg, #ff4d4f 0%, #ff7875 100%);
+}
+
+.success-message .anticon,
+.error-message .anticon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+/* -----------------------------
+   Animations
+   ----------------------------- */
+.checkin-card.submitting {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+/* -----------------------------
+   Responsive
+   ----------------------------- */
+@media (max-width: 768px) {
+  .checkin-container {
+    padding: 16px;
+  }
+
+  .room-info-card {
+    position: static;
+    margin-top: 24px;
+  }
+
+  .cost-breakdown {
+    margin: 16px 0;
+  }
+}
+

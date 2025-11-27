@@ -1,0 +1,47 @@
+import type { Tenant } from "./tenant";
+import type { Room } from "./room";
+
+export type ContractStatus = "ACTIVE" | "ENDED" | "CANCELED";
+
+export interface Contract {
+  _id: string;
+  tenantId: string | Tenant;  // Can be populated
+  roomId: string | Room;      // Can be populated
+  startDate: string; // ISO string
+  endDate: string;   // ISO string
+  deposit: number;   // number for API calls (converted from Decimal128)
+  monthlyRent: number; // number for API calls (converted from Decimal128)
+  status: ContractStatus;
+  pricingSnapshot?: {
+    roomNumber?: string;
+    monthlyRent?: number; // converted from Decimal128
+    deposit?: number; // converted from Decimal128
+  };
+  tenantSnapshot?: {
+    fullName?: string;
+    phone?: string;
+    email?: string;
+    identityNo?: string;
+    note?: string;
+  };
+  depositRefunded?: boolean;
+  depositRefund?: {
+    amount?: number;
+    refundedAt?: string;
+    method?: string;
+    transactionId?: string;
+    note?: string;
+  };
+  coTenants?: Array<{
+    userId?: string;
+    fullName: string;
+    phone: string;
+    email?: string;
+    identityNo?: string;
+    joinedAt: string;
+    leftAt?: string;
+    finalContractId?: string;
+  }>;
+  createdAt?: string;
+  updatedAt?: string;
+}

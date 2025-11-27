@@ -1,0 +1,1 @@
+Chia sẻ state và function global giữa nhiều component mà không cần props drilling (Auth, Cart, Booking)

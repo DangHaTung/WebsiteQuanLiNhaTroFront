@@ -1,0 +1,78 @@
+/* -------------------- Room Card -------------------- */
+.room-card {
+  position: relative; /* để pseudo-element hoạt động */
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border-radius: 16px;
+  overflow: hidden; /* để shine không tràn */
+}
+
+.room-card:hover {
+  transform: translateY(-6px) scale(1.03);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
+}
+
+/* Ánh sáng lướt ngang */
+.room-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -75%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(120deg, rgba(255,255,255,0.2), rgba(255,255,255,0));
+  transform: skewX(-25deg);
+  pointer-events: none;
+}
+
+.room-card:hover::after {
+  animation: shine 1s forwards;
+}
+
+@keyframes shine {
+  100% {
+    left: 125%;
+  }
+}
+
+/* Fade in + slide up khi xuất hiện */
+.fade-in-up {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.5s forwards;
+}
+
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* -------------------- Filter Card -------------------- */
+.filter-card {
+  transition: all 0.3s ease;
+  border-radius: 16px;
+}
+
+.filter-card:hover {
+  box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+  transform: translateY(-4px);
+}
+
+/* -------------------- Button -------------------- */
+.btn-animated {
+  transition: all 0.25s ease;
+  border-radius: 8px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(22, 119, 255, 0.25);
+}
+
+.btn-animated:hover {
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: 0 6px 18px rgba(22, 119, 255, 0.4);
+}
+
+.btn-animated:active {
+  transform: scale(0.98);
+  box-shadow: 0 3px 10px rgba(22, 119, 255, 0.25);
+}

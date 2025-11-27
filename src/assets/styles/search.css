@@ -1,0 +1,62 @@
+.search-bar-container {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  transition: all 0.3s ease;
+}
+
+.search-input {
+  flex: 1;
+  border-radius: 50px;
+  border: 1px solid #d9d9d9;
+  padding: 8px 16px;
+  font-size: 14px;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.search-input:focus {
+  border: 1.5px solid #40a9ff;
+}
+
+.search-button {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #0d6efd, #0dcaf0);
+  border: none;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease-in-out;
+}
+
+.search-button:hover {
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 15px rgba(24, 144, 255, 0.4);
+}
+
+.search-button:active {
+  transform: translateY(1px) scale(0.98);
+  box-shadow: 0 3px 8px rgba(24, 144, 255, 0.3);
+}
+
+/* Shimmer effect */
+.search-shimmer {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  transform: skewX(-20deg);
+  pointer-events: none;
+  transition: left 0.6s ease;
+}
+
+.search-button.hovered .search-shimmer {
+  left: 150%;
+}

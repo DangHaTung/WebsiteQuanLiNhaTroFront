@@ -1,0 +1,624 @@
+.full-width-banner {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  padding: 0 20px;
+}
+.page-container {
+  background-color: white;
+}
+
+.banner-slide {
+  height: 420px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 16px;
+  transition: transform 0.5s ease;
+}
+
+/* hiệu ứng phóng nhẹ ảnh khi hover */
+.banner-slide:hover {
+  transform: scale(1.03);
+}
+
+/* Overlay tối — mặc định ẩn */
+.banner-overlay {
+  background: rgba(0, 0, 0, 0.45);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.6s ease, visibility 0.6s ease;
+  border-radius: 16px;
+}
+
+/* Chữ mặc định ẩn */
+.banner-text {
+  color: #fff;
+  text-align: center;
+  max-width: 800px;
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.banner-text h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.banner-text p {
+  font-size: 1.1rem;
+  margin-bottom: 20px;
+}
+
+/* hiệu ứng chữ xuất hiện lần lượt */
+.banner-text h1,
+.banner-text p,
+.banner-text .banner-btn {
+  transition: all 0.6s ease;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.banner-slide:hover .banner-text h1 {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.2s;
+}
+
+.banner-slide:hover .banner-text p {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.4s;
+}
+
+.banner-slide:hover .banner-text .banner-btn {
+  opacity: 1;
+  transform: translateY(0);
+  transition-delay: 0.6s;
+}
+
+/* Khi hover vào banner: overlay & text hiện lên */
+.banner-slide:hover .banner-overlay {
+  opacity: 1;
+  visibility: visible;
+}
+
+.banner-slide:hover .banner-text {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.banner-btn {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #1677ff, #69b1ff);
+  border: none;
+  padding: 12px 28px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
+  border-radius: 50px;
+  box-shadow: 0 4px 12px rgba(22, 119, 255, 0.4);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+/* Khi hover nhẹ nhấc nút lên */
+.banner-btn:hover {
+  transform: translateY(-3px) scale(1.03);
+  box-shadow: 0 8px 18px rgba(22, 119, 255, 0.6);
+}
+
+/* Hiệu ứng ánh sáng */
+.banner-btn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -75px;
+  width: 50px;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255, 255, 255, 0.7),
+    transparent
+  );
+  transform: skewX(-25deg);
+  transition: all 0.5s ease;
+}
+
+/* Khi hover ánh sáng lướt ngang */
+.banner-btn:hover::before {
+  left: 120%;
+}
+
+
+/* Hiệu ứng hiện chữ mượt hơn khi load */
+.animate-fadeUp {
+  animation: fadeUp 0.8s ease-out;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 0.85;
+    transform: translateY(0);
+  }
+}
+
+
+/* Hiệu ứng fade */
+.animate-fadeUp {
+  opacity: 0;
+  transform: translateY(30px);
+  animation: fadeUp 0.8s ease forwards;
+}
+
+@keyframes fadeUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Section */
+.section {
+  padding: 60px 50px;
+}
+
+.section-bg {
+  background: #f9f9f9;
+}
+
+.section-title {
+  text-align: center;
+  font-weight: bold;
+  color: #1677ff;
+  margin-bottom: 40px;
+}
+
+/* Category card */
+.category-card {
+  text-align: center;
+  border-radius: 12px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.category-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+}
+
+.category-icon {
+  font-size: 28px;
+  color: #1677ff;
+  background-color: #f0f5ff;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 12px;
+  transition: all 0.3s ease;
+}
+
+.category-card:hover .category-icon {
+  background-color: #1677ff;
+  color: #fff;             
+  border-radius: 8px;      
+  transform: scale(1.1);   
+}
+
+
+/* Trend area */
+.trend-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.trend-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+}
+
+.trend-card img {
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.trend-card:hover img {
+  transform: scale(1.1);
+}
+
+.trend-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.45);
+}
+
+.trend-content {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  color: white;
+}
+
+.trend-content h2 {
+  font-size: 24px;
+  font-weight: bold;
+}
+
+.trend-content p {
+  font-size: 14px;
+  opacity: 0.9;
+  margin-bottom: 10px;
+}
+
+/* Room card */
+.room-card {
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.room-card .ant-card-body {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+}
+
+/* Đảm bảo các button trong room card có cùng chiều cao và căn chỉnh */
+.room-card .ant-btn {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-weight: 600;
+  margin-top: auto;
+}
+
+.room-card .ant-btn:disabled {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: not-allowed;
+}
+
+.room-image {
+  height: 200px;
+  object-fit: cover;
+}
+
+.room-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.room-header h3 {
+  margin: 0;
+  font-weight: bold;
+}
+
+.room-address {
+  color: #888;
+  margin-bottom: 8px;
+}
+
+.room-price {
+  font-weight: bold;
+  color: #1677ff;
+}
+
+.room-info {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.btn-animated {
+  margin-top: 12px;
+  font-weight: 600;
+  position: relative;
+  overflow: hidden;
+  color: #fff !important;
+  background: linear-gradient(90deg, #2563eb, #3b82f6, #60a5fa);
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+/* Hiệu ứng nổi khi hover */
+.btn-animated:hover {
+  transform: translateY(-2px);
+}
+
+/* Ánh sáng quét ngang */
+.btn-animated::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 80%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255, 255, 255, 0.5),
+    transparent
+  );
+  transition: all 0.5s ease;
+}
+
+.btn-animated:hover::before {
+  left: 100%;
+}
+
+/* Title */
+.section-title {
+  font-weight: 700;
+  font-size: 2.5rem;
+  background: linear-gradient(90deg, #80bfff, #4da6ff, #1677ff, #80bfff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-align: center;
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.section-title::after {
+  content: "";
+  display: block;
+  width: 80px;
+  height: 4px;
+  margin: 8px auto 0 auto;
+  border-radius: 2px;
+  background: linear-gradient(90deg, #80bfff, #4da6ff, #1677ff, #80bfff);
+  background-size: 200% 100%;
+  animation: shine 1.5s linear infinite;
+}
+
+@keyframes shine {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.section-title {
+  font-weight: 600;
+  font-size: 28px; 
+  text-transform: uppercase;
+  letter-spacing: 1px;      
+  margin-bottom: 16px;      
+}
+
+/* ==== SLIDE 2 HÀNG NGƯỢC CHIỀU ==== */
+.section.page-container {
+  padding: 100px 0;
+  background: linear-gradient(180deg, #fff, #fafafa);
+}
+
+.section-title {
+  font-weight: 700;
+  color: #333;
+  font-size: 2rem;
+  margin-bottom: 12px;
+}
+
+.trend-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 32px;
+  margin-top: 40px;
+}
+
+.trend-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 20px;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: transform 0.4s ease, box-shadow 0.4s ease;
+}
+
+.trend-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+}
+
+.trend-card:hover img {
+  transform: scale(1.1);
+}
+
+.trend-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.05));
+  z-index: 1;
+  opacity: 0.9;
+}
+
+.trend-content {
+  position: absolute;
+  bottom: 30px;
+  left: 30px;
+  right: 30px;
+  z-index: 2;
+  color: #fff;
+  text-align: left;
+}
+
+.trend-content h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.trend-content p {
+  font-size: 0.95rem;
+  margin-bottom: 16px;
+  color: #eee;
+}
+
+.btn-animated {
+  background: #1890ff;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: transform 0.3s ease, background 0.3s ease;
+}
+
+.btn-animated:hover {
+  transform: translateY(-2px);
+  background: #40a9ff !important;
+}
+
+/* ==== SLIDE 2 HÀNG NGƯỢC CHIỀU ==== */
+.modern-gallery-section {
+  background: linear-gradient(180deg, #fafafa, #f3f3f3);
+  padding: 100px 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.scroll-gallery {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  overflow: hidden;
+  position: relative;
+}
+
+.scroll-row {
+  display: flex;
+  width: max-content;
+  gap: 24px;
+}
+
+.scroll-item {
+  flex: 0 0 auto;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: transform 0.4s ease;
+  position: relative;
+}
+
+.scroll-item img {
+  width: 300px;
+  height: 200px;
+  object-fit: cover;
+  display: block;
+  border-radius: 16px;
+}
+
+/* Thêm lớp phủ + đánh giá sao */
+.scroll-item::after {
+  content: "★★★★★ 4.8/5";
+  position: absolute;
+  bottom: 8px;
+  left: 12px;
+  color: #fff;
+  font-size: 0.9rem;
+  background: rgba(0, 0, 0, 0.45);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.scroll-item:hover::after {
+  opacity: 1;
+}
+
+/* Hover đẹp mắt */
+.scroll-item:hover {
+  transform: scale(1.05);
+}
+
+/* Animation hàng trên - chạy từ trái sang phải liên tục */
+.scroll-row-bottom {
+  animation: scrollLeft 35s linear infinite;
+}
+
+/* Animation hàng dưới - chạy ngược lại */
+.scroll-row-top {
+  animation: scrollRight 35s linear infinite;
+}
+
+/* Keyframes cuộn liên tục */
+@keyframes scrollLeft {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes scrollRight {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* ==== REVIEW ==== */
+.review-section {
+  background: linear-gradient(180deg, #f9f9f9 0%, #fff 100%);
+  padding: 80px 20px;
+}
+
+.review-section .ant-carousel .slick-dots li button {
+  background: #1890ff !important;
+  opacity: 0.3;
+}
+.review-section .ant-carousel .slick-dots li.slick-active button {
+  opacity: 1;
+}
+
+.review-section .section-title {
+  font-weight: 700;
+  color: #222;
+}
