@@ -612,6 +612,7 @@ const RoomsAD: React.FC = () => {
               <Form.Item label="Tình trạng" name="status" rules={[{ required: true, message: "Chọn tình trạng!" }]}>
                 <Select placeholder="Chọn tình trạng">
                   <Option value="AVAILABLE">Còn trống</Option>
+                  <Option value="DEPOSITED">Đã được cọc</Option>
                   <Option value="OCCUPIED">Đang thuê</Option>
                   <Option value="MAINTENANCE">Bảo trì</Option>
                 </Select>
