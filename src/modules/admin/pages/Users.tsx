@@ -362,14 +362,6 @@ const Users: React.FC = () => {
                 <Form<FormValues> form={form} layout="vertical">
                     <Row gutter={16}>
                         <Col xs={24} md={12}>
-                            <Form.Item label="Avatar (URL)" name="avatar">
-                                <Input
-                                    placeholder="https://..."
-                                    style={{ borderRadius: 10, boxShadow: "0 2px 6px rgba(0,0,0,0.08)" }}
-                                />
-                            </Form.Item>
-                        </Col>
-                        <Col xs={24} md={12}>
                             <Form.Item
                                 label="Họ tên"
                                 name="fullName"

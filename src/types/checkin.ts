@@ -38,6 +38,7 @@ export interface Checkin {
   attachments?: FileInfo[];
   status: CheckinStatus;
   depositDisposition?: DepositDisposition;
+  receiptPaidAt?: string; // Thời điểm thanh toán phiếu thu (để tính thời hạn 3 ngày)
   createdAt: string;
   updatedAt?: string;
 }

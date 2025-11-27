@@ -19,6 +19,8 @@ const RoomCard: React.FC<Props> = ({ room }) => {
     switch (status) {
       case "AVAILABLE":
         return "green";
+      case "DEPOSITED":
+        return "red";
       case "OCCUPIED":
         return "red";
       case "MAINTENANCE":
@@ -32,6 +34,8 @@ const RoomCard: React.FC<Props> = ({ room }) => {
     switch (status) {
       case "AVAILABLE":
         return "Còn trống";
+      case "DEPOSITED":
+        return "Được cọc";
       case "OCCUPIED":
         return "Đã thuê";
       case "MAINTENANCE":

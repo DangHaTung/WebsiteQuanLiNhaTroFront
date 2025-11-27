@@ -11,6 +11,8 @@ import { adminBillService } from "../services/bill";
 import { adminContractService } from "../services/contract";
 import { adminTenantService } from "../services/tenant";
 import { adminRoomService } from "../services/room";
+import { adminUserService } from "../services/user";
+import type { User } from "../../../types/user";
 import BillDetailDrawer from "../components/BillDetailDrawer";
 import "../../../assets/styles/roomAd.css";
 import { isAdmin } from "../../../utils/roleChecker";
@@ -26,6 +28,7 @@ interface BillFormValues {
     status: BillStatus;
     amountDue: number;
     amountPaid: number;
+    tenantId?: string;
 }
 
 const BillsAD: React.FC = () => {
@@ -33,6 +36,7 @@ const BillsAD: React.FC = () => {
     const [contracts, setContracts] = useState<Contract[]>([]);
     const [tenants, setTenants] = useState<Tenant[]>([]);
     const [rooms, setRooms] = useState<Room[]>([]);
+    const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
     const [editing, setEditing] = useState<Bill | null>(null);
@@ -48,6 +52,7 @@ const BillsAD: React.FC = () => {
     const [hasLoadedContracts, setHasLoadedContracts] = useState<boolean>(false);
     const [hasLoadedTenants, setHasLoadedTenants] = useState<boolean>(false);
     const [hasLoadedRooms, setHasLoadedRooms] = useState<boolean>(false);
+    const [hasLoadedUsers, setHasLoadedUsers] = useState<boolean>(false);
 
     useEffect(() => {
         loadBills();
@@ -112,13 +117,28 @@ const BillsAD: React.FC = () => {
         }
     };
 
+    // Load users chỉ khi cần (khi mở modal và billType = RECEIPT)
+    const loadUsersIfNeeded = async () => {
+        if (!hasLoadedUsers) {
+            try {
+                const usersData = await adminUserService.list();
+                setUsers(usersData);
+                setHasLoadedUsers(true);
+            } catch (error: any) {
+                message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu tài khoản");
+            }
+        }
+    };
+
     const openModal = async (record?: Bill) => {
-        // Chỉ load contracts khi mở modal (vì cần cho dropdown)
+        // Chỉ load contracts và users khi mở modal (vì cần cho dropdown)
         await loadContractsIfNeeded();
+        await loadUsersIfNeeded();
 
         if (record) {
             setEditing(record);
             const contractId = typeof record.contractId === "string" ? record.contractId : record.contractId?._id;
+            const tenantId = typeof record.tenantId === "string" ? record.tenantId : record.tenantId?._id;
             form.setFieldsValue({
                 contractId,
                 billingDate: dayjs(record.billingDate),
@@ -126,6 +146,7 @@ const BillsAD: React.FC = () => {
                 status: record.status,
                 amountDue: Number(record.amountDue || 0),
                 amountPaid: Number(record.amountPaid || 0),
+                tenantId,
             });
         } else {
             setEditing(null);
@@ -167,6 +188,11 @@ const BillsAD: React.FC = () => {
                     lineTotal: values.amountDue ?? 0
                 }],
             };
+
+            // Thêm tenantId nếu billType là RECEIPT và có chọn tenantId
+            if (values.billType === "RECEIPT" && values.tenantId) {
+                payload.tenantId = values.tenantId;
+            }
 
             if (editing) {
                 await adminBillService.update(editing._id, payload);
@@ -617,6 +643,41 @@ const BillsAD: React.FC = () => {
                             </Form.Item>
                         </Col>
                     </Row>
+                    <Form.Item
+                        noStyle
+                        shouldUpdate={(prevValues, currentValues) => prevValues.billType !== currentValues.billType}
+                    >
+                        {({ getFieldValue }) => {
+                            const billType = getFieldValue("billType");
+                            return billType === "RECEIPT" ? (
+                                <Form.Item
+                                    label="Tài khoản khách hàng"
+                                    name="tenantId"
+                                    tooltip="Chọn tài khoản để khách hàng có thể thấy và thanh toán phiếu thu này"
+                                >
+                                    <Select
+                                        showSearch
+                                        placeholder="Chọn tài khoản (tùy chọn)"
+                                        optionFilterProp="children"
+                                        allowClear
+                                        filterOption={(input, option: any) => {
+                                            const children = option?.children;
+                                            if (children && typeof children === 'string') {
+                                                return children.toLowerCase().includes(input.toLowerCase());
+                                            }
+                                            return false;
+                                        }}
+                                    >
+                                        {users.map((user) => (
+                                            <Option key={user._id} value={user._id}>
+                                                {user.fullName} {user.email && `(${user.email})`}
+                                            </Option>
+                                        ))}
+                                    </Select>
+                                </Form.Item>
+                            ) : null;
+                        }}
+                    </Form.Item>
                 </Form>
             </Modal>
 

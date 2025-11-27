@@ -332,6 +332,7 @@ const RoomsAD: React.FC = () => {
       align: "center",
       filters: [
         { text: "Còn trống", value: "AVAILABLE" },
+        { text: "Đã được cọc", value: "DEPOSITED" },
         { text: "Đang thuê", value: "OCCUPIED" },
         { text: "Bảo trì", value: "MAINTENANCE" },
       ],
@@ -339,11 +340,13 @@ const RoomsAD: React.FC = () => {
       render: (status: Room["status"]) => {
         const colors: Record<string, string> = {
           AVAILABLE: "#52c41a",
+          DEPOSITED: "#ff4d4f",
           OCCUPIED: "#fa8c16",
           MAINTENANCE: "#8c8c8c",
         };
         const labels: Record<string, string> = {
           AVAILABLE: "Còn trống",
+          DEPOSITED: "Đã được cọc",
           OCCUPIED: "Đang thuê",
           MAINTENANCE: "Bảo trì",
         };

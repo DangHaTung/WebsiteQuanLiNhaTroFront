@@ -190,8 +190,8 @@ const InvoiceDetail: React.FC = () => {
     const map: Record<string, { color: string; text: string; icon: React.ReactNode }> = {
       PAID: { color: "success", text: "Đã thanh toán", icon: <CheckCircleOutlined /> },
       UNPAID: { color: "error", text: "Chưa thanh toán", icon: <ClockCircleOutlined /> },
+      PENDING_CASH_CONFIRM: { color: "gold", text: "Chờ xác nhận tiền mặt", icon: <ClockCircleOutlined /> },
       PARTIALLY_PAID: { color: "warning", text: "Thanh toán 1 phần", icon: <ClockCircleOutlined /> },
-      PENDING_CASH_CONFIRM: { color: "processing", text: "Chờ xác nhận TM", icon: <ClockCircleOutlined /> },
     };
     const m = map[status] || { color: "default", text: status, icon: null };
     return <Tag color={m.color} icon={m.icon}>{m.text}</Tag>;
