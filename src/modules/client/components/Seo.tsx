@@ -47,10 +47,9 @@ const SEO = ({ title, description, keywords }: SEOProps) => {
       // Gán danh sách từ khóa
       keyTag.setAttribute("content", keywords);
     }
-  }, [title, description, keywords]); // Chỉ chạy lại khi 1 trong 3 props thay đổi
+  }, [title, description, keywords]); 
 
-  // Component này không render gì ra giao diện cả
-  // Chỉ dùng để thay đổi thẻ <head> nên return null
+  
   return null;
 };
 
