@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Row, Col, Card, Typography, Tag, Button, Rate, Divider, Space, Descriptions, Skeleton, message, Empty } from "antd";
+import { Row, Col, Card, Typography, Tag, Button, Divider, Space, Descriptions, Skeleton, message, Empty } from "antd";
 import { EnvironmentOutlined, FullscreenOutlined, CheckCircleOutlined, PhoneOutlined, AppstoreOutlined } from "@ant-design/icons";
 import type { Room } from "../../../types/room";
 import RoomCard from "../components/RoomCard";
@@ -20,7 +20,6 @@ const RoomsDetail: React.FC = () => {
   const [loadingRelated, setLoadingRelated] = useState(true);
 
   const [currentImage, setCurrentImage] = useState(0);
-  const [userRating, setUserRating] = useState(4.5);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -157,12 +156,6 @@ const RoomsDetail: React.FC = () => {
           <Title level={1} style={{ color: "#e6f7ff", marginBottom: 8 }}>
             Phòng {room.roomNumber}
           </Title>
-          <Space wrap align="center" size={12}>
-            <span style={{ color: "#ffd666" }}>
-              <Rate allowHalf disabled value={userRating} />{" "}
-              <Text style={{ color: "#ffd666" }}>{userRating.toFixed(1)}</Text>
-            </span>
-          </Space>
         </div>
       </div>
 
@@ -183,6 +176,66 @@ const RoomsDetail: React.FC = () => {
                 alt={`Phòng ${room.roomNumber}`}
                 style={{ width: "100%", height: 420, objectFit: "cover" }}
               />
+              {room.status === "OCCUPIED" && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: "rgba(0, 0, 0, 0.5)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#fff",
+                    fontSize: 32,
+                    fontWeight: 700,
+                  }}
+                >
+                  Đã thuê
+                </div>
+              )}
+              {room.status === "DEPOSITED" && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: "rgba(0, 0, 0, 0.5)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#fff",
+                    fontSize: 32,
+                    fontWeight: 700,
+                  }}
+                >
+                  Đã được cọc
+                </div>
+              )}
+              {room.status === "MAINTENANCE" && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: "rgba(0, 0, 0, 0.5)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: "#fff",
+                    fontSize: 32,
+                    fontWeight: 700,
+                  }}
+                >
+                  Bảo trì
+                </div>
+              )}
               {gallery.length > 1 && (
                 <>
                   <Button
@@ -252,18 +305,9 @@ const RoomsDetail: React.FC = () => {
             )}
 
             {/* Thông tin phòng */}
-            <div
-              style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}
-            >
-                <Title level={3} style={{ margin: 0 }}>
-                  Phòng {room.roomNumber}
-                </Title>
-              <Space>
-                <Rate allowHalf value={userRating} onChange={(v) => setUserRating(v)} />
-                <Text strong>{userRating.toFixed(1)}</Text>
-              </Space>
-            </div>
-
+            <Title level={3} style={{ margin: "12px 0 0 0" }}>
+              Phòng {room.roomNumber}
+            </Title>
 
             <Divider style={{ margin: "12px 0" }} />
 
@@ -292,7 +336,7 @@ const RoomsDetail: React.FC = () => {
                   }}
                 >
                   {room.status === "AVAILABLE"
-                    ? "Có sẵn"
+                    ? "Còn trống"
                     : room.status === "DEPOSITED"
                       ? "Phòng đã được đặt cọc nên tạm đóng"
                     : room.status === "OCCUPIED"
@@ -570,23 +614,7 @@ const RoomsDetail: React.FC = () => {
               <Divider style={{ margin: "4px 0" }} />
 
               {/* --- Nút đặt phòng --- */}
-              {room.status === "AVAILABLE" || room.status === "DEPOSITED" ? (
-                <Button
-                  htmlType="submit"
-                  type="primary"
-                  size="large"
-                  className="btn-animated"
-                  block
-                  style={{
-                    borderRadius: 10,
-                    height: 48,
-                    fontWeight: 600,
-                  }}
-                  onClick={handleBook}
-                >
-                  Liên hệ ngay
-                </Button>
-              ) : (
+              {room.status === "MAINTENANCE" ? (
                 <Button
                   type="default"
                   size="large"
@@ -602,7 +630,23 @@ const RoomsDetail: React.FC = () => {
                     fontWeight: 600,
                   }}
                 >
-                  {room.status === "OCCUPIED" ? "Đã thuê" : "Bảo trì"}
+                  Bảo trì
+                </Button>
+              ) : (
+                <Button
+                  htmlType="submit"
+                  type="primary"
+                  size="large"
+                  className="btn-animated"
+                  block
+                  style={{
+                    borderRadius: 10,
+                    height: 48,
+                    fontWeight: 600,
+                  }}
+                  onClick={handleBook}
+                >
+                  Liên hệ ngay
                 </Button>
               )}
             </Space>

@@ -135,9 +135,6 @@ const Navbar: React.FC = () => {
             <Link to="/support" className="nav-top-link highlight">
               <CustomerServiceOutlined className="icon" /> Hỗ trợ
             </Link>
-            <Link to="/" className="nav-top-link highlight">
-              <CustomerServiceOutlined className="icon" /> Thông tin hệ thống
-            </Link>
           </div>
         </div>
       </div>
@@ -293,9 +290,11 @@ const Navbar: React.FC = () => {
               </Button>
             </div>
           ) : (
+
               <Link to="/login" onClick={() => setOpenDrawer(false)}>
                 Đăng nhập
               </Link>
+        
           )}
         </div>
       </Drawer>
