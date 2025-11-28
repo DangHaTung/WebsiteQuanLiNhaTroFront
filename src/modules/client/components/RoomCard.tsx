@@ -60,22 +60,57 @@ const RoomCard: React.FC<Props> = ({ room }) => {
     }
   };
 
+  const handleImageClick = () => {
+    if (room.status !== "MAINTENANCE") {
+      navigate(`/rooms/${room._id}`);
+    }
+  };
+
   return (
     <Card
       hoverable
       className="room-card"
       cover={
-        <img
-          alt={`Phòng ${room.roomNumber || 'N/A'}`}
-          src={room.image || 'https://via.placeholder.com/300x180?text=No+Image'}
+        <div
+          onClick={handleImageClick}
           style={{
-            height: 180,
-            objectFit: "cover",
-            transition: "transform 0.3s ease",
+            cursor: room.status === "MAINTENANCE" ? "not-allowed" : "pointer",
+            position: "relative",
           }}
-          onMouseOver={(e) => (e.currentTarget.style.transform = "scale(1.05)")}
-          onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
-        />
+        >
+          <img
+            alt={`Phòng ${room.roomNumber || 'N/A'}`}
+            src={room.image || 'https://via.placeholder.com/300x180?text=No+Image'}
+            style={{
+              height: 180,
+              objectFit: "cover",
+              transition: "transform 0.3s ease",
+              width: "100%",
+            }}
+            onMouseOver={(e) => room.status !== "MAINTENANCE" && (e.currentTarget.style.transform = "scale(1.05)")}
+            onMouseOut={(e) => (e.currentTarget.style.transform = "scale(1)")}
+          />
+          {room.status === "MAINTENANCE" && (
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: "rgba(0, 0, 0, 0.4)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#fff",
+                fontSize: 16,
+                fontWeight: 600,
+              }}
+            >
+              Đang bảo trì
+            </div>
+          )}
+        </div>
       }
     >
       {/* Tiêu đề + trạng thái */}
@@ -122,37 +157,10 @@ const RoomCard: React.FC<Props> = ({ room }) => {
           fontWeight: 700,
           color: "#16a34a",
           fontSize: 18,
-          marginBottom: 10,
         }}
       >
         {new Intl.NumberFormat('vi-VN').format(room.pricePerMonth || 0)}₫
       </div>
-
-      {/* Nút hành động - phòng bảo trì không thể xem chi tiết */}
-      {room.status === "MAINTENANCE" ? (
-        <Button
-          block
-          disabled
-          style={{
-            backgroundColor: "#faad14",
-            color: "#fff",
-            borderRadius: 8,
-            fontWeight: 600,
-            cursor: "not-allowed",
-          }}
-        >
-          Đang bảo trì
-        </Button>
-      ) : (
-        <Button
-          type="primary"
-          block
-          className="btn-animated"
-          onClick={() => navigate(`/rooms/${room._id}`)}
-        >
-          Xem chi tiết
-        </Button>
-      )}
     </Card>
   );
 };
