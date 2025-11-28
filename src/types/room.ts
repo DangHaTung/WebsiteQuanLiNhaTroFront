@@ -1,3 +1,7 @@
+import type { Checkin } from "./checkin";
+import type { Contract } from "./contract";
+import type { Bill } from "./bill";
+
 export interface Room {
   _id?: string;
   roomNumber: string;
@@ -24,4 +28,8 @@ export interface Room {
     condition: "new" | "used" | "broken";
     description?: string;
   }>;
+  checkins?: Checkin[];
+  contracts?: Contract[];
+  bills?: Bill[];
+  receiptBills?: Bill[];
 }

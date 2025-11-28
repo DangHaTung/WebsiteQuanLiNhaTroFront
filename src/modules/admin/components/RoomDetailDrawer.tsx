@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Drawer, Descriptions, Image, Divider, Tag, Typography, Row, Col, Space, message, Spin } from "antd";
-import { CheckCircleOutlined, ExclamationCircleOutlined, ToolOutlined, HomeOutlined } from "@ant-design/icons";
+import { Drawer, Descriptions, Image, Divider, Tag, Typography, Row, Col, Space, message, Spin, Table, Tabs } from "antd";
+import { CheckCircleOutlined, ExclamationCircleOutlined, ToolOutlined, HomeOutlined, FileTextOutlined, PayCircleOutlined, DollarOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import type { Room } from "../../../types/room";
+import type { Checkin } from "../../../types/checkin";
+import type { Contract } from "../../../types/contract";
+import type { Bill, BillType, BillStatus } from "../../../types/bill";
 import { adminRoomService } from "../services/room";
+import dayjs from "dayjs";
 
 interface RoomDetailDrawerProps {
   open: boolean;
@@ -46,6 +50,7 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
 
   const statusConfig: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
     AVAILABLE: { color: "#52c41a", label: "Còn trống", icon: <CheckCircleOutlined /> },
+    DEPOSITED: { color: "#ff4d4f", label: "Đã được cọc", icon: <ExclamationCircleOutlined /> },
     OCCUPIED: { color: "#fa8c16", label: "Đang thuê", icon: <ExclamationCircleOutlined /> },
     MAINTENANCE: { color: "#8c8c8c", label: "Bảo trì", icon: <ToolOutlined /> },
   };
@@ -54,6 +59,156 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
     typeof img === "string" ? img : (img as any).url
   );
     // Render the Drawer component with room details
+
+  // Helper functions for status tags
+  const getCheckinStatusTag = (status: string) => {
+    const map: Record<string, { color: string; text: string }> = {
+      CREATED: { color: "blue", text: "Đã tạo" },
+      COMPLETED: { color: "green", text: "Hoàn thành" },
+      CANCELED: { color: "red", text: "Đã hủy" },
+    };
+    const m = map[status] || { color: "default", text: status };
+    return <Tag color={m.color}>{m.text}</Tag>;
+  };
+
+  const getBillStatusTag = (status: BillStatus) => {
+    if (status === "PENDING_CASH_CONFIRM") {
+      return <Tag color="gold">Chờ xác nhận tiền mặt</Tag>;
+    }
+    const map: Record<string, { color: string; text: string }> = {
+      DRAFT: { color: "orange", text: "Nháp" },
+      PAID: { color: "green", text: "Đã thanh toán" },
+      UNPAID: { color: "red", text: "Chờ thanh toán" },
+      PARTIALLY_PAID: { color: "orange", text: "Một phần" },
+      VOID: { color: "default", text: "Đã hủy" },
+    };
+    const m = map[status] || { color: "default", text: status };
+    return <Tag color={m.color}>{m.text}</Tag>;
+  };
+
+  const getContractStatusTag = (status: string) => {
+    const map: Record<string, { color: string; text: string }> = {
+      ACTIVE: { color: "green", text: "Đang hoạt động" },
+      ENDED: { color: "default", text: "Đã kết thúc" },
+      CANCELED: { color: "red", text: "Đã hủy" },
+    };
+    const m = map[status] || { color: "default", text: status };
+    return <Tag color={m.color}>{m.text}</Tag>;
+  };
+
+  const getBillTypeTag = (type: BillType) => {
+    const map: Record<BillType, { color: string; text: string }> = {
+      RECEIPT: { color: "purple", text: "Phiếu thu" },
+      CONTRACT: { color: "cyan", text: "Hợp đồng" },
+      MONTHLY: { color: "magenta", text: "Hàng tháng" },
+    };
+    const m = map[type] || { color: "default", text: type };
+    return <Tag color={m.color}>{m.text}</Tag>;
+  };
+
+  // Table columns for checkins
+  const checkinColumns = [
+    {
+      title: "Ngày tạo",
+      dataIndex: "createdAt",
+      key: "createdAt",
+      render: (v: string) => dayjs(v).format("DD/MM/YYYY HH:mm"),
+    },
+    {
+      title: "Người thuê",
+      key: "tenant",
+      render: (_: any, record: Checkin) => {
+        if (typeof record.tenantId === "object" && record.tenantId) {
+          return record.tenantId.fullName || "N/A";
+        }
+        return record.tenantSnapshot?.fullName || "N/A";
+      },
+    },
+    {
+      title: "Tiền cọc",
+      dataIndex: "deposit",
+      key: "deposit",
+      render: (v: number) => v?.toLocaleString() + " VNĐ",
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "status",
+      key: "status",
+      render: (status: string) => getCheckinStatusTag(status),
+    },
+  ];
+
+  // Table columns for contracts
+  const contractColumns = [
+    {
+      title: "Ngày bắt đầu",
+      dataIndex: "startDate",
+      key: "startDate",
+      render: (v: string) => dayjs(v).format("DD/MM/YYYY"),
+    },
+    {
+      title: "Ngày kết thúc",
+      dataIndex: "endDate",
+      key: "endDate",
+      render: (v: string) => dayjs(v).format("DD/MM/YYYY"),
+    },
+    {
+      title: "Người thuê",
+      key: "tenant",
+      render: (_: any, record: Contract) => {
+        if (typeof record.tenantId === "object" && record.tenantId) {
+          return record.tenantId.fullName || "N/A";
+        }
+        return "N/A";
+      },
+    },
+    {
+      title: "Tiền thuê/tháng",
+      dataIndex: "monthlyRent",
+      key: "monthlyRent",
+      render: (v: number) => v?.toLocaleString() + " VNĐ",
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "status",
+      key: "status",
+      render: (status: string) => getContractStatusTag(status),
+    },
+  ];
+
+  // Table columns for bills
+  const billColumns = [
+    {
+      title: "Loại",
+      dataIndex: "billType",
+      key: "billType",
+      render: (type: BillType) => getBillTypeTag(type),
+    },
+    {
+      title: "Ngày lập",
+      dataIndex: "billingDate",
+      key: "billingDate",
+      render: (v: string) => dayjs(v).format("DD/MM/YYYY"),
+    },
+    {
+      title: "Số tiền",
+      dataIndex: "amountDue",
+      key: "amountDue",
+      render: (v: number) => v?.toLocaleString() + " VNĐ",
+    },
+    {
+      title: "Đã thanh toán",
+      dataIndex: "amountPaid",
+      key: "amountPaid",
+      render: (v: number) => v?.toLocaleString() + " VNĐ",
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "status",
+      key: "status",
+      render: (status: BillStatus) => getBillStatusTag(status),
+    },
+  ];
 
   return (
     <Drawer
@@ -66,7 +221,7 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
         </Space>
       }
       placement="right"
-      width={500}
+      width={800}
       onClose={() => {
         setRoom(null);
         onClose();
@@ -82,78 +237,169 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
           <Spin size="large" />
         </div>
       ) : (
-        <>
-          <Descriptions
-            bordered
-            column={1}
-            size="middle"
-            styles={{
-              label: { fontWeight: 600, background: "#fafafa" },
-              content: { background: "#fff" },
-            }}
-          >
-            <Descriptions.Item label="Số phòng">{room?.roomNumber}</Descriptions.Item>
-            <Descriptions.Item label="Loại phòng">{room?.type}</Descriptions.Item>
-            <Descriptions.Item label="Giá thuê">
-              <Text strong style={{ color: "#1677ff" }}>
-                {room?.pricePerMonth?.toLocaleString()} VNĐ / tháng
-              </Text>
-            </Descriptions.Item>
-            <Descriptions.Item label="Diện tích">{room?.areaM2} m²</Descriptions.Item>
-            <Descriptions.Item label="Tầng">{room?.floor}</Descriptions.Item>
-            <Descriptions.Item label="Trạng thái">
-              {room && (
-                <Tag
-                  color={statusConfig[room.status].color}
-                  style={{ fontSize: 14, padding: "4px 12px", borderRadius: 16 }}
-                  icon={statusConfig[room.status].icon}
-                >
-                  {statusConfig[room.status].label}
-                </Tag>
-              )}
-            </Descriptions.Item>
-          </Descriptions>
-
-          <Divider orientation="left" style={{ marginTop: 24 }}>
-            Hình ảnh phòng
-          </Divider>
-
-          {processedImages && processedImages.length > 0 ? (
-            <Row gutter={[12, 12]}>
-              {processedImages.map((img, idx) => (
-                <Col span={12} key={idx}>
-                  <div
-                    style={{
-                      borderRadius: 12,
-                      overflow: "hidden",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-                      transition: "transform 0.3s ease",
+        <Tabs
+          defaultActiveKey="1"
+          items={[
+            {
+              key: "1",
+              label: (
+                <span>
+                  <InfoCircleOutlined /> Thông tin cơ bản
+                </span>
+              ),
+              children: (
+                <>
+                  <Descriptions
+                    bordered
+                    column={1}
+                    size="middle"
+                    styles={{
+                      label: { fontWeight: 600, background: "#fafafa" },
+                      content: { background: "#fff" },
                     }}
-                    className="image-hover"
                   >
-                    <Image
-                      src={img}
-                      width="100%"
-                      height={160}
-                      style={{ objectFit: "cover" }}
-                      preview={{ mask: <span>Xem ảnh</span> }}
-                    />
-                  </div>
-                </Col>
-              ))}
-            </Row>
-          ) : (
-            <Text type="secondary">Không có hình ảnh</Text>
-          )}
-          
+                    <Descriptions.Item label="Số phòng">{room?.roomNumber}</Descriptions.Item>
+                    <Descriptions.Item label="Loại phòng">{room?.type}</Descriptions.Item>
+                    <Descriptions.Item label="Giá thuê">
+                      <Text strong style={{ color: "#1677ff" }}>
+                        {room?.pricePerMonth?.toLocaleString()} VNĐ / tháng
+                      </Text>
+                    </Descriptions.Item>
+                    <Descriptions.Item label="Diện tích">{room?.areaM2} m²</Descriptions.Item>
+                    <Descriptions.Item label="Tầng">{room?.floor}</Descriptions.Item>
+                    <Descriptions.Item label="Trạng thái">
+                      {room && statusConfig[room.status] ? (
+                        <Tag
+                          color={statusConfig[room.status].color}
+                          style={{ fontSize: 14, padding: "4px 12px", borderRadius: 16 }}
+                          icon={statusConfig[room.status].icon}
+                        >
+                          {statusConfig[room.status].label}
+                        </Tag>
+                      ) : (
+                        <Tag color="default">{room.status || "Unknown"}</Tag>
+                      )}
+                    </Descriptions.Item>
+                  </Descriptions>
 
-          <style>{`
-            .image-hover:hover {
-              transform: scale(1.03);
-              cursor: pointer;
-            }
-          `}</style>
-        </>
+                  <Divider orientation="left" style={{ marginTop: 24 }}>
+                    Hình ảnh phòng
+                  </Divider>
+
+                  {processedImages && processedImages.length > 0 ? (
+                    <Row gutter={[12, 12]}>
+                      {processedImages.map((img, idx) => (
+                        <Col span={12} key={idx}>
+                          <div
+                            style={{
+                              borderRadius: 12,
+                              overflow: "hidden",
+                              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                              transition: "transform 0.3s ease",
+                            }}
+                            className="image-hover"
+                          >
+                            <Image
+                              src={img}
+                              width="100%"
+                              height={160}
+                              style={{ objectFit: "cover" }}
+                              preview={{ mask: <span>Xem ảnh</span> }}
+                            />
+                          </div>
+                        </Col>
+                      ))}
+                    </Row>
+                  ) : (
+                    <Text type="secondary">Không có hình ảnh</Text>
+                  )}
+
+                  <style>{`
+                    .image-hover:hover {
+                      transform: scale(1.03);
+                      cursor: pointer;
+                    }
+                  `}</style>
+                </>
+              ),
+            },
+            {
+              key: "2",
+              label: (
+                <span>
+                  <PayCircleOutlined /> Phiếu thu ({room?.receiptBills?.length || 0})
+                </span>
+              ),
+              children: (
+                <>
+                  {room?.receiptBills && room.receiptBills.length > 0 ? (
+                    <Table
+                      columns={billColumns}
+                      dataSource={room.receiptBills}
+                      rowKey="_id"
+                      size="small"
+                      pagination={{ pageSize: 10 }}
+                    />
+                  ) : (
+                    <div style={{ textAlign: "center", padding: "40px 0" }}>
+                      <Text type="secondary">Không có phiếu thu</Text>
+                    </div>
+                  )}
+                </>
+              ),
+            },
+            {
+              key: "3",
+              label: (
+                <span>
+                  <FileTextOutlined /> Hợp đồng ({room?.contracts?.length || 0})
+                </span>
+              ),
+              children: (
+                <>
+                  {room?.contracts && room.contracts.length > 0 ? (
+                    <Table
+                      columns={contractColumns}
+                      dataSource={room.contracts}
+                      rowKey="_id"
+                      size="small"
+                      pagination={{ pageSize: 10 }}
+                    />
+                  ) : (
+                    <div style={{ textAlign: "center", padding: "40px 0" }}>
+                      <Text type="secondary">Không có hợp đồng</Text>
+                    </div>
+                  )}
+                </>
+              ),
+            },
+            {
+              key: "4",
+              label: (
+                <span>
+                  <DollarOutlined /> Hóa đơn ({room?.bills?.length || 0})
+                </span>
+              ),
+              children: (
+                <>
+                  {room?.bills && room.bills.length > 0 ? (
+                    <Table
+                      columns={billColumns}
+                      dataSource={room.bills}
+                      rowKey="_id"
+                      size="small"
+                      pagination={{ pageSize: 10 }}
+                    />
+                  ) : (
+                    <div style={{ textAlign: "center", padding: "40px 0" }}>
+                      <Text type="secondary">Không có hóa đơn</Text>
+                    </div>
+                  )}
+                </>
+              ),
+            },
+          ]}
+        />
       )}
     </Drawer>
   );
