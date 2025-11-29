@@ -1,14 +1,16 @@
 import React, { useState } from "react";
 import { Modal, Form, Input, message } from "antd";
 
+// Props cho Modal thêm người ở cùng
 interface AddCoTenantModalProps {
-  visible: boolean;
-  onCancel: () => void;
-  onSuccess: () => void;
-  contractId: string;
-  roomNumber: string;
+  visible: boolean;               // Hiển thị modal hay không
+  onCancel: () => void;           // Hàm khi bấm nút hủy
+  onSuccess: () => void;          // Hàm callback khi thêm thành công
+  contractId: string;             // ID hợp đồng để thêm người ở cùng
+  roomNumber: string;             // Số phòng hiển thị trên modal
 }
 
+// Dữ liệu form người ở cùng
 interface CoTenantFormData {
   fullName: string;
   phone: string;
@@ -24,18 +26,19 @@ const AddCoTenantModal: React.FC<AddCoTenantModalProps> = ({
   contractId,
   roomNumber,
 }) => {
-  const [form] = Form.useForm<CoTenantFormData>();
-  const [loading, setLoading] = useState(false);
+  const [form] = Form.useForm<CoTenantFormData>();   // Form instance
+  const [loading, setLoading] = useState(false);      // Loading khi submit
 
+  // Xử lý submit form
   const handleSubmit = async () => {
     try {
-      const values = await form.validateFields();
+      const values = await form.validateFields();    // Validate dữ liệu form
       setLoading(true);
 
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("token");   // Lấy token người dùng
 
-      // Thêm người ở cùng và tạo user luôn
+      // Gửi API thêm người ở cùng + tạo tài khoản
       const response = await fetch(`${apiUrl}/api/contracts/${contractId}/add-cotenant`, {
         method: "POST",
         headers: {
@@ -55,8 +58,8 @@ const AddCoTenantModal: React.FC<AddCoTenantModalProps> = ({
 
       if (data.success) {
         message.success("Thêm người ở cùng thành công!");
-        form.resetFields();
-        onSuccess();
+        form.resetFields();          // Reset lại form
+        onSuccess();                 // Callback cho cha
       } else {
         message.error(data.message || "Lỗi khi thêm người ở cùng");
       }
@@ -64,7 +67,7 @@ const AddCoTenantModal: React.FC<AddCoTenantModalProps> = ({
       console.error("Error adding co-tenant:", error);
       message.error("Lỗi khi thêm người ở cùng");
     } finally {
-      setLoading(false);
+      setLoading(false);             // Tắt loading
     }
   };
 
@@ -73,12 +76,13 @@ const AddCoTenantModal: React.FC<AddCoTenantModalProps> = ({
       title={`Thêm người ở cùng - Phòng ${roomNumber}`}
       open={visible}
       onCancel={onCancel}
-      onOk={handleSubmit}
+      onOk={handleSubmit}            // Submit form khi bấm OK
       confirmLoading={loading}
       okText="Thêm người ở cùng"
       cancelText="Hủy"
       width={600}
     >
+      {/* Form nhập thông tin người ở cùng */}
       <Form form={form} layout="vertical">
         <Form.Item
           label="Họ tên"
@@ -125,6 +129,7 @@ const AddCoTenantModal: React.FC<AddCoTenantModalProps> = ({
           <Input placeholder="123456789" />
         </Form.Item>
 
+        {/* Ghi chú hiển thị bên dưới */}
         <div style={{ padding: 12, background: "#f0f2f5", borderRadius: 4 }}>
           <p style={{ margin: 0, fontSize: 13, color: "#666" }}>
             💡 <strong>Lưu ý:</strong> Hệ thống sẽ tạo tài khoản cho người ở cùng. Họ có thể đăng nhập bằng email và mật khẩu để xem hóa đơn hàng tháng. Chỉ người thuê chính mới có thể thanh toán.
