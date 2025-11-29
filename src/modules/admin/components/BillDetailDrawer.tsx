@@ -7,7 +7,7 @@ import type { Contract } from "../../../types/contract";
 import type { Tenant } from "../../../types/tenant";
 import type { Room } from "../../../types/room";
 import { adminBillService } from "../services/bill";
-
+// Helper function to safely convert various types to number
 const dec = (v: any): number => {
   if (v === null || v === undefined) return 0;
   if (typeof v === "number") return v;
@@ -22,7 +22,7 @@ const dec = (v: any): number => {
   }
   return 0;
 };
-
+// Props for BillDetailDrawer component
 interface BillDetailDrawerProps {
   open: boolean;
   onClose: () => void;
@@ -31,7 +31,7 @@ interface BillDetailDrawerProps {
   tenants: Tenant[];
   rooms: Room[];
 }
-
+// Main component for displaying bill details in a drawer
 const { Title, Text } = Typography;
 
 const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
@@ -44,14 +44,14 @@ const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
 }) => {
   const [bill, setBill] = useState<Bill | null>(null);
   const [loading, setLoading] = useState(false);
-
+// Configuration for bill status display
   const statusConfig: Record<BillStatus, { color: string; label: string; icon: React.ReactNode }> = {
     PAID: { color: "#52c41a", label: "Đã thanh toán", icon: <CheckCircleOutlined /> },
     UNPAID: { color: "#ff4d4f", label: "Chưa thanh toán", icon: <ExclamationCircleOutlined /> },
     PARTIALLY_PAID: { color: "#fa8c16", label: "Thanh toán một phần", icon: <ClockCircleOutlined /> },
     VOID: { color: "#8c8c8c", label: "Đã hủy", icon: <ExclamationCircleOutlined /> },
   };
-
+// Fetch bill details when billId or open state changes
   useEffect(() => {
     const fetchBill = async () => {
       if (!billId || !open) return;
@@ -71,31 +71,31 @@ const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
         setLoading(false);
       }
     };
-
+// Trigger the bill fetch
     fetchBill();
   }, [billId, open]);
-
+// Return null if no bill data and not loading
   if (!bill && !loading) return null;
 
   const getContract = (contractId: string | Contract): Contract | null => {
     if (typeof contractId === "object") return contractId;
     return contracts.find(c => c._id === contractId) || null;
   };
-
+// Helper functions to get tenant and room details
   const getTenant = (tenantId: string | Tenant): Tenant | null => {
     if (typeof tenantId === "object") return tenantId;
     return tenants.find(t => t._id === tenantId) || null;
   };
-
+// Helper function to get room details
   const getRoom = (roomId: string | Room): Room | null => {
     if (typeof roomId === "object") return rooms.find(r => r._id === roomId._id) || roomId;
     return rooms.find(r => r._id === roomId) || null;
   };
-
+// Get related contract, tenant, and room data
   const contract = bill ? getContract(bill.contractId) : null;
   const tenant = contract ? getTenant(contract.tenantId) : null;
   const room = contract ? getRoom(contract.roomId) : null;
-
+// Render the drawer with bill details
   return (
     <Drawer
       title={
