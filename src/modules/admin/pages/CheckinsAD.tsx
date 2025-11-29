@@ -80,7 +80,13 @@ const CheckinsAD: React.FC = () => {
     try {
       setLoading(true);
       const response = await adminCheckinService.getAll({ limit: 100 });
-      setCheckins(response.data || []);
+      
+      // Lọc bỏ các checkin đã có hợp đồng chính thức (finalContractId)
+      const filteredCheckins = (response.data || []).filter((checkin: Checkin) => {
+        return !(checkin as any).finalContractId;
+      });
+      
+      setCheckins(filteredCheckins);
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu check-in");
     } finally {
@@ -366,8 +372,8 @@ const CheckinsAD: React.FC = () => {
       key: "expiration",
       align: "center",
       render: (_: any, record: Checkin) => {
-        // Ẩn thời hạn nếu checkin đã hoàn thành (hợp đồng chính thức đã ký)
-        if (record.status === "COMPLETED") {
+        // Chỉ hiển thị "Đã ký hợp đồng" khi thực sự có finalContractId
+        if ((record as any).finalContractId) {
           return <Tag color="success">Đã ký hợp đồng</Tag>;
         }
         
@@ -605,6 +611,24 @@ const CheckinsAD: React.FC = () => {
                 ]}
               >
                 <Input placeholder="Nhập địa chỉ" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item 
+                label="Số điện hiện tại (kWh)"
+                name="initialElectricReading"
+                rules={[
+                  { required: true, message: "Nhập số điện hiện tại!" },
+                ]}
+              >
+                <InputNumber 
+                  min={0} 
+                  style={{ width: "100%" }} 
+                  placeholder="Nhập số điện hiện tại"
+                />
               </Form.Item>
             </Col>
           </Row>

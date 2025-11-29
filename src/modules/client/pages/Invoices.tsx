@@ -88,6 +88,9 @@ const Invoices: React.FC = () => {
         // Tenant thanh toán xong phải về trang /invoices
         const returnUrl = `${window.location.origin}/invoices`;
 
+        // Tính số tiền còn lại phải thanh toán
+        const remainingAmount = bill.amountDue - (bill.amountPaid || 0);
+        
         const response = await fetch(endpoint, {
           method: "POST",
           headers: { 
@@ -96,7 +99,7 @@ const Invoices: React.FC = () => {
           },
           body: JSON.stringify({ 
             billId: bill._id, 
-            amount: bill.amountDue,
+            amount: remainingAmount,
             returnUrl: returnUrl,
           }),
         });

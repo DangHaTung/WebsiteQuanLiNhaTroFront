@@ -113,6 +113,9 @@ const InvoiceDetail: React.FC = () => {
           ? `${apiUrl}/api/payment/zalopay/create`
           : `${apiUrl}/api/payment/${provider}/create`;
 
+        // Tính số tiền còn lại phải thanh toán
+        const remainingAmount = bill.amountDue - (bill.amountPaid || 0);
+        
         const response = await fetch(endpoint, {
           method: "POST",
           headers: { 
@@ -121,7 +124,7 @@ const InvoiceDetail: React.FC = () => {
           },
           body: JSON.stringify({ 
             billId: bill._id, 
-            amount: bill.amountDue,
+            amount: remainingAmount,
             returnUrl: `${window.location.origin}/invoice-detail/${bill._id}`
           }),
         });
