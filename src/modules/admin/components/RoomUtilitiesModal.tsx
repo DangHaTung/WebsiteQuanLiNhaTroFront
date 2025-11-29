@@ -11,7 +11,7 @@ interface RoomUtilitiesModalProps {
   room: Room | null;
   onClose: () => void;
 }
-
+// Main component for managing room utilities
 const RoomUtilitiesModal: React.FC<RoomUtilitiesModalProps> = ({ visible, room, onClose }) => {
   const [utilities, setUtilities] = useState<Util[]>([]);
   const [loading, setLoading] = useState(false);
@@ -27,27 +27,28 @@ const RoomUtilitiesModal: React.FC<RoomUtilitiesModalProps> = ({ visible, room, 
       loadUtilities();
     }
   }, [visible, room]);
-
+// Load utilities for the selected room
   const loadUtilities = async () => {
     if (!room) return;
-    
+    // Fetch utilities from the API
     try {
       setLoading(true);
       const data = await utilService.getByRoom(room._id!);
       setUtilities(data);
+      // Handle case when no utilities are found
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Lỗi khi tải đồ đạc");
     } finally {
       setLoading(false);
     }
   };
-
+// Handle adding a new utility to the room
   const handleAdd = async () => {
     if (!room || !newUtilType) {
       message.warning("Vui lòng chọn loại đồ đạc");
       return;
     }
-
+// Call API to create new utility
     try {
       setAdding(true);
       
@@ -56,26 +57,27 @@ const RoomUtilitiesModal: React.FC<RoomUtilitiesModalProps> = ({ visible, room, 
         condition: newUtilCondition,
         room: room._id,
       };
-      
+    
       // Chỉ thêm description nếu có giá trị
       if (newUtilDescription && newUtilDescription.trim()) {
         payload.description = newUtilDescription.trim();
       }
       
       await utilService.create(payload);
-      
+      // Refresh the utilities list
       message.success("Thêm đồ đạc thành công!");
       setNewUtilType(undefined);
       setNewUtilCondition("used");
       setNewUtilDescription("");
       loadUtilities();
+      // Handle API errors
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Lỗi khi thêm đồ đạc");
     } finally {
       setAdding(false);
     }
   };
-
+// Handle updating the condition of a utility
   const handleUpdateCondition = async (id: string, condition: UtilityCondition) => {
     try {
       await utilService.updateCondition(id, condition);
@@ -85,7 +87,7 @@ const RoomUtilitiesModal: React.FC<RoomUtilitiesModalProps> = ({ visible, room, 
       message.error(error?.response?.data?.message || "Lỗi khi cập nhật");
     }
   };
-
+// Handle deleting a utility from the room
   const handleDelete = async (id: string) => {
     try {
       await utilService.delete(id);
@@ -95,7 +97,7 @@ const RoomUtilitiesModal: React.FC<RoomUtilitiesModalProps> = ({ visible, room, 
       message.error(error?.response?.data?.message || "Lỗi khi xóa");
     }
   };
-
+// Define table columns for displaying utilities
   const columns = [
     {
       title: "Tên đồ đạc",
@@ -121,12 +123,14 @@ const RoomUtilitiesModal: React.FC<RoomUtilitiesModalProps> = ({ visible, room, 
         </Select>
       ),
     },
+    // Ghi chú column
     {
       title: "Ghi chú",
       dataIndex: "description",
       key: "description",
       render: (text: string) => text || "-",
     },
+    // Action column for deleting utilities
     {
       title: "Hành động",
       key: "action",
@@ -143,7 +147,7 @@ const RoomUtilitiesModal: React.FC<RoomUtilitiesModalProps> = ({ visible, room, 
       ),
     },
   ];
-
+// Render the modal with utilities management UI
   return (
     <Modal
       title={`Quản lý đồ đạc - Phòng ${room?.roomNumber || ""}`}

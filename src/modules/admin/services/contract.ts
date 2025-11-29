@@ -1,61 +1,61 @@
 import api from "./api";
-import type { Contract } from "../../../types/contract";
+import type { MoveOutRequest } from "../../client/services/moveOutRequest";
 
-interface ContractsResponse {
+/**
+ * Response chứa danh sách yêu cầu trả phòng
+ */
+interface MoveOutRequestsResponse {
   success: boolean;
-  data: Contract[];
-  pagination?: {
-    currentPage: number;
-    totalPages: number;
-    totalRecords: number;
-    limit: number;
-  };
+  data: MoveOutRequest[];
 }
 
-interface SingleContractResponse {
+/**
+ * Response chứa 1 yêu cầu trả phòng
+ */
+interface SingleMoveOutRequestResponse {
   success: boolean;
-  data: Contract;
+  data: MoveOutRequest;
 }
 
-export const adminContractService = {
-  async getAll(params?: { page?: number; limit?: number; status?: string }): Promise<Contract[]> {
-    const res = await api.get<ContractsResponse>("/contracts", { params });
+/**
+ * Service dành cho Admin để quản lý yêu cầu trả phòng
+ */
+export const adminMoveOutRequestService = {
+
+  /**
+   * Lấy danh sách yêu cầu trả phòng
+   * Có thể truyền params để lọc theo trạng thái (PENDING / APPROVED / REJECTED ...)
+   */
+  async getAll(params?: { status?: string }): Promise<MoveOutRequest[]> {
+    const res = await api.get<MoveOutRequestsResponse>("/move-out-requests", { params });
     return res.data.data;
   },
 
-  async getById(id: string): Promise<Contract> {
-    const res = await api.get<SingleContractResponse>(`/contracts/${id}`);
+  /**
+   * Admin cập nhật trạng thái của yêu cầu trả phòng
+   * - "APPROVED": chấp nhận cho trả phòng
+   * - "REJECTED": từ chối
+   * adminNote: ghi chú của admin khi duyệt
+   */
+  async updateStatus(
+    id: string,
+    data: {
+      status: "APPROVED" | "REJECTED";
+      adminNote?: string;
+    }
+  ): Promise<MoveOutRequest> {
+    const res = await api.put<SingleMoveOutRequestResponse>(`/move-out-requests/${id}`, data);
     return res.data.data;
   },
 
-  async create(data: Partial<Contract>): Promise<Contract> {
-    const res = await api.post<SingleContractResponse>("/contracts", data);
-    return res.data.data;
-  },
-
-  async update(id: string, data: Partial<Contract>): Promise<Contract> {
-    const res = await api.put<SingleContractResponse>(`/contracts/${id}`, data);
-    return res.data.data;
-  },
-
-  async delete(id: string): Promise<void> {
-    await api.delete(`/contracts/${id}`);
-  },
-
-  async refundDeposit(id: string, data: {
-    electricityKwh?: number;
-    waterM3?: number;
-    occupantCount?: number;
-    vehicleCount?: number;
-    damageAmount?: number;
-    damageNote?: string;
-    method: string;
-    transactionId?: string;
-    note?: string;
-  }): Promise<Contract> {
-    const res = await api.post<SingleContractResponse>(`/contracts/${id}/refund-deposit`, data);
+  /**
+   * Đánh dấu yêu cầu trả phòng đã hoàn tất
+   * Thường được gọi khi người thuê đã trả phòng và bàn giao xong
+   */
+  async complete(id: string): Promise<MoveOutRequest> {
+    const res = await api.put<SingleMoveOutRequestResponse>(`/move-out-requests/${id}/complete`);
     return res.data.data;
   },
 };
 
-export default adminContractService;
+export default adminMoveOutRequestService;
