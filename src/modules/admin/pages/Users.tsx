@@ -394,14 +394,6 @@ const Users: React.FC = () => {
                             </Form.Item>
                         </Col>
                         <Col xs={24} md={12}>
-                            <Form.Item label="Vai trò" name="role" rules={[{ required: true }]} initialValue="TENANT">
-                                <Select style={{ borderRadius: 10 }}>
-                                    <Option value="ADMIN">Quản trị</Option>
-                                    <Option value="TENANT">Người dùng</Option>
-                                </Select>
-                            </Form.Item>
-                        </Col>
-                        <Col xs={24} md={12}>
                             <Form.Item
                                 label={editing ? "Mật khẩu mới" : "Mật khẩu"}
                                 name="password"
