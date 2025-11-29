@@ -366,6 +366,11 @@ const CheckinsAD: React.FC = () => {
       key: "expiration",
       align: "center",
       render: (_: any, record: Checkin) => {
+        // Ẩn thời hạn nếu checkin đã hoàn thành (hợp đồng chính thức đã ký)
+        if (record.status === "COMPLETED") {
+          return <Tag color="success">Đã ký hợp đồng</Tag>;
+        }
+        
         if (!record.receiptPaidAt) {
           return <Tag color="default">Chưa bắt đầu</Tag>;
         }
@@ -522,11 +527,18 @@ const CheckinsAD: React.FC = () => {
                 rules={[{ required: true, message: "Chọn phòng!" }]}
               >
                 <Select placeholder="Chọn phòng" showSearch optionFilterProp="children">
-                  {rooms.map((room) => (
+                  {rooms
+                    .filter((room) => room.status === "AVAILABLE")
+                    .map((room) => (
                       <Option key={room._id} value={room._id}>
-                      {room.roomNumber}
+                        {room.roomNumber} - Còn trống
                       </Option>
                     ))}
+                  {rooms.filter((room) => room.status === "AVAILABLE").length === 0 && (
+                    <Option disabled value="">
+                      Không có phòng trống
+                    </Option>
+                  )}
                 </Select>
               </Form.Item>
             </Col>
@@ -571,17 +583,28 @@ const CheckinsAD: React.FC = () => {
           <Row gutter={16}>
             <Col xs={24} md={12}>
               <Form.Item 
-            label="CMND/CCCD"
-            name="identityNo"
+                label="CMND/CCCD"
+                name="identityNo"
                 rules={[
-              { required: true, message: "Nhập số CMND/CCCD!" },
-              {
-                pattern: /^\d{12}$/,
-                message: "Số CMND/CCCD phải là 12 chữ số",
-              },
-            ]}
-          >
-            <Input placeholder="Nhập số CMND/CCCD" maxLength={12} />
+                  { required: true, message: "Nhập số CMND/CCCD!" },
+                  {
+                    pattern: /^\d{12}$/,
+                    message: "Số CMND/CCCD phải là 12 chữ số",
+                  },
+                ]}
+              >
+                <Input placeholder="Nhập số CMND/CCCD" maxLength={12} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item 
+                label="Địa chỉ"
+                name="address"
+                rules={[
+                  { required: true, message: "Nhập địa chỉ!" },
+                ]}
+              >
+                <Input placeholder="Nhập địa chỉ" />
               </Form.Item>
             </Col>
           </Row>
@@ -625,14 +648,14 @@ const CheckinsAD: React.FC = () => {
               type="default"
               icon={<UploadOutlined />}
               onClick={openCccdUploadModal}
-              block
+              size="middle"
             >
               Upload ảnh CCCD
             </Button>
             {cccdFrontFile && cccdBackFile && (
-              <div style={{ marginTop: "8px", color: "#52c41a" }}>
+              <span style={{ marginLeft: "12px", color: "#52c41a" }}>
                 ✓ Đã upload đầy đủ ảnh CCCD
-              </div>
+              </span>
             )}
           </Form.Item>
 

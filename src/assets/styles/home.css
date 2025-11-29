@@ -360,9 +360,9 @@
 }
 
 /* Hiệu ứng nổi khi hover */
-.btn-animated:hover {
+/* .btn-animated:hover {
   transform: translateY(-2px);
-}
+} */
 
 /* Ánh sáng quét ngang */
 .btn-animated::before {
