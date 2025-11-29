@@ -4,13 +4,13 @@ import { roomFeeService } from "../services/roomFee";
 import type { Room } from "../../../types/room";
 
 const { Text } = Typography;
-
+// Props for RoomFeesModal component
 interface RoomFeesModalProps {
   visible: boolean;
   room: Room | null;
   onClose: () => void;
   onSuccess: () => void;
-}
+}// Main component for configuring room fees and utilities
 
 const RoomFeesModal: React.FC<RoomFeesModalProps> = ({ visible, room, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
@@ -22,7 +22,7 @@ const RoomFeesModal: React.FC<RoomFeesModalProps> = ({ visible, room, onClose, o
       loadRoomFees();
     }
   }, [visible, room]);
-
+// Load existing room fee configurations
   const loadRoomFees = async () => {
     if (!room) return;
     
@@ -41,7 +41,7 @@ const RoomFeesModal: React.FC<RoomFeesModalProps> = ({ visible, room, onClose, o
       setLoading(false);
     }
   };
-
+// Handle saving the selected room fees
   const handleSave = async () => {
     if (!room) return;
 
@@ -57,7 +57,7 @@ const RoomFeesModal: React.FC<RoomFeesModalProps> = ({ visible, room, onClose, o
       setSaving(false);
     }
   };
-
+// Handle checkbox changes for fee types
   const handleCheckboxChange = (type: string, checked: boolean) => {
     if (checked) {
       setSelectedTypes([...selectedTypes, type]);
@@ -65,7 +65,7 @@ const RoomFeesModal: React.FC<RoomFeesModalProps> = ({ visible, room, onClose, o
       setSelectedTypes(selectedTypes.filter(t => t !== type));
     }
   };
-
+// Render the modal for room fee configuration
   return (
     <Modal
       title={`Cấu hình tiện ích - ${room?.roomNumber || ""}`}
