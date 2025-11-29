@@ -1,3 +1,4 @@
+// Import các thư viện cần thiết
 import React, { useEffect, useState } from "react";
 import {
   Table,
@@ -54,6 +55,12 @@ const dec = (v: any): number => {
   return 0;
 };
 
+/**
+ * Component quản lý các yêu cầu chuyển đi của người dùng (Admin)
+ * - Hiển thị danh sách yêu cầu chuyển đi
+ * - Xử lý phê duyệt/từ chối yêu cầu
+ * - Tính toán và xử lý hoàn tiền
+ */
 const MoveOutRequestsAD: React.FC = () => {
   const [requests, setRequests] = useState<MoveOutRequest[]>([]);
   const [loading, setLoading] = useState(false);
@@ -67,10 +74,15 @@ const MoveOutRequestsAD: React.FC = () => {
   // Theo dõi giá trị damageAmount từ form để tự động cập nhật hiển thị
   const damageAmount = Form.useWatch("damageAmount", refundForm) || 0;
 
+  // Load lại danh sách yêu cầu khi thay đổi bộ lọc trạng thái
   useEffect(() => {
     loadRequests();
   }, [statusFilter]);
 
+  /**
+   * Tải danh sách yêu cầu chuyển đi từ API
+   * Sử dụng bộ lọc trạng thái nếu được chọn
+   */
   const loadRequests = async () => {
     setLoading(true);
     try {
@@ -84,6 +96,10 @@ const MoveOutRequestsAD: React.FC = () => {
     }
   };
 
+  /**
+   * Xử lý phê duyệt yêu cầu chuyển đi
+   * @param id - ID của yêu cầu cần phê duyệt
+   */
   const handleApprove = async (id: string) => {
     try {
       await adminMoveOutRequestService.updateStatus(id, { status: "APPROVED" });
@@ -94,6 +110,11 @@ const MoveOutRequestsAD: React.FC = () => {
     }
   };
 
+  /**
+   * Xử lý từ chối yêu cầu chuyển đi
+   * @param id - ID của yêu cầu cần từ chối
+   * @param adminNote - Ghi chú từ admin khi từ chối
+   */
   const handleReject = async (id: string, adminNote?: string) => {
     try {
       await adminMoveOutRequestService.updateStatus(id, {
@@ -107,6 +128,10 @@ const MoveOutRequestsAD: React.FC = () => {
     }
   };
 
+  /**
+   * Mở modal xử lý hoàn tiền
+   * @param request - Yêu cầu chuyển đi cần xử lý hoàn tiền
+   */
   const handleOpenRefundModal = async (request: MoveOutRequest) => {
     setSelectedRequest(request);
     setRefundModalVisible(true);
@@ -174,6 +199,10 @@ const MoveOutRequestsAD: React.FC = () => {
     }
   };
 
+  /**
+   * Tính toán phí dịch vụ dựa trên số điện và số xe
+   * @param values - Đối tượng chứa số điện (kWh) và số xe
+   */
   const calculateServiceFee = async (values: {
     electricityKwh: number;
     vehicleCount?: number;
@@ -205,6 +234,10 @@ const MoveOutRequestsAD: React.FC = () => {
     }
   };
 
+  /**
+   * Xử lý hoàn tiền cọc cho người thuê
+   * @param values - Đối tượng chứa thông tin hoàn tiền (số điện, số xe, tiền bồi thường, v.v.)
+   */
   const handleRefund = async (values: any) => {
     if (!selectedRequest) return;
 
@@ -236,6 +269,11 @@ const MoveOutRequestsAD: React.FC = () => {
     }
   };
 
+  /**
+   * Tạo tag hiển thị trạng thái yêu cầu với màu sắc tương ứng
+   * @param status - Trạng thái của yêu cầu (PENDING, APPROVED, REJECTED, COMPLETED)
+   * @returns ReactNode - Thẻ Tag với màu sắc và văn bản phù hợp
+   */
   const getStatusTag = (status: string) => {
     const map: Record<string, { color: string; text: string }> = {
       PENDING: { color: "processing", text: "Chờ xử lý" },
@@ -247,6 +285,7 @@ const MoveOutRequestsAD: React.FC = () => {
     return <Tag color={s.color}>{s.text}</Tag>;
   };
 
+  // Cấu hình các cột cho bảng hiển thị danh sách yêu cầu
   const columns: ColumnsType<MoveOutRequest> = [
     {
       title: "Phòng",
@@ -334,10 +373,12 @@ const MoveOutRequestsAD: React.FC = () => {
     },
   ];
 
+  // Lọc danh sách yêu cầu dựa trên bộ lọc trạng thái
   const filteredRequests = statusFilter === "ALL"
     ? requests
     : requests.filter(r => r.status === statusFilter);
 
+  // Đếm số lượng yêu cầu theo từng trạng thái để hiển thị thống kê
   const pendingCount = requests.filter(r => r.status === "PENDING").length;
   const approvedCount = requests.filter(r => r.status === "APPROVED").length;
   const completedCount = requests.filter(r => r.status === "COMPLETED").length;
