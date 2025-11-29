@@ -80,7 +80,13 @@ const CheckinsAD: React.FC = () => {
     try {
       setLoading(true);
       const response = await adminCheckinService.getAll({ limit: 100 });
-      setCheckins(response.data || []);
+      
+      // Lọc bỏ các checkin đã có hợp đồng chính thức (finalContractId)
+      const filteredCheckins = (response.data || []).filter((checkin: Checkin) => {
+        return !(checkin as any).finalContractId;
+      });
+      
+      setCheckins(filteredCheckins);
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu check-in");
     } finally {
@@ -366,6 +372,11 @@ const CheckinsAD: React.FC = () => {
       key: "expiration",
       align: "center",
       render: (_: any, record: Checkin) => {
+        // Chỉ hiển thị "Đã ký hợp đồng" khi thực sự có finalContractId
+        if ((record as any).finalContractId) {
+          return <Tag color="success">Đã ký hợp đồng</Tag>;
+        }
+        
         if (!record.receiptPaidAt) {
           return <Tag color="default">Chưa bắt đầu</Tag>;
         }
@@ -522,11 +533,18 @@ const CheckinsAD: React.FC = () => {
                 rules={[{ required: true, message: "Chọn phòng!" }]}
               >
                 <Select placeholder="Chọn phòng" showSearch optionFilterProp="children">
-                  {rooms.map((room) => (
+                  {rooms
+                    .filter((room) => room.status === "AVAILABLE")
+                    .map((room) => (
                       <Option key={room._id} value={room._id}>
-                      {room.roomNumber}
+                        {room.roomNumber} - Còn trống
                       </Option>
                     ))}
+                  {rooms.filter((room) => room.status === "AVAILABLE").length === 0 && (
+                    <Option disabled value="">
+                      Không có phòng trống
+                    </Option>
+                  )}
                 </Select>
               </Form.Item>
             </Col>
@@ -571,17 +589,46 @@ const CheckinsAD: React.FC = () => {
           <Row gutter={16}>
             <Col xs={24} md={12}>
               <Form.Item 
-            label="CMND/CCCD"
-            name="identityNo"
+                label="CMND/CCCD"
+                name="identityNo"
                 rules={[
-              { required: true, message: "Nhập số CMND/CCCD!" },
-              {
-                pattern: /^\d{12}$/,
-                message: "Số CMND/CCCD phải là 12 chữ số",
-              },
-            ]}
-          >
-            <Input placeholder="Nhập số CMND/CCCD" maxLength={12} />
+                  { required: true, message: "Nhập số CMND/CCCD!" },
+                  {
+                    pattern: /^\d{12}$/,
+                    message: "Số CMND/CCCD phải là 12 chữ số",
+                  },
+                ]}
+              >
+                <Input placeholder="Nhập số CMND/CCCD" maxLength={12} />
+              </Form.Item>
+            </Col>
+            <Col xs={24} md={12}>
+              <Form.Item 
+                label="Địa chỉ"
+                name="address"
+                rules={[
+                  { required: true, message: "Nhập địa chỉ!" },
+                ]}
+              >
+                <Input placeholder="Nhập địa chỉ" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item 
+                label="Số điện hiện tại (kWh)"
+                name="initialElectricReading"
+                rules={[
+                  { required: true, message: "Nhập số điện hiện tại!" },
+                ]}
+              >
+                <InputNumber 
+                  min={0} 
+                  style={{ width: "100%" }} 
+                  placeholder="Nhập số điện hiện tại"
+                />
               </Form.Item>
             </Col>
           </Row>
@@ -625,14 +672,14 @@ const CheckinsAD: React.FC = () => {
               type="default"
               icon={<UploadOutlined />}
               onClick={openCccdUploadModal}
-              block
+              size="middle"
             >
               Upload ảnh CCCD
             </Button>
             {cccdFrontFile && cccdBackFile && (
-              <div style={{ marginTop: "8px", color: "#52c41a" }}>
+              <span style={{ marginLeft: "12px", color: "#52c41a" }}>
                 ✓ Đã upload đầy đủ ảnh CCCD
-              </div>
+              </span>
             )}
           </Form.Item>
 

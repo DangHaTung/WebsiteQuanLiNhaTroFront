@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, DatePicker, Form, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message, Row, Col, Statistic, Card } from "antd";
+import { Button, DatePicker, Form, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message, Row, Col, Statistic } from "antd";
 import { PlusOutlined, EditOutlined, DeleteOutlined, FileTextOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { Bill, BillStatus, BillType } from "../../../types/bill";
@@ -16,7 +16,7 @@ import type { User } from "../../../types/user";
 import BillDetailDrawer from "../components/BillDetailDrawer";
 import "../../../assets/styles/roomAd.css";
 import { isAdmin } from "../../../utils/roleChecker";
-import ExpandableSearch from "../components/ExpandableSearch";
+import { useSearchParams } from "react-router-dom";
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -54,9 +54,23 @@ const BillsAD: React.FC = () => {
     const [hasLoadedRooms, setHasLoadedRooms] = useState<boolean>(false);
     const [hasLoadedUsers, setHasLoadedUsers] = useState<boolean>(false);
 
+    const [searchParams, setSearchParams] = useSearchParams();
+
     useEffect(() => {
         loadBills();
     }, [statusFilter, billTypeFilter]);
+
+    // Tự động mở drawer khi có billId trong URL
+    useEffect(() => {
+        const billId = searchParams.get('billId');
+        if (billId && bills.length > 0) {
+            setSelectedBillId(billId);
+            setDetailVisible(true);
+            // Xóa billId khỏi URL sau khi đã mở drawer
+            searchParams.delete('billId');
+            setSearchParams(searchParams);
+        }
+    }, [searchParams, bills]);
 
     // Load bills với filter
     const loadBills = async () => {
@@ -138,7 +152,7 @@ const BillsAD: React.FC = () => {
         if (record) {
             setEditing(record);
             const contractId = typeof record.contractId === "string" ? record.contractId : record.contractId?._id;
-            const tenantId = typeof record.tenantId === "string" ? record.tenantId : record.tenantId?._id;
+            const tenantId = (record as any).tenantId ? (typeof (record as any).tenantId === "string" ? (record as any).tenantId : (record as any).tenantId?._id) : undefined;
             form.setFieldsValue({
                 contractId,
                 billingDate: dayjs(record.billingDate),
@@ -174,7 +188,7 @@ const BillsAD: React.FC = () => {
                 message.error("Hóa đơn đã thanh toán một phần, không thể chuyển về chưa thanh toán hoặc hủy");
                 return;
             }
-            const payload: Partial<Bill> = {
+            const payload: any = {
                 contractId: values.contractId,
                 billingDate: values.billingDate.toISOString(),
                 billType: values.billType,

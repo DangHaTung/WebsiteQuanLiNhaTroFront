@@ -269,7 +269,7 @@ const FinalContracts = () => {
         contractId: selectedContractId 
       });
       
-      message.success("Tạo hóa đơn hợp đồng thành công! Khách hàng có thể thanh toán ở client.");
+      message.success("Tạo hóa đơn hợp đồng thành công! Khách hàng có thể thanh toán ở account của mình");
       setNewContractModalVisible(false);
       setSelectedContractId("");
       fetchContracts(pagination.current, pagination.pageSize);
@@ -1361,6 +1361,13 @@ const FinalContracts = () => {
                                 const contractAmountDue = convertToNumber(contractBill.amountDue);
                                 const contractAmountPaid = convertToNumber(contractBill.amountPaid);
                                 const remaining = Math.max(0, contractAmountDue - contractAmountPaid);
+                                console.log("🔍 Frontend payment calculation:", {
+                                  amountDue: contractAmountDue,
+                                  amountPaid: contractAmountPaid,
+                                  remaining,
+                                  rawAmountDue: contractBill.amountDue,
+                                  rawAmountPaid: contractBill.amountPaid
+                                });
                                 handleOnlinePayment(contractBill._id, remaining);
                               }}
                             >

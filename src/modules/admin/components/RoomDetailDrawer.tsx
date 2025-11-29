@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { Drawer, Descriptions, Image, Divider, Tag, Typography, Row, Col, Space, message, Spin, Table, Tabs } from "antd";
 import { CheckCircleOutlined, ExclamationCircleOutlined, ToolOutlined, HomeOutlined, FileTextOutlined, PayCircleOutlined, DollarOutlined, InfoCircleOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
 import type { Room } from "../../../types/room";
 import type { Checkin } from "../../../types/checkin";
 import type { Contract } from "../../../types/contract";
-import type { Bill, BillType, BillStatus } from "../../../types/bill";
+import type { BillType, BillStatus } from "../../../types/bill";
 import { adminRoomService } from "../services/room";
 import dayjs from "dayjs";
 
@@ -20,6 +21,7 @@ const { Title, Text } = Typography;
 const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, roomId }) => {
   const [room, setRoom] = useState<Room | null>(null);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchRoom = async () => {
@@ -33,6 +35,11 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
           console.warn("Room data is null or undefined");
           message.warning("Không có dữ liệu phòng");
         } else {
+          console.log("Room data received:", data);
+          console.log("Contracts (finalContracts):", data.contracts);
+          console.log("Contracts length:", data.contracts?.length);
+          console.log("Receipt bills:", data.receiptBills);
+          console.log("Bills:", data.bills);
           setRoom(data);
         }
       } catch (err: any) {
@@ -61,15 +68,6 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
     // Render the Drawer component with room details
 
   // Helper functions for status tags
-  const getCheckinStatusTag = (status: string) => {
-    const map: Record<string, { color: string; text: string }> = {
-      CREATED: { color: "blue", text: "Đã tạo" },
-      COMPLETED: { color: "green", text: "Hoàn thành" },
-      CANCELED: { color: "red", text: "Đã hủy" },
-    };
-    const m = map[status] || { color: "default", text: status };
-    return <Tag color={m.color}>{m.text}</Tag>;
-  };
 
   const getBillStatusTag = (status: BillStatus) => {
     if (status === "PENDING_CASH_CONFIRM") {
@@ -88,7 +86,7 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
 
   const getContractStatusTag = (status: string) => {
     const map: Record<string, { color: string; text: string }> = {
-      ACTIVE: { color: "green", text: "Đang hoạt động" },
+      ACTIVE: { color: "#52c41a", text: "Đã ký" },
       ENDED: { color: "default", text: "Đã kết thúc" },
       CANCELED: { color: "red", text: "Đã hủy" },
     };
@@ -105,38 +103,6 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
     const m = map[type] || { color: "default", text: type };
     return <Tag color={m.color}>{m.text}</Tag>;
   };
-
-  // Table columns for checkins
-  const checkinColumns = [
-    {
-      title: "Ngày tạo",
-      dataIndex: "createdAt",
-      key: "createdAt",
-      render: (v: string) => dayjs(v).format("DD/MM/YYYY HH:mm"),
-    },
-    {
-      title: "Người thuê",
-      key: "tenant",
-      render: (_: any, record: Checkin) => {
-        if (typeof record.tenantId === "object" && record.tenantId) {
-          return record.tenantId.fullName || "N/A";
-        }
-        return record.tenantSnapshot?.fullName || "N/A";
-      },
-    },
-    {
-      title: "Tiền cọc",
-      dataIndex: "deposit",
-      key: "deposit",
-      render: (v: number) => v?.toLocaleString() + " VNĐ",
-    },
-    {
-      title: "Trạng thái",
-      dataIndex: "status",
-      key: "status",
-      render: (status: string) => getCheckinStatusTag(status),
-    },
-  ];
 
   // Table columns for contracts
   const contractColumns = [
@@ -268,7 +234,7 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
             <Descriptions.Item label="Diện tích">{room?.areaM2} m²</Descriptions.Item>
             <Descriptions.Item label="Tầng">{room?.floor}</Descriptions.Item>
             <Descriptions.Item label="Trạng thái">
-                      {room && statusConfig[room.status] ? (
+                      {room && room.status && statusConfig[room.status] ? (
                 <Tag
                   color={statusConfig[room.status].color}
                   style={{ fontSize: 14, padding: "4px 12px", borderRadius: 16 }}
@@ -277,7 +243,7 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
                   {statusConfig[room.status].label}
                 </Tag>
                       ) : (
-                        <Tag color="default">{room.status || "Unknown"}</Tag>
+                        <Tag color="default">{room?.status || "Unknown"}</Tag>
               )}
             </Descriptions.Item>
           </Descriptions>
@@ -339,6 +305,14 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
                       rowKey="_id"
                       size="small"
                       pagination={{ pageSize: 10 }}
+                      onRow={(record) => ({
+                        onClick: () => {
+                          // Đóng drawer và chuyển sang trang hóa đơn với billId
+                          onClose();
+                          navigate(`/admin/bills?billId=${record._id}`);
+                        },
+                        style: { cursor: 'pointer' }
+                      })}
                     />
                   ) : (
                     <div style={{ textAlign: "center", padding: "40px 0" }}>
@@ -352,7 +326,7 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
               key: "3",
               label: (
                 <span>
-                  <FileTextOutlined /> Hợp đồng ({room?.contracts?.length || 0})
+                  <FileTextOutlined /> Hợp đồng đã ký ({room?.contracts?.length || 0})
                 </span>
               ),
               children: (
@@ -364,10 +338,18 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
                       rowKey="_id"
                       size="small"
                       pagination={{ pageSize: 10 }}
+                      onRow={() => ({
+                        onClick: () => {
+                          // Đóng drawer và chuyển sang trang hợp đồng
+                          onClose();
+                          navigate(`/admin/final-contracts`);
+                        },
+                        style: { cursor: 'pointer' }
+                      })}
                     />
                   ) : (
                     <div style={{ textAlign: "center", padding: "40px 0" }}>
-                      <Text type="secondary">Không có hợp đồng</Text>
+                      <Text type="secondary">Chưa có hợp đồng chính thức nào được ký</Text>
                     </div>
                   )}
                 </>
