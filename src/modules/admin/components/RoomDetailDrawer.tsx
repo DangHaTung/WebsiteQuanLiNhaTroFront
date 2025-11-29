@@ -248,79 +248,79 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
                 </span>
               ),
               children: (
-                <>
-                  <Descriptions
-                    bordered
-                    column={1}
-                    size="middle"
-                    styles={{
-                      label: { fontWeight: 600, background: "#fafafa" },
-                      content: { background: "#fff" },
-                    }}
-                  >
-                    <Descriptions.Item label="Số phòng">{room?.roomNumber}</Descriptions.Item>
-                    <Descriptions.Item label="Loại phòng">{room?.type}</Descriptions.Item>
-                    <Descriptions.Item label="Giá thuê">
-                      <Text strong style={{ color: "#1677ff" }}>
-                        {room?.pricePerMonth?.toLocaleString()} VNĐ / tháng
-                      </Text>
-                    </Descriptions.Item>
-                    <Descriptions.Item label="Diện tích">{room?.areaM2} m²</Descriptions.Item>
-                    <Descriptions.Item label="Tầng">{room?.floor}</Descriptions.Item>
-                    <Descriptions.Item label="Trạng thái">
+        <>
+          <Descriptions
+            bordered
+            column={1}
+            size="middle"
+            styles={{
+              label: { fontWeight: 600, background: "#fafafa" },
+              content: { background: "#fff" },
+            }}
+          >
+            <Descriptions.Item label="Số phòng">{room?.roomNumber}</Descriptions.Item>
+            <Descriptions.Item label="Loại phòng">{room?.type}</Descriptions.Item>
+            <Descriptions.Item label="Giá thuê">
+              <Text strong style={{ color: "#1677ff" }}>
+                {room?.pricePerMonth?.toLocaleString()} VNĐ / tháng
+              </Text>
+            </Descriptions.Item>
+            <Descriptions.Item label="Diện tích">{room?.areaM2} m²</Descriptions.Item>
+            <Descriptions.Item label="Tầng">{room?.floor}</Descriptions.Item>
+            <Descriptions.Item label="Trạng thái">
                       {room && statusConfig[room.status] ? (
-                        <Tag
-                          color={statusConfig[room.status].color}
-                          style={{ fontSize: 14, padding: "4px 12px", borderRadius: 16 }}
-                          icon={statusConfig[room.status].icon}
-                        >
-                          {statusConfig[room.status].label}
-                        </Tag>
+                <Tag
+                  color={statusConfig[room.status].color}
+                  style={{ fontSize: 14, padding: "4px 12px", borderRadius: 16 }}
+                  icon={statusConfig[room.status].icon}
+                >
+                  {statusConfig[room.status].label}
+                </Tag>
                       ) : (
                         <Tag color="default">{room.status || "Unknown"}</Tag>
-                      )}
-                    </Descriptions.Item>
-                  </Descriptions>
+              )}
+            </Descriptions.Item>
+          </Descriptions>
 
-                  <Divider orientation="left" style={{ marginTop: 24 }}>
-                    Hình ảnh phòng
-                  </Divider>
+          <Divider orientation="left" style={{ marginTop: 24 }}>
+            Hình ảnh phòng
+          </Divider>
 
-                  {processedImages && processedImages.length > 0 ? (
-                    <Row gutter={[12, 12]}>
-                      {processedImages.map((img, idx) => (
-                        <Col span={12} key={idx}>
-                          <div
-                            style={{
-                              borderRadius: 12,
-                              overflow: "hidden",
-                              boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-                              transition: "transform 0.3s ease",
-                            }}
-                            className="image-hover"
-                          >
-                            <Image
-                              src={img}
-                              width="100%"
-                              height={160}
-                              style={{ objectFit: "cover" }}
-                              preview={{ mask: <span>Xem ảnh</span> }}
-                            />
-                          </div>
-                        </Col>
-                      ))}
-                    </Row>
-                  ) : (
-                    <Text type="secondary">Không có hình ảnh</Text>
-                  )}
+          {processedImages && processedImages.length > 0 ? (
+            <Row gutter={[12, 12]}>
+              {processedImages.map((img, idx) => (
+                <Col span={12} key={idx}>
+                  <div
+                    style={{
+                      borderRadius: 12,
+                      overflow: "hidden",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                      transition: "transform 0.3s ease",
+                    }}
+                    className="image-hover"
+                  >
+                    <Image
+                      src={img}
+                      width="100%"
+                      height={160}
+                      style={{ objectFit: "cover" }}
+                      preview={{ mask: <span>Xem ảnh</span> }}
+                    />
+                  </div>
+                </Col>
+              ))}
+            </Row>
+          ) : (
+            <Text type="secondary">Không có hình ảnh</Text>
+          )}
 
-                  <style>{`
-                    .image-hover:hover {
-                      transform: scale(1.03);
-                      cursor: pointer;
-                    }
-                  `}</style>
-                </>
+          <style>{`
+            .image-hover:hover {
+              transform: scale(1.03);
+              cursor: pointer;
+            }
+          `}</style>
+        </>
               ),
             },
             {

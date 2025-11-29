@@ -180,16 +180,25 @@ const Invoices: React.FC = () => {
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
       const token = localStorage.getItem("token");
       
+      // Tính số tiền còn lại phải thanh toán (amountDue - amountPaid)
+      const remainingAmount = bill.amountDue - (bill.amountPaid || 0);
+      
       const response = await fetch(`${apiUrl}/api/bills/${bill._id}/pay-cash`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`,
         },
-        body: JSON.stringify({ amount: bill.amountDue }),
+        body: JSON.stringify({ amount: remainingAmount }),
       });
       
       const data = await response.json();
+      
+      if (!response.ok) {
+        console.error("❌ Pay cash error:", data);
+        message.error(data.message || `Lỗi ${response.status}: ${data.error || "Lỗi khi thanh toán"}`);
+        return;
+      }
       
       if (data.success) {
         message.success("Đã gửi yêu cầu thanh toán tiền mặt. Vui lòng chờ admin xác nhận.");
@@ -205,7 +214,8 @@ const Invoices: React.FC = () => {
   const unpaidBills = bills.filter(b => b.status === "UNPAID" || b.status === "PENDING_CASH_CONFIRM" || b.status === "PARTIALLY_PAID");
   const paidBills = bills.filter(b => b.status === "PAID");
   
-  const totalUnpaid = unpaidBills.reduce((sum, bill) => sum + (bill.amountDue - bill.amountPaid), 0);
+  // Tính tổng amountDue của các bill chưa thanh toán (không trừ amountPaid)
+  const totalUnpaid = unpaidBills.reduce((sum, bill) => sum + bill.amountDue, 0);
   const totalPaid = paidBills.reduce((sum, bill) => sum + bill.amountPaid, 0);
 
   const getStatusTag = (status: string) => {
@@ -253,11 +263,31 @@ const Invoices: React.FC = () => {
       dataIndex: "amountDue",
       key: "amountDue",
       align: "right" as const,
-      render: (amount: number) => (
-        <strong style={{ color: "#1890ff", fontSize: 16 }}>
-          {amount.toLocaleString("vi-VN")} ₫
-        </strong>
-      ),
+      render: (amount: number, record: Bill) => {
+        // Tính tổng tiền ban đầu:
+        // - Nếu đã thanh toán (PAID) và amountDue = 0, tổng = amountPaid
+        // - Nếu thanh toán một phần (PARTIALLY_PAID), tổng = amountDue + amountPaid
+        // - Nếu chưa thanh toán, tổng = amountDue
+        let totalAmount = amount;
+        if (record.status === "PAID" && amount === 0) {
+          totalAmount = record.amountPaid || 0;
+        } else if (record.status === "PARTIALLY_PAID") {
+          totalAmount = amount + (record.amountPaid || 0);
+        }
+        
+        // Nếu vẫn là 0, thử tính từ lineItems
+        if (totalAmount === 0 && record.lineItems && record.lineItems.length > 0) {
+          totalAmount = record.lineItems.reduce((sum: number, item: any) => {
+            return sum + (item.lineTotal || 0);
+          }, 0);
+        }
+        
+        return (
+          <strong style={{ color: "#1890ff", fontSize: 16 }}>
+            {totalAmount.toLocaleString("vi-VN")} ₫
+          </strong>
+        );
+      },
     },
     {
       title: "Đã thanh toán",
@@ -340,43 +370,48 @@ const Invoices: React.FC = () => {
           </Col>
         </Row>
 
-        <Tabs activeKey={activeTab} onChange={(key) => setActiveTab(key as "unpaid" | "paid")}>
-          <Tabs.TabPane 
-            tab={
-              <span>
-                <ClockCircleOutlined />
-                Chưa thanh toán ({unpaidBills.length})
-              </span>
-            } 
-            key="unpaid"
-          >
-            <Table
-              columns={columns}
-              dataSource={unpaidBills}
-              rowKey="_id"
-              loading={loading}
-              pagination={{ pageSize: 10 }}
-            />
-          </Tabs.TabPane>
-          
-          <Tabs.TabPane 
-            tab={
-              <span>
-                <CheckCircleOutlined />
-                Đã thanh toán ({paidBills.length})
-              </span>
-            } 
-            key="paid"
-          >
-            <Table
-              columns={columns}
-              dataSource={paidBills}
-              rowKey="_id"
-              loading={loading}
-              pagination={{ pageSize: 10 }}
-            />
-          </Tabs.TabPane>
-        </Tabs>
+        <Tabs 
+          activeKey={activeTab} 
+          onChange={(key) => setActiveTab(key as "unpaid" | "paid")}
+          items={[
+            {
+              key: "unpaid",
+              label: (
+                <span>
+                  <ClockCircleOutlined />
+                  Chưa thanh toán ({unpaidBills.length})
+                </span>
+              ),
+              children: (
+                <Table
+                  columns={columns}
+                  dataSource={unpaidBills}
+                  rowKey="_id"
+                  loading={loading}
+                  pagination={{ pageSize: 10 }}
+                />
+              ),
+            },
+            {
+              key: "paid",
+              label: (
+                <span>
+                  <CheckCircleOutlined />
+                  Đã thanh toán ({paidBills.length})
+                </span>
+              ),
+              children: (
+                <Table
+                  columns={columns}
+                  dataSource={paidBills}
+                  rowKey="_id"
+                  loading={loading}
+                  pagination={{ pageSize: 10 }}
+                />
+              ),
+            },
+          ]}
+        />
       </Card>
     </div>
   );

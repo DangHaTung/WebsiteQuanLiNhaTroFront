@@ -1,14 +1,18 @@
 import React, { useEffect, useState } from "react";
-import { Alert, Card, Descriptions, Button, message, Space, Tag, Table, Divider, Modal, Spin } from "antd";
+import { Alert, Card, Descriptions, Button, message, Space, Tag, Table, Divider, Modal, Spin, Row, Col, Typography } from "antd";
 import { ArrowLeftOutlined, CreditCardOutlined, DollarOutlined, CheckCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import dayjs from "dayjs";
 import { clientBillService, type Bill } from "../services/bill";
+import api from "../services/api";
+
+const { Text } = Typography;
 
 const InvoiceDetail: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const [bill, setBill] = useState<Bill | null>(null);
+  const [receiptBill, setReceiptBill] = useState<Bill | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -30,6 +34,44 @@ const InvoiceDetail: React.FC = () => {
       setLoading(true);
       const data = await clientBillService.getById(billId);
       setBill(data);
+      
+      // Nếu là CONTRACT bill, tìm RECEIPT bill liên quan
+      if (data.billType === "CONTRACT" && data.contractId) {
+        try {
+          // Load tất cả bills để tìm RECEIPT bill
+          const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+          const token = localStorage.getItem("token");
+          const response = await fetch(`${apiUrl}/api/bills/my-bills?limit=100`, {
+            headers: {
+              "Authorization": `Bearer ${token}`,
+            },
+          });
+          const billsData = await response.json();
+          const allBills = billsData.data || [];
+          
+          // Tìm RECEIPT bill có cùng contractId (RECEIPT bill được tạo cùng contract với CONTRACT bill)
+          const contractIdStr = typeof data.contractId === 'object' && data.contractId?._id 
+            ? data.contractId._id 
+            : data.contractId;
+          
+          const relatedReceipt = allBills.find((b: Bill) => {
+            const bContractId = typeof b.contractId === 'object' && b.contractId?._id 
+              ? b.contractId._id 
+              : b.contractId;
+            return b.billType === "RECEIPT" && bContractId === contractIdStr;
+          });
+          
+          if (relatedReceipt) {
+            setReceiptBill(relatedReceipt);
+          } else {
+            // Nếu không tìm thấy, log để debug
+            console.log("⚠️ RECEIPT bill not found for contractId:", data.contractId);
+          }
+        } catch (err) {
+          console.error("Error loading receipt bill:", err);
+          // Không hiển thị lỗi, chỉ log
+        }
+      }
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Lỗi khi tải hóa đơn");
       navigate("/invoices");
@@ -164,16 +206,25 @@ const InvoiceDetail: React.FC = () => {
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
       const token = localStorage.getItem("token");
       
+      // Tính số tiền còn lại phải thanh toán (amountDue - amountPaid)
+      const remainingAmount = bill.amountDue - (bill.amountPaid || 0);
+      
       const response = await fetch(`${apiUrl}/api/bills/${bill._id}/pay-cash`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`,
         },
-        body: JSON.stringify({ amount: bill.amountDue }),
+        body: JSON.stringify({ amount: remainingAmount }),
       });
       
       const data = await response.json();
+      
+      if (!response.ok) {
+        console.error("❌ Pay cash error:", data);
+        message.error(data.message || `Lỗi ${response.status}: ${data.error || "Lỗi khi thanh toán"}`);
+        return;
+      }
       
       if (data.success) {
         message.success("Đã gửi yêu cầu thanh toán tiền mặt. Vui lòng chờ admin xác nhận.");
@@ -253,7 +304,7 @@ const InvoiceDetail: React.FC = () => {
         </Space>
 
         <div style={{ marginBottom: 24 }}>
-          <h2 style={{ margin: 0 }}>Chi tiết hóa đơn tháng {dayjs(bill.billingDate).format("MM/YYYY")}</h2>
+          <h2 style={{ margin: 0 }}>Chi tiết hóa đơn hợp đồng</h2>
         </div>
 
         <Descriptions bordered column={2}>
@@ -277,16 +328,169 @@ const InvoiceDetail: React.FC = () => {
           <DollarOutlined /> Chi tiết các khoản phí
         </Divider>
 
-        {/* Debug info */}
-        {import.meta.env.DEV && (
-          <Alert 
-            message={`Debug: Bill status = ${bill.status}, LineItems count = ${bill.lineItems?.length || 0}`} 
-            type="warning" 
-            style={{ marginBottom: 16 }}
-          />
-        )}
-        
-        {bill.lineItems && bill.lineItems.length > 0 ? (
+        {/* Hiển thị chi tiết cho CONTRACT bill */}
+        {bill.billType === "CONTRACT" ? (
+          <div>
+            {(() => {
+              // Helper function để convert số
+              const convertToNumber = (value: any): number => {
+                if (typeof value === 'number' && !isNaN(value)) {
+                  return value;
+                } else if (typeof value === 'string') {
+                  return parseFloat(value) || 0;
+                }
+                return 0;
+              };
+
+              // Tính toán các khoản từ RECEIPT bill
+              // Nếu có receiptBill, dùng dữ liệu từ đó
+              // Nếu không có receiptBill nhưng bill.amountPaid > 0, dùng amountPaid làm fallback
+              let receiptAmount = 0;
+              let receiptStatus = "Chưa thanh toán";
+              if (receiptBill) {
+                if (receiptBill.status === "PAID") {
+                  receiptAmount = convertToNumber(receiptBill.amountPaid);
+                  if (receiptAmount === 0 && receiptBill.lineItems && receiptBill.lineItems.length > 0) {
+                    receiptAmount = convertToNumber(receiptBill.lineItems[0]?.lineTotal);
+                  }
+                  receiptStatus = "Đã thanh toán";
+                } else {
+                  receiptAmount = convertToNumber(receiptBill.amountDue);
+                  receiptStatus = receiptBill.status === "PENDING_CASH_CONFIRM" ? "Chờ xác nhận tiền mặt" : "Chờ thanh toán";
+                }
+              } else {
+                // Nếu không có receiptBill, không hiển thị khoản "Cọc giữ phòng"
+                // (Không dùng bill.amountPaid vì đó là số tiền đã thanh toán của CONTRACT bill, không phải RECEIPT bill)
+                receiptAmount = 0;
+                receiptStatus = "Chưa thanh toán";
+              }
+
+              // Lấy từ lineItems của CONTRACT bill
+              let depositRemaining = 0; // Cọc còn lại
+              let firstMonthRent = 0; // Tiền thuê tháng đầu
+              let contractStatus = "Chờ thanh toán";
+              let totalDue = 0; // Tổng phải thanh toán
+              
+              contractStatus = bill.status === "PAID" ? "Đã thanh toán" 
+                : bill.status === "PARTIALLY_PAID" ? "Thanh toán 1 phần"
+                : bill.status === "PENDING_CASH_CONFIRM" ? "Chờ xác nhận tiền mặt"
+                : "Chờ thanh toán";
+              
+              if (bill.lineItems && bill.lineItems.length > 0) {
+                bill.lineItems.forEach((item: any) => {
+                  const itemName = item.item || "";
+                  const itemTotal = convertToNumber(item.lineTotal);
+                  if (itemName.includes("Tiền cọc")) {
+                    depositRemaining = itemTotal;
+                  } else if (itemName.includes("Tiền thuê tháng đầu")) {
+                    firstMonthRent = itemTotal;
+                  }
+                });
+              }
+              
+              // Tổng phải thanh toán = tổng từ lineItems (depositRemaining + firstMonthRent)
+              // Không dùng amountDue vì có thể không chính xác
+              totalDue = depositRemaining + firstMonthRent;
+
+              return (
+                <div>
+                  {/* 1. Cọc giữ phòng - Chỉ hiển thị khi có receiptBill */}
+                  {receiptBill && receiptAmount > 0 && (
+                    <div style={{ marginBottom: 16, padding: 12, border: "1px solid #d9d9d9", borderRadius: 4 }}>
+                      <Row justify="space-between" align="middle">
+                        <Col>
+                          <Text strong>1. Cọc giữ phòng</Text>
+                        </Col>
+                        <Col>
+                          <Space>
+                            <Text strong style={{ color: "#1890ff", fontSize: 16 }}>
+                              {receiptAmount.toLocaleString("vi-VN")} đ
+                            </Text>
+                            <Tag color={receiptStatus === "Đã thanh toán" ? "success" : receiptStatus === "Chờ xác nhận tiền mặt" ? "warning" : "error"}>
+                              {receiptStatus}
+                            </Tag>
+                          </Space>
+                        </Col>
+                      </Row>
+                    </div>
+                  )}
+
+                  {/* 2. Cọc 1 tháng tiền phòng */}
+                  {depositRemaining > 0 && (
+                    <div style={{ marginBottom: 16, padding: 12, border: "1px solid #d9d9d9", borderRadius: 4 }}>
+                      <Row justify="space-between" align="middle">
+                        <Col>
+                          <Text strong>2. Cọc 1 tháng tiền phòng</Text>
+                        </Col>
+                        <Col>
+                          <Space>
+                            <Text strong style={{ color: "#1890ff", fontSize: 16 }}>
+                              {depositRemaining.toLocaleString("vi-VN")} đ
+                            </Text>
+                            <Tag color={
+                              bill.status === "PAID" ? "success" 
+                              : bill.status === "PENDING_CASH_CONFIRM" ? "warning"
+                              : "error"
+                            }>
+                              {bill.status === "PAID" ? "Đã thanh toán"
+                                : bill.status === "PENDING_CASH_CONFIRM" ? "Chờ xác nhận tiền mặt"
+                                : "Chờ thanh toán"}
+                            </Tag>
+                          </Space>
+                        </Col>
+                      </Row>
+                    </div>
+                  )}
+
+                  {/* 3. Tiền phòng tháng đầu */}
+                  {firstMonthRent > 0 && (
+                    <div style={{ marginBottom: 16, padding: 12, border: "1px solid #d9d9d9", borderRadius: 4 }}>
+                      <Row justify="space-between" align="middle">
+                        <Col>
+                          <Text strong>3. Tiền phòng tháng đầu</Text>
+                        </Col>
+                        <Col>
+                          <Space>
+                            <Text strong style={{ color: "#1890ff", fontSize: 16 }}>
+                              {firstMonthRent.toLocaleString("vi-VN")} đ
+                            </Text>
+                            <Tag color={
+                              bill.status === "PAID" ? "success" 
+                              : bill.status === "PENDING_CASH_CONFIRM" ? "warning"
+                              : "error"
+                            }>
+                              {bill.status === "PAID" ? "Đã thanh toán"
+                                : bill.status === "PENDING_CASH_CONFIRM" ? "Chờ xác nhận tiền mặt"
+                                : "Chờ thanh toán"}
+                            </Tag>
+                          </Space>
+                        </Col>
+                      </Row>
+                    </div>
+                  )}
+
+                  {/* Tổng phải thanh toán - Chỉ hiển thị khi chưa thanh toán */}
+                  {totalDue > 0 && bill.status !== "PAID" && (
+                    <div style={{ marginTop: 24, padding: 16, backgroundColor: "#f0f2f5", borderRadius: 4, border: "2px solid #1890ff" }}>
+                      <Row justify="space-between" align="middle">
+                        <Col>
+                          <Text strong style={{ fontSize: 18 }}>Tổng phải thanh toán</Text>
+                        </Col>
+                        <Col>
+                          <Text strong style={{ color: "#1890ff", fontSize: 20 }}>
+                            {totalDue.toLocaleString("vi-VN")} đ
+                          </Text>
+                        </Col>
+                      </Row>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        ) : (
+          /* Hiển thị bình thường cho các bill khác */
+          bill.lineItems && bill.lineItems.length > 0 ? (
           <Table
             columns={lineItemColumns}
             dataSource={bill.lineItems}
@@ -330,6 +534,7 @@ const InvoiceDetail: React.FC = () => {
           />
         ) : (
           <Alert message="Chưa có chi tiết các khoản phí" type="info" showIcon />
+          )
         )}
 
         {bill.note && (
