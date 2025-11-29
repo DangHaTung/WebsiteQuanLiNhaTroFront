@@ -15,6 +15,7 @@ import InvoiceDetail from "../modules/client/pages/InvoiceDetail";
 import MyContractsDetail from "../modules/client/pages/MyContractsDetail";
 import MyMoveOutRequests from "../modules/client/pages/MyMoveOutRequests";
 import ProtectedRoute from "../components/ProtectedRoute";
+import Information from "../modules/client/pages/Information";
 
 const clientRoutes = [
   // Public routes
@@ -24,6 +25,7 @@ const clientRoutes = [
   { path: "login", element: <Login /> },
   { path: "register", element: <Register /> },
   { path: "support", element: <Support /> },
+  { path: "information", element: <Information/> },
   
   // Protected routes - cần đăng nhập
   { path: "checkin", element: <ProtectedRoute><Checkin /></ProtectedRoute> },
