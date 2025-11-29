@@ -28,12 +28,15 @@ const Home = () => {
   const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
 
   const filteredRooms = fakeRooms.filter(room => {
-    const matchSearch = room.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                        room.district.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchPrice = selectedPrice === "all" ||
-                       (selectedPrice === "under3" && room.price < 3000000) ||
-                       (selectedPrice === "3to5" && room.price >= 3000000 && room.price <= 5000000) ||
-                       (selectedPrice === "above5" && room.price > 5000000);
+    const matchSearch =
+      room.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      room.district.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchPrice =
+      selectedPrice === "all" ||
+      (selectedPrice === "under3" && room.price < 3000000) ||
+      (selectedPrice === "3to5" && room.price >= 3000000 && room.price <= 5000000) ||
+      (selectedPrice === "above5" && room.price > 5000000);
+
     return matchSearch && matchPrice;
   });
 
@@ -45,27 +48,28 @@ const Home = () => {
         keywords="phong tro, thue phong, nha tro, tro360"
       />
 
-      {/* Hero */}
-      <div style={{ background: "linear-gradient(135deg, #667eea, #764ba2)", color: "white", textAlign: "center", padding: "70px 20px" }}>
-        <h1 style={{ fontSize: "42px", margin: "0 0 10px" }}>Tìm Phòng Trọ Dễ Dàng</h1>
-        <p style={{ fontSize: "20px" }}>Hơn 500 phòng trọ đang chờ bạn!</p>
+      {/* HERO */}
+      <div className="hero">
+        <h1 className="hero-title">Tìm Phòng Trọ Dễ Dàng</h1>
+        <p className="hero-sub">Hơn 500 phòng trọ đang chờ bạn!</p>
       </div>
 
-      <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "0 20px" }}>
-        {/* Bộ lọc */}
-        <div style={{ background: "white", padding: "20px", borderRadius: "12px", boxShadow: "0 8px 25px rgba(0,0,0,0.1)", margin: "-50px 0 40px", position: "relative" }}>
-          <div style={{ display: "flex", gap: "15px", flexWrap: "wrap", justifyContent: "center" }}>
+      <div className="container">
+        {/* FILTER */}
+        <div className="filter-box">
+          <div className="filter-row">
             <input
               type="text"
               placeholder="Nhập quận hoặc tiện ích..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ padding: "12px 16px", width: "300px", maxWidth: "100%", borderRadius: "8px", border: "1px solid #ddd", fontSize: "16px" }}
+              className="filter-input"
             />
+
             <select
               value={selectedPrice}
               onChange={(e) => setSelectedPrice(e.target.value)}
-              style={{ padding: "12px 16px", borderRadius: "8px", border: "1px solid #ddd", fontSize: "16px" }}
+              className="filter-select"
             >
               <option value="all">Tất cả giá</option>
               <option value="under3">Dưới 3 triệu</option>
@@ -73,84 +77,183 @@ const Home = () => {
               <option value="above5">Trên 5 triệu</option>
             </select>
           </div>
-          <p style={{ textAlign: "center", margin: "15px 0 0", color: "#555" }}>
+
+          <p className="filter-info">
             Tìm thấy <strong>{filteredRooms.length}</strong> phòng
           </p>
         </div>
 
-        {/* Danh sách phòng */}
+        {/* LIST */}
         {loading ? (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "20px" }}>
-            {[1,2,3,4].map(i => (
-              <div key={i} style={{ height: "320px", background: "#f0f0f0", borderRadius: "12px", animation: "pulse 1.5s infinite" }}></div>
+          <div className="grid">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="skeleton"></div>
             ))}
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "25px" }}>
-            {filteredRooms.map(room => (
-              <div
-                key={room.id}
-                style={{
-                  background: "white",
-                  borderRadius: "12px",
-                  overflow: "hidden",
-                  boxShadow: "0 6px 20px rgba(0,0,0,0.1)",
-                  transition: "0.3s",
-                }}
-                onMouseEnter={e => e.currentTarget.style.transform = "translateY(-8px)"}
-                onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
-              >
-                <div style={{ height: "180px", background: "linear-gradient(45deg, #667eea, #764ba2)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontSize: "18px", fontWeight: "bold" }}>
-                  TRO360
-                </div>
-                <div style={{ padding: "16px" }}>
-                  <h3 style={{ margin: "0 0 8px", fontSize: "18px", color: "#333" }}>{room.title}</h3>
-                  <p style={{ margin: "8px 0", fontSize: "22px", color: "#e74c3c", fontWeight: "bold" }}>
+          <div className="grid">
+            {filteredRooms.map((room) => (
+              <div className="card" key={room.id}>
+                <div className="card-img">TRO360</div>
+                <div className="card-body">
+                  <h3 className="card-title">{room.title}</h3>
+                  <p className="card-price">
                     {(room.price / 1000000).toFixed(1)} triệu/tháng
                   </p>
-                  <p style={{ margin: "0", color: "#666" }}>{room.area} • {room.district}</p>
-                  <button style={{ marginTop: "14px", width: "100%", padding: "10px", background: "#667eea", color: "white", border: "none", borderRadius: "8px", fontWeight: "bold", cursor: "pointer" }}>
-                    Xem chi tiết
-                  </button>
+                  <p className="card-area">
+                    {room.area} • {room.district}
+                  </p>
+                  <button className="card-btn">Xem chi tiết</button>
                 </div>
               </div>
             ))}
           </div>
         )}
 
-        {/* Không tìm thấy */}
         {!loading && filteredRooms.length === 0 && (
-          <p style={{ textAlign: "center", fontSize: "20px", color: "#999", padding: "60px 0" }}>
-            Không tìm thấy phòng trọ phù hợp 😔
-          </p>
+          <p className="no-result">Không tìm thấy phòng trọ phù hợp 😔</p>
         )}
       </div>
 
-      {/* Nút lên đầu trang */}
       {showScrollTop && (
-        <button
-          onClick={scrollToTop}
-          style={{
-            position: "fixed",
-            bottom: "30px",
-            right: "30px",
-            width: "50px",
-            height: "50px",
-            background: "#667eea",
-            color: "white",
-            border: "none",
-            borderRadius: "50%",
-            fontSize: "24px",
-            cursor: "pointer",
-            boxShadow: "0 4px 15px rgba(0,0,0,0.3)"
-          }}
-        >
+        <button className="scroll-top" onClick={scrollToTop}>
           ↑
         </button>
       )}
 
-      {/* Hiệu ứng loading - KHÔNG LỖI */}
+      {/* CSS GỘP CHUNG */}
       <style>{`
+        .hero {
+          background: linear-gradient(135deg, #667eea, #764ba2);
+          color: white;
+          text-align: center;
+          padding: 70px 20px;
+        }
+        .hero-title {
+          font-size: 42px;
+          margin-bottom: 10px;
+        }
+        .hero-sub {
+          font-size: 20px;
+        }
+
+        .container {
+          max-width: 1100px;
+          margin: 0 auto;
+          padding: 0 20px;
+        }
+
+        .filter-box {
+          background: white;
+          padding: 20px;
+          border-radius: 12px;
+          box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+          margin: -50px 0 40px;
+          text-align: center;
+        }
+        .filter-row {
+          display: flex;
+          gap: 15px;
+          flex-wrap: wrap;
+          justify-content: center;
+        }
+        .filter-input, .filter-select {
+          padding: 12px 16px;
+          border-radius: 8px;
+          border: 1px solid #ddd;
+          font-size: 16px;
+        }
+        .filter-input {
+          width: 300px;
+          max-width: 100%;
+        }
+        .filter-info {
+          margin-top: 15px;
+          color: #555;
+        }
+
+        .grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          gap: 25px;
+        }
+
+        .card {
+          background: white;
+          border-radius: 12px;
+          overflow: hidden;
+          box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+          transition: .3s;
+        }
+        .card:hover {
+          transform: translateY(-8px);
+        }
+        .card-img {
+          height: 180px;
+          background: linear-gradient(45deg, #667eea, #764ba2);
+          color: white;
+          font-size: 18px;
+          font-weight: bold;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .card-body {
+          padding: 16px;
+        }
+        .card-title {
+          font-size: 18px;
+          margin-bottom: 8px;
+        }
+        .card-price {
+          color: #e74c3c;
+          font-size: 22px;
+          font-weight: bold;
+          margin: 8px 0;
+        }
+        .card-area {
+          color: #666;
+        }
+        .card-btn {
+          margin-top: 14px;
+          width: 100%;
+          padding: 10px;
+          background: #667eea;
+          color: white;
+          border: none;
+          border-radius: 8px;
+          font-weight: bold;
+          cursor: pointer;
+        }
+
+        .skeleton {
+          height: 320px;
+          background: #f0f0f0;
+          border-radius: 12px;
+          animation: pulse 1.5s infinite;
+        }
+
+        .no-result {
+          text-align: center;
+          font-size: 20px;
+          color: #999;
+          padding: 60px 0;
+        }
+
+        .scroll-top {
+          position: fixed;
+          bottom: 30px;
+          right: 30px;
+          width: 50px;
+          height: 50px;
+          background: #667eea;
+          color: white;
+          border: none;
+          border-radius: 50%;
+          font-size: 24px;
+          cursor: pointer;
+        }
+
         @keyframes pulse {
           0%, 100% { opacity: 0.6; }
           50% { opacity: 1; }

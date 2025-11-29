@@ -1,0 +1,22 @@
+.seo-container {
+  padding: 20px;
+  font-family: sans-serif;
+  color: #333;
+}
+
+.seo-title {
+  font-size: 22px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.seo-desc {
+  font-size: 15px;
+  color: #555;
+}
+
+.seo-keywords {
+  margin-top: 10px;
+  font-size: 14px;
+  color: #777;
+}
