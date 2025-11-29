@@ -89,7 +89,38 @@ const Invoices: React.FC = () => {
         const returnUrl = `${window.location.origin}/invoices`;
 
         // Tính số tiền còn lại phải thanh toán
-        const remainingAmount = bill.amountDue - (bill.amountPaid || 0);
+        // Với CONTRACT bill: tính từ lineItems để đảm bảo chính xác
+        let remainingAmount = bill.amountDue - (bill.amountPaid || 0);
+        
+        if (bill.billType === "CONTRACT" && bill.lineItems && bill.lineItems.length > 0) {
+          // Tính tổng từ lineItems (depositRemaining + firstMonthRent)
+          const convertToNumber = (value: any): number => {
+            if (typeof value === 'number' && !isNaN(value)) {
+              return value;
+            } else if (typeof value === 'string') {
+              return parseFloat(value) || 0;
+            }
+            return 0;
+          };
+          
+          // Tính tổng tất cả lineItems của CONTRACT bill
+          let totalFromLineItems = 0;
+          bill.lineItems.forEach((item: any) => {
+            const itemTotal = convertToNumber(item.lineTotal);
+            totalFromLineItems += itemTotal;
+            console.log(`📋 CONTRACT lineItem: ${item.item} = ${itemTotal}`);
+          });
+          
+          console.log(`💰 CONTRACT bill - Total from lineItems: ${totalFromLineItems}, amountDue from DB: ${bill.amountDue}, amountPaid: ${bill.amountPaid}`);
+          
+          // Số tiền còn lại = tổng từ lineItems - amountPaid
+          remainingAmount = totalFromLineItems - (bill.amountPaid || 0);
+          
+          // Đảm bảo không âm
+          if (remainingAmount < 0) remainingAmount = 0;
+          
+          console.log(`✅ CONTRACT payment amount: ${remainingAmount}`);
+        }
         
         const response = await fetch(endpoint, {
           method: "POST",
