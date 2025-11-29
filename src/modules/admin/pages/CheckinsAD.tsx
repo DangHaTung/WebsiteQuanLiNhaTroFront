@@ -549,12 +549,12 @@ const CheckinsAD: React.FC = () => {
                 name="duration"
                 rules={[{ required: true, message: "Nhập thời hạn thuê!" }]}
               >
-                <InputNumber min={1} style={{ width: "100%" }} placeholder="VD: 6" />
+                <InputNumber min={1} style={{ width: "100%" }} placeholder="Nhập thời hạn thuê" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
               <Form.Item
-                label="Tiền cọc (VNĐ)"
+                label="Tiền cọc giữ phòng(VNĐ)"
                 name="deposit"
                 rules={[{ required: true, message: "Nhập tiền cọc!" }]}
               >
@@ -562,7 +562,7 @@ const CheckinsAD: React.FC = () => {
                   min={0}
                   style={{ width: "100%" }}
                   formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-                  placeholder="VD: 5000000"
+                  placeholder="Nhập tiền cọc"
                 />
               </Form.Item>
             </Col>
