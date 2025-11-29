@@ -1,9 +1,9 @@
 import React from "react";
 
 /**
- * ⭐ VSEO ROOM DETAIL — VERSION ĐƠN GIẢN KHÔNG LIÊN QUAN ROUTER
+ * ⭐ VSEO ROOM DETAIL — VERSION CHI TIẾT
  * Không dùng useParams, không dùng react-router-dom,
- * Chỉ nhận props vào → gắn SEO an toàn, không lỗi dự án.
+ * Nhận props chi tiết phòng → SEO đầy đủ, JSON-LD, Open Graph, Twitter.
  */
 
 interface VSeoRoomDetailProps {
@@ -11,6 +11,11 @@ interface VSeoRoomDetailProps {
   description: string;
   image?: string;
   canonical?: string;
+  price?: number;
+  currency?: string;
+  area?: string;
+  amenities?: string[];
+  address?: string;
 }
 
 export default function VSeoRoomDetail({
@@ -18,7 +23,37 @@ export default function VSeoRoomDetail({
   description,
   image = "/seo-default.jpg",
   canonical = typeof window !== "undefined" ? window.location.href : "https://example.com",
+  price,
+  currency = "VND",
+  area,
+  amenities = [],
+  address,
 }: VSeoRoomDetailProps) {
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "Place",
+    name: title,
+    description,
+    image,
+    address: address || "Không xác định",
+    geo: {
+      "@type": "GeoCoordinates",
+      latitude: "0", // có thể bổ sung
+      longitude: "0",
+    },
+    offers: price
+      ? {
+          "@type": "Offer",
+          price,
+          priceCurrency: currency,
+        }
+      : undefined,
+    amenityFeature: amenities.map((a) => ({
+      "@type": "LocationFeatureSpecification",
+      name: a,
+    })),
+  };
+
   return (
     <>
       {/* BASIC SEO */}
@@ -39,6 +74,11 @@ export default function VSeoRoomDetail({
       <meta name="twitter:title" content={title} />
       <meta name="twitter:description" content={description} />
       <meta name="twitter:image" content={image} />
+
+      {/* JSON-LD Structured Data */}
+      <script type="application/ld+json">
+        {JSON.stringify(structuredData)}
+      </script>
     </>
   );
 }
