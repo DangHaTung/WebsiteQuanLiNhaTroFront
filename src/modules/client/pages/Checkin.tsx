@@ -4,24 +4,24 @@ import { PhoneOutlined, EnvironmentOutlined, FacebookOutlined, MessageOutlined }
 import "../../../assets/styles/checkin.css";
 
 const { Title, Paragraph, Text } = Typography;
-
+// eslint-disable-next-line @typescript-eslint/no-empty-function
 const Checkin: React.FC = () => {
   const handleCallPhone = () => {
     window.location.href = "tel:0842346871";
   };
-
+// Mở Facebook
   const handleOpenFacebook = () => {
     window.open("https://www.facebook.com/profile.php?id=61583677535458", "_blank");
   };
-
+// Mở Zalo
   const handleOpenZalo = () => {
     window.open("https://zalo.me/0842346871", "_blank");
   };
-
+// Mở bản đồ
   const handleOpenMap = () => {
     window.open("https://maps.google.com/?q=39+Ngõ+113+Yên+Hoà+Cầu+Giấy+Hà+Nội", "_blank");
   };
-
+// Giao diện trang Liên hệ
   return (
     <div className="checkin-container">
       <div style={{ maxWidth: 900, margin: "0 auto", padding: "40px 24px" }}>
