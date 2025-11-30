@@ -6,11 +6,11 @@ import { clientAuthService } from "../../client/services/auth";
 import "../../../assets/styles/register.css";
 
 const { Title, Text } = Typography;
-
+// Trang đăng ký tài khoản cho khách hàng
 const Register: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-
+// Xử lý khi submit form đăng ký
   const onFinish = async (values: {
     fullname: string;
     email: string;
@@ -27,9 +27,11 @@ const Register: React.FC = () => {
         phone: values.phone,
         password: values.password,
       });
+      // Hiển thị thông báo thành công và chuyển hướng đến trang đăng nhập
       message.success(res.message || "Đăng ký thành công!");
       navigate("/login");
     } catch (err: any) {
+      // Hiển thị thông báo lỗi nếu có
       message.error(
         err?.response?.data?.message || err?.response?.data?.error || "Đăng ký thất bại"
       );
@@ -37,16 +39,20 @@ const Register: React.FC = () => {
       setLoading(false);
     }
   };
+  // Giao diện trang đăng ký
 
   return (
     <div className="register-container">
       {/* Logo góc trên trái */}
       <div className="register-logo">
         <img
+        //   src="https://cdn-icons-png.flaticon.com/512/893/893292.png"
           src="https://cdn-icons-png.flaticon.com/512/893/893292.png"
           alt="Tro360 Logo"
           className="logo-icon"
+          // width={40}
         />
+        
         <h2 className="logo-text">Tro360</h2>
       </div>
 
@@ -74,6 +80,7 @@ const Register: React.FC = () => {
             </Title>
             <Text type="secondary">Tạo tài khoản mới để bắt đầu 🚀</Text>
           </div>
+          
 
           <Form
             name="register-form"
@@ -85,11 +92,13 @@ const Register: React.FC = () => {
               name="fullname"
               label="Họ và tên"
               rules={[
+                // simple client validation
                 { required: true, message: "Vui lòng nhập họ và tên!" },
                 { min: 2, message: "Họ và tên phải có ít nhất 2 ký tự!" },
               ]}
             >
               <Input
+              //   prefix={<UserOutlined style={{ color: "#3b82f6" }} />}
                 prefix={<UserAddOutlined style={{ color: "#3b82f6" }} />}
                 placeholder="Nguyễn Văn A"
                 size="large"
@@ -98,6 +107,7 @@ const Register: React.FC = () => {
             </Form.Item>
 
             <Form.Item
+              //   name="email"
               name="email"
               label="Email"
               rules={[
@@ -106,6 +116,7 @@ const Register: React.FC = () => {
               ]}
             >
               <Input
+              //   prefix={<MailOutlined style={{ color: "#3b82f6" }} />}
                 prefix={<MailOutlined style={{ color: "#3b82f6" }} />}
                 placeholder="example@email.com"
                 size="large"
@@ -114,6 +125,7 @@ const Register: React.FC = () => {
             </Form.Item>
 
             <Form.Item
+            //   name="phone"
               name="phone"
               label="Số điện thoại"
               rules={[
@@ -141,6 +153,7 @@ const Register: React.FC = () => {
               ]}
             >
               <Input.Password
+              //   prefix={<LockOutlined style={{ color: "#3b82f6" }} />}
                 prefix={<LockOutlined style={{ color: "#3b82f6" }} />}
                 placeholder="Mật khẩu"
                 size="large"
@@ -149,6 +162,7 @@ const Register: React.FC = () => {
             </Form.Item>
 
             <Form.Item
+            //   name="confirm"
               name="confirm"
               label="Xác nhận mật khẩu"
               dependencies={["password"]}
@@ -167,6 +181,7 @@ const Register: React.FC = () => {
               ]}
             >
               <Input.Password
+              //   prefix={<LockOutlined style={{ color: "#3b82f6" }} />}
                 prefix={<LockOutlined style={{ color: "#3b82f6" }} />}
                 placeholder="Nhập lại mật khẩu"
                 size="large"
