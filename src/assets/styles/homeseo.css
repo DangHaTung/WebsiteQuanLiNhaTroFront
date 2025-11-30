@@ -1,3 +1,6 @@
+/* src/styles/homeseo.css */
+
+/* Reset cơ bản */
 * {
     margin: 0;
     padding: 0;
@@ -25,7 +28,37 @@ body {
     font-weight: bold;
     margin-bottom: 20px;
     text-align: center;
-    color: #1e3a8a; /* màu xanh đậm */
+    color: #1e3a8a;
+}
+
+/* Search Bar */
+.search-bar {
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto 30px auto;
+    display: flex;
+}
+
+.search-bar input {
+    flex: 1;
+    padding: 10px 15px;
+    border: 1px solid #ccc;
+    border-radius: 5px 0 0 5px;
+    font-size: 1rem;
+}
+
+.search-bar button {
+    padding: 10px 15px;
+    border: none;
+    background-color: #1e3a8a;
+    color: #fff;
+    border-radius: 0 5px 5px 0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.search-bar button:hover {
+    background-color: #3b82f6;
 }
 
 /* Danh sách phòng */
@@ -37,11 +70,12 @@ body {
 
 /* Card phòng */
 .room-card {
+    position: relative;
     background-color: #fff;
     border-radius: 10px;
     overflow: hidden;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    transition: transform 0.2s, box-shadow 0.2s;
+    transition: transform 0.3s, box-shadow 0.3s;
 }
 
 .room-card:hover {
@@ -54,6 +88,24 @@ body {
     width: 100%;
     height: 180px;
     object-fit: cover;
+    transition: transform 0.3s;
+}
+
+.room-card:hover img {
+    transform: scale(1.05);
+}
+
+/* Badge/Tag */
+.room-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background-color: #f59e0b;
+    color: #fff;
+    padding: 5px 8px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    border-radius: 5px;
 }
 
 /* Nội dung phòng */
@@ -86,6 +138,29 @@ body {
 
 .room-card .room-info button:hover {
     background-color: #3b82f6;
+}
+
+/* Pagination */
+.pagination {
+    display: flex;
+    justify-content: center;
+    margin-top: 30px;
+    gap: 10px;
+}
+
+.pagination button {
+    padding: 8px 12px;
+    border: 1px solid #1e3a8a;
+    background-color: #fff;
+    color: #1e3a8a;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.pagination button:hover {
+    background-color: #1e3a8a;
+    color: #fff;
 }
 
 /* Responsive */
