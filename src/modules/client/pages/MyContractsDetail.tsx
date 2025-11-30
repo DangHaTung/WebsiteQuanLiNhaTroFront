@@ -4,7 +4,7 @@ import { FileTextOutlined, FilePdfOutlined, EyeOutlined, DollarOutlined } from "
 import dayjs from "dayjs";
 import api from "../services/api";
 import { clientBillService } from "../services/bill";
-
+// Định nghĩa kiểu dữ liệu hợp đồng
 interface FinalContract {
   _id: string;
   roomId: { _id: string; roomNumber: string; pricePerMonth: number };
@@ -16,7 +16,7 @@ interface FinalContract {
   images?: Array<{ url: string; secure_url: string; viewUrl?: string; format?: string }>;
   createdAt: string;
 }
-
+// Trang chi tiết hợp đồng của khách hàng
 const MyContractsDetail = () => {
   const [contracts, setContracts] = useState<FinalContract[]>([]);
   const [loading, setLoading] = useState(false);
@@ -39,13 +39,13 @@ const MyContractsDetail = () => {
         const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
         const token = localStorage.getItem("token");
         const typeParam = "contract";
-        
+        // Gọi API lấy file PDF
         const response = await fetch(`${apiUrl}/api/final-contracts/${selectedContract._id}/view/${typeParam}/${index}`, {
           headers: {
             "Authorization": `Bearer ${token}`,
           },
         });
-        
+        // Kiểm tra response
         if (!response.ok) {
           message.error("Không thể tải PDF");
           return;
@@ -58,6 +58,7 @@ const MyContractsDetail = () => {
         // Mở PDF trong modal viewer
         setPdfViewerUrl(blobUrl);
         setPdfViewerVisible(true);
+        // Lưu ý: URL sẽ được revoke khi đóng modal
       } catch (error) {
         console.error("Load PDF error:", error);
         message.error("Lỗi khi tải PDF");
@@ -68,27 +69,29 @@ const MyContractsDetail = () => {
       window.open(url, "_blank");
     }
   };
-
+// Load danh sách hợp đồng khi component mount
   useEffect(() => {
     loadContracts();
   }, []);
-
+// Hàm load hợp đồng từ API
   const loadContracts = async () => {
     setLoading(true);
+    // Gọi API lấy hợp đồng của khách hàng
     try {
       const response = await api.get("/final-contracts/my-contracts");
       setContracts(response.data.data || []);
     } catch (error: any) {
       message.error(error.response?.data?.message || "Lỗi khi tải hợp đồng");
     } finally {
+      // Giải phóng tài nguyên
       setLoading(false);
     }
   };
-
+// Hàm mở modal chi tiết hợp đồng
   const openDetail = async (contract: FinalContract) => {
     setSelectedContract(contract);
     setViewModalVisible(true);
-    
+    // Load hóa đơn liên quan hợp đồng
     try {
       const billsData = await clientBillService.getBillsByFinalContract(contract._id);
       setBills(billsData);
@@ -97,7 +100,7 @@ const MyContractsDetail = () => {
       setBills([]);
     }
   };
-
+// Hàm hiển thị tag trạng thái hợp đồng
   const getStatusTag = (status: string, record?: FinalContract) => {
     if (status === "CANCELED") {
       return <Tag color="error">Đã hủy</Tag>;
@@ -122,7 +125,7 @@ const MyContractsDetail = () => {
     }
     return <Tag color="default">{status || "N/A"}</Tag>;
   };
-
+// Hàm hiển thị tag trạng thái hóa đơn
   const getBillStatusTag = (status: string) => {
     const statusMap: Record<string, { color: string; text: string }> = {
       PAID: { color: "success", text: "Đã thanh toán" },
@@ -133,13 +136,14 @@ const MyContractsDetail = () => {
     const s = statusMap[status] || { color: "default", text: status };
     return <Tag color={s.color}>{s.text}</Tag>;
   };
-
+// Định nghĩa cột cho bảng hợp đồng
   const columns = [
     {
       title: "Phòng",
       dataIndex: ["roomId", "roomNumber"],
       key: "roomNumber",
     },
+    // Hiển thị thời gian thuê
     {
       title: "Thời gian thuê",
       key: "duration",
@@ -150,24 +154,28 @@ const MyContractsDetail = () => {
         </div>
       ),
     },
+    // Hiển thị tiền cọc
     {
       title: "Tiền cọc",
       dataIndex: "deposit",
       key: "deposit",
       render: (val: number) => `${val?.toLocaleString("vi-VN")} đ`,
     },
+    // Hiển thị tiền thuê hàng tháng
     {
       title: "Tiền thuê/tháng",
       dataIndex: "monthlyRent",
       key: "monthlyRent",
       render: (val: number) => `${val?.toLocaleString("vi-VN")} đ`,
     },
+    // Hiển thị trạng thái hợp đồng
     {
       title: "Trạng thái",
       dataIndex: "status",
       key: "status",
       render: (status: string, record: FinalContract) => getStatusTag(status, record),
     },
+    // Hành động xem chi tiết
     {
       title: "Thao tác",
       key: "actions",
