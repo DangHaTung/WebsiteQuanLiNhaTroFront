@@ -2,45 +2,48 @@ import { useState, useRef, useEffect } from "react";
 import { Input, Button } from "antd";
 import type { InputRef } from "antd";
 import { SearchOutlined, CloseOutlined } from "@ant-design/icons";
-
+// Props cho ExpandableSearch component
 interface ExpandableSearchProps {
     value: string;
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
     placeholder?: string;
     maxWidth?: number;
 }
-
+// Component thanh tìm kiếm mở rộng
 const ExpandableSearch = ({
     value,
     onChange,
     placeholder = "Tìm kiếm...",
     maxWidth = 250,
+    //...rest
 }: ExpandableSearchProps) => {
     const [open, setOpen] = useState(false);
     const [hover, setHover] = useState(false);
     const wrapperRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<InputRef>(null);
-
+// Tự động focus input khi mở
     useEffect(() => {
         if (open && inputRef.current) {
             inputRef.current.focus();
         }
     }, [open]);
-
+/// Đóng khi click ngoài
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
                 setOpen(false);
             }
+            // Đóng khi nhấn Escape
         };
         document.addEventListener("mousedown", handleClickOutside);
         return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
-
+// Màu nền gradient
     const gradientColors = "linear-gradient(135deg, #0d6efd, #0dcaf0)";
 
     return (
         <div
+        // Bao quanh component
             ref={wrapperRef}
             style={{
                 display: "flex",
@@ -55,6 +58,7 @@ const ExpandableSearch = ({
                 width: open ? maxWidth + 50 : 50,
                 background: gradientColors,
             }}
+            // Xuất hiện khi hover
             onMouseEnter={() => setHover(true)}
             onMouseLeave={() => setHover(false)}
         >
@@ -64,6 +68,7 @@ const ExpandableSearch = ({
                 onChange={onChange}
                 placeholder={placeholder}
                 style={{
+                    // Hiển thị input khi mở
                     width: open ? maxWidth : 0,
                     opacity: open ? 1 : 0,
                     transition: "width 0.4s ease, opacity 0.4s ease, padding 0.4s ease",
