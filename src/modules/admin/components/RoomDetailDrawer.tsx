@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { Drawer, Descriptions, Image, Divider, Tag, Typography, Row, Col, Space, message, Spin, Table, Tabs } from "antd";
-import { CheckCircleOutlined, ExclamationCircleOutlined, ToolOutlined, HomeOutlined, FileTextOutlined, PayCircleOutlined, DollarOutlined, InfoCircleOutlined } from "@ant-design/icons";
+import { CheckCircleOutlined, ExclamationCircleOutlined, ToolOutlined, HomeOutlined, FileTextOutlined, PayCircleOutlined, DollarOutlined, InfoCircleOutlined, HistoryOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import type { Room } from "../../../types/room";
 import type { Checkin } from "../../../types/checkin";
 import type { Contract } from "../../../types/contract";
 import type { BillType, BillStatus } from "../../../types/bill";
 import { adminRoomService } from "../services/room";
+import { adminLogService } from "../services/log";
 import dayjs from "dayjs";
 
 interface RoomDetailDrawerProps {
@@ -21,7 +22,22 @@ const { Title, Text } = Typography;
 const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, roomId }) => {
   const [room, setRoom] = useState<Room | null>(null);
   const [loading, setLoading] = useState(false);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
   const navigate = useNavigate();
+
+  const fetchLogs = async () => {
+    if (!roomId) return;
+    setLogsLoading(true);
+    try {
+      const response = await adminLogService.getByEntity('ROOM', roomId, { limit: 50 });
+      setLogs(response.data);
+    } catch (error) {
+      console.error("Load logs error:", error);
+    } finally {
+      setLogsLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchRoom = async () => {
@@ -42,6 +58,9 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
           console.log("Bills:", data.bills);
           setRoom(data);
         }
+        
+        // Load logs
+        fetchLogs();
       } catch (err: any) {
         console.error("API error:", err);
         message.error(err.message || "Lỗi khi lấy chi tiết phòng");
@@ -431,6 +450,66 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
                   ) : (
                     <div style={{ textAlign: "center", padding: "40px 0" }}>
                       <Text type="secondary">Không có hóa đơn</Text>
+                    </div>
+                  )}
+                </>
+              ),
+            },
+            {
+              key: "5",
+              label: (
+                <span>
+                  <HistoryOutlined /> Lịch sử ({logs.length})
+                </span>
+              ),
+              children: (
+                <>
+                  {logsLoading ? (
+                    <div style={{ textAlign: "center", padding: "40px 0" }}>
+                      <Spin />
+                    </div>
+                  ) : logs.length > 0 ? (
+                    <Table
+                      columns={[
+                        {
+                          title: "Thời gian",
+                          dataIndex: "createdAt",
+                          key: "createdAt",
+                          width: 150,
+                          render: (date: string) => dayjs(date).format("DD/MM/YYYY HH:mm"),
+                        },
+                        {
+                          title: "Level",
+                          dataIndex: "level",
+                          key: "level",
+                          width: 80,
+                          render: (level: string) => (
+                            <Tag color={level === 'ERROR' ? 'red' : level === 'WARN' ? 'orange' : 'blue'}>
+                              {level}
+                            </Tag>
+                          ),
+                        },
+                        {
+                          title: "Hành động",
+                          dataIndex: "message",
+                          key: "message",
+                        },
+                        {
+                          title: "Người thực hiện",
+                          dataIndex: ["context", "actorId"],
+                          key: "actor",
+                          width: 150,
+                          render: (actor: any) => actor?.fullName || <Text type="secondary">System</Text>,
+                        },
+                      ]}
+                      dataSource={logs}
+                      rowKey="_id"
+                      size="small"
+                      pagination={{ pageSize: 10 }}
+                    />
+                  ) : (
+                    <div style={{ textAlign: "center", padding: "40px 0" }}>
+                      <Text type="secondary">Chưa có lịch sử</Text>
                     </div>
                   )}
                 </>

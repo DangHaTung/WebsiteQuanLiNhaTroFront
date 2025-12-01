@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Input, Badge, Drawer, Button, Dropdown, Avatar, Typography } from "antd";
-import { PhoneOutlined, MailOutlined, BellOutlined, SearchOutlined, UserOutlined, MenuOutlined, CloseOutlined, CustomerServiceOutlined, SettingOutlined, LogoutOutlined, UserSwitchOutlined, MessageOutlined, InfoCircleOutlined } from "@ant-design/icons";
+import { Input, Drawer, Button, Dropdown, Avatar, Typography } from "antd";
+import { PhoneOutlined, MailOutlined, BellOutlined, SearchOutlined, UserOutlined, MenuOutlined, CloseOutlined, SettingOutlined, LogoutOutlined, UserSwitchOutlined, MessageOutlined } from "@ant-design/icons";
 import Logo from "../../assets/images/logo.png";
 import "../../assets/styles/nav.css";
+import NotificationBell from "../../components/NotificationBell";
 
 const { Search } = Input;
 const { Text } = Typography;
@@ -132,12 +133,8 @@ const Navbar: React.FC = () => {
             <Link to="/complaint" className="nav-top-link highlight">
               <MessageOutlined /> Khiếu nại
             </Link>
-            <Link to="/support" className="nav-top-link highlight">
-              <CustomerServiceOutlined className="icon" /> Hỗ trợ
-            </Link>
-            <Link to="/information" className="nav-top-link highlight">
-              <InfoCircleOutlined className="icon" /> Thông tin hệ thống
-            </Link>
+
+
           </div>
         </div>
       </div>
@@ -172,12 +169,8 @@ const Navbar: React.FC = () => {
 
           {/* Wishlist + User */}
           <div className="nav-actions">
-            {/* Chỉ hiển thị wishlist khi đã đăng nhập */}
-            {isLoggedIn && (
-              <Badge count={3} size="small">
-                <BellOutlined className="nav-icon notification-icon" />
-              </Badge>
-            )}
+            {/* Notification Bell - Chỉ hiển thị khi đã đăng nhập */}
+            {isLoggedIn && <NotificationBell />}
 
             {/* User account section */}
             {isLoggedIn ? (

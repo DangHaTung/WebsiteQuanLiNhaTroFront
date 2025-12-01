@@ -13,7 +13,6 @@ import { adminFinalContractService } from "../services/finalContract";
 import { adminContractService } from "../services/contract";
 import { adminBillService } from "../services/bill";
 import { adminUserService } from "../services/user";
-import type { Contract } from "../../../types/contract";
 
 // Define types locally to avoid import issues
 interface FileInfo {
@@ -86,7 +85,7 @@ const FinalContracts = () => {
   
   // New contract upload
   const [newContractModalVisible, setNewContractModalVisible] = useState(false);
-  const [availableContracts, setAvailableContracts] = useState<Contract[]>([]);
+  const [availableContracts, setAvailableContracts] = useState<any[]>([]);
   const [selectedContractId, setSelectedContractId] = useState<string>("");
   
   // Assign tenant modal
