@@ -26,6 +26,7 @@ import {
   CheckOutlined,
   SendOutlined,
   DownloadOutlined,
+  EyeOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { Checkin } from "../../../types/checkin";
@@ -36,6 +37,8 @@ import { adminCheckinService } from "../services/checkin";
 import { adminRoomService } from "../services/room";
 import { adminUserService } from "../services/user";
 import { adminBillService } from "../services/bill";
+import { adminFinalContractService } from "../services/finalContract";
+import CheckinDetailDrawer from "../components/CheckinDetailDrawer";
 
 const { Option } = Select;
 
@@ -45,6 +48,8 @@ interface CheckinFormValues {
   duration: number;
   deposit: number;
   identityNo?: string;
+  address?: string;
+  initialElectricReading?: number;
   tenantId?: string;
   notes?: string;
 }
@@ -56,6 +61,10 @@ const CheckinsAD: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [form] = Form.useForm<CheckinFormValues>();
+
+  // Detail Drawer States
+  const [detailVisible, setDetailVisible] = useState(false);
+  const [selectedCheckin, setSelectedCheckin] = useState<Checkin | null>(null);
 
   // CCCD Upload Modal States
   const [cccdUploadModalVisible, setCccdUploadModalVisible] = useState(false);
@@ -71,6 +80,12 @@ const CheckinsAD: React.FC = () => {
   // State để theo dõi đã load các dữ liệu phụ chưa
   const [hasLoadedRooms, setHasLoadedRooms] = useState(false);
   const [hasLoadedUsers, setHasLoadedUsers] = useState(false);
+  
+  // Map để lưu bill CONTRACT theo finalContractId (key: finalContractId, value: bill CONTRACT)
+  const [contractBillsMap, setContractBillsMap] = useState<Map<string, any>>(new Map());
+  
+  // Map để lưu FinalContract info theo finalContractId (key: finalContractId, value: FinalContract)
+  const [finalContractsMap, setFinalContractsMap] = useState<Map<string, any>>(new Map());
 
   useEffect(() => {
     loadCheckins();
@@ -80,17 +95,124 @@ const CheckinsAD: React.FC = () => {
     try {
       setLoading(true);
       const response = await adminCheckinService.getAll({ limit: 100 });
+      const allCheckins = response.data || [];
       
-      // Lọc bỏ các checkin đã có hợp đồng chính thức (finalContractId)
-      const filteredCheckins = (response.data || []).filter((checkin: Checkin) => {
-        return !(checkin as any).finalContractId;
-      });
+      // Hiển thị tất cả checkins, không ẩn bất kỳ checkin nào (kể cả đã thanh toán)
+      setCheckins(allCheckins);
       
-      setCheckins(filteredCheckins);
+      // Load các bill CONTRACT để kiểm tra trạng thái thanh toán
+      await loadContractBills(allCheckins);
+      
+      // Load FinalContract info để kiểm tra images
+      await loadFinalContracts(allCheckins);
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu check-in");
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Load các bill CONTRACT để kiểm tra trạng thái thanh toán
+  const loadContractBills = async (checkins: Checkin[]) => {
+    try {
+      const finalContractIds = new Set<string>();
+      
+      // Lấy tất cả finalContractId từ checkins
+      checkins.forEach((checkin: any) => {
+        if (checkin.finalContractId) {
+          const fcId = typeof checkin.finalContractId === 'string' 
+            ? checkin.finalContractId 
+            : checkin.finalContractId._id;
+          if (fcId) {
+            finalContractIds.add(fcId);
+          }
+        }
+      });
+
+      if (finalContractIds.size === 0) {
+        return;
+      }
+
+      // Load bills CONTRACT cho từng finalContractId
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+      const token = localStorage.getItem("admin_token");
+      const newContractBillsMap = new Map<string, any>();
+
+      await Promise.all(
+        Array.from(finalContractIds).map(async (fcId) => {
+          try {
+            // Lấy bills CONTRACT theo finalContractId
+            const response = await fetch(`${apiUrl}/api/bills?finalContractId=${fcId}&billType=CONTRACT&limit=100`, {
+              headers: {
+                "Authorization": `Bearer ${token}`,
+              },
+            });
+            const data = await response.json();
+            const bills = data.data || [];
+            
+            // Tìm bill CONTRACT đã thanh toán (PAID)
+            const paidContractBill = bills.find((bill: any) => 
+              bill.billType === "CONTRACT" && bill.status === "PAID"
+            );
+            
+            if (paidContractBill) {
+              newContractBillsMap.set(fcId, paidContractBill);
+            }
+          } catch (error) {
+            console.error(`Error loading contract bill for finalContractId ${fcId}:`, error);
+          }
+        })
+      );
+
+      setContractBillsMap(newContractBillsMap);
+    } catch (error) {
+      console.error("Error loading contract bills:", error);
+    }
+  };
+
+  // Load FinalContract info để kiểm tra images
+  const loadFinalContracts = async (checkins: Checkin[]) => {
+    try {
+      const finalContractIds = new Set<string>();
+      
+      // Lấy tất cả finalContractId từ checkins
+      checkins.forEach((checkin: any) => {
+        if (checkin.finalContractId) {
+          const fcId = typeof checkin.finalContractId === 'string' 
+            ? checkin.finalContractId 
+            : checkin.finalContractId._id;
+          if (fcId) {
+            finalContractIds.add(fcId);
+          }
+        }
+      });
+
+      if (finalContractIds.size === 0) {
+        return;
+      }
+
+      // Load FinalContract cho từng finalContractId
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+      const token = localStorage.getItem("admin_token");
+      const newFinalContractsMap = new Map<string, any>();
+
+      await Promise.all(
+        Array.from(finalContractIds).map(async (fcId) => {
+          try {
+            // Lấy FinalContract theo ID
+            const finalContract = await adminFinalContractService.getById(fcId);
+            if (finalContract) {
+              newFinalContractsMap.set(fcId, finalContract);
+            }
+          } catch (error) {
+            console.error(`Error loading FinalContract ${fcId}:`, error);
+          }
+        })
+      );
+
+      setFinalContractsMap(newFinalContractsMap);
+    } catch (error) {
+      console.error("Error loading FinalContracts:", error);
     }
   };
 
@@ -200,6 +322,12 @@ const CheckinsAD: React.FC = () => {
       
       if (values.identityNo) {
         formData.append("identityNo", values.identityNo);
+      }
+      if (values.address) {
+        formData.append("address", values.address);
+      }
+      if (values.initialElectricReading !== undefined && values.initialElectricReading !== null) {
+        formData.append("initialElectricReading", values.initialElectricReading.toString());
       }
       if (values.tenantId) {
         formData.append("tenantId", values.tenantId);
@@ -315,16 +443,40 @@ const CheckinsAD: React.FC = () => {
       title: "Phòng",
       dataIndex: "roomId",
       key: "roomId",
-      render: (roomId: string | Room) => {
+      render: (roomId: string | Room, record: Checkin) => {
         const room = typeof roomId === "object" ? roomId : rooms.find((r) => r._id === roomId);
-        return room?.roomNumber || (typeof roomId === "string" ? roomId : "");
+        return (
+          <span
+            style={{ cursor: "pointer", color: "#1677ff", fontWeight: 500 }}
+            onClick={() => {
+              setSelectedCheckin(record);
+              setDetailVisible(true);
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
+            onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}
+          >
+            {room?.roomNumber || (typeof roomId === "string" ? roomId : "")}
+          </span>
+        );
       },
     },
     {
       title: "Ngày Check-in",
       dataIndex: "checkinDate",
       key: "checkinDate",
-      render: (date: string) => dayjs(date).format("DD/MM/YYYY"),
+      render: (date: string, record: Checkin) => (
+        <span
+          style={{ cursor: "pointer", color: "#1677ff", fontWeight: 500 }}
+          onClick={() => {
+            setSelectedCheckin(record);
+            setDetailVisible(true);
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.textDecoration = "underline")}
+          onMouseLeave={(e) => (e.currentTarget.style.textDecoration = "none")}
+        >
+          {dayjs(date).format("DD/MM/YYYY")}
+        </span>
+      ),
     },
     {
       title: "Thời hạn (tháng)",
@@ -372,15 +524,36 @@ const CheckinsAD: React.FC = () => {
       key: "expiration",
       align: "center",
       render: (_: any, record: Checkin) => {
-        // Chỉ hiển thị "Đã ký hợp đồng" khi thực sự có finalContractId
-        if ((record as any).finalContractId) {
-          return <Tag color="success">Đã ký hợp đồng</Tag>;
+        // Kiểm tra xem có finalContractId và bill CONTRACT đã thanh toán chưa
+        const finalContractId = (record as any).finalContractId;
+        if (finalContractId) {
+          const fcId = typeof finalContractId === 'string' ? finalContractId : finalContractId._id;
+          const contractBill = contractBillsMap.get(fcId);
+          const finalContract = finalContractsMap.get(fcId);
+          
+          // Nếu bill CONTRACT đã thanh toán (PAID)
+          if (contractBill && contractBill.status === "PAID") {
+            // Kiểm tra xem FinalContract có file upload chưa
+            const hasImages = finalContract && finalContract.images && Array.isArray(finalContract.images) && finalContract.images.length > 0;
+            
+            if (hasImages) {
+              // Đã upload file → "Hợp đồng đã được ký"
+              return <Tag color="success">Hợp đồng đã được ký</Tag>;
+            } else {
+              // Chưa upload file → "Chờ upload file"
+              return <Tag color="gold">Chờ upload file</Tag>;
+            }
+          }
+          
+          // Nếu có finalContractId nhưng chưa thanh toán bill CONTRACT, hiển thị đếm ngược
         }
         
+        // Nếu chưa có receiptPaidAt, chưa thanh toán phiếu thu
         if (!record.receiptPaidAt) {
           return <Tag color="default">Chưa bắt đầu</Tag>;
         }
         
+        // Hiển thị đếm ngược thời hạn (3 ngày từ khi thanh toán phiếu thu)
         const receiptPaidAt = dayjs(record.receiptPaidAt);
         const now = dayjs();
         const expirationDate = receiptPaidAt.add(3, 'day');
@@ -574,13 +747,31 @@ const CheckinsAD: React.FC = () => {
               <Form.Item
                 label="Tiền cọc giữ phòng(VNĐ)"
                 name="deposit"
-                rules={[{ required: true, message: "Nhập tiền cọc!" }]}
+                rules={[
+                  { required: true, message: "Nhập tiền cọc!" },
+                  {
+                    validator: (_, value) => {
+                      if (!value && value !== 0) {
+                        return Promise.resolve();
+                      }
+                      const depositNum = Number(value);
+                      if (isNaN(depositNum)) {
+                        return Promise.reject(new Error("Tiền cọc phải là số!"));
+                      }
+                      if (depositNum < 500000) {
+                        return Promise.reject(new Error("Cọc giữ phòng tối thiểu là 500,000 VNĐ"));
+                      }
+                      return Promise.resolve();
+                    },
+                  },
+                ]}
               >
                 <InputNumber
                   min={0}
                   style={{ width: "100%" }}
                   formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-                  placeholder="Nhập tiền cọc"
+                  parser={(value) => value!.replace(/\$\s?|(,*)/g, "")}
+                  placeholder="Nhập tiền cọc (tối thiểu 500,000 VNĐ)"
                 />
               </Form.Item>
             </Col>
@@ -823,6 +1014,18 @@ const CheckinsAD: React.FC = () => {
           </div>
         )}
       </Modal>
+
+      {/* Checkin Detail Drawer */}
+      <CheckinDetailDrawer
+        open={detailVisible}
+        onClose={() => {
+          setDetailVisible(false);
+          setSelectedCheckin(null);
+        }}
+        checkin={selectedCheckin}
+        rooms={rooms}
+        users={users}
+      />
     </div>
   );
 };

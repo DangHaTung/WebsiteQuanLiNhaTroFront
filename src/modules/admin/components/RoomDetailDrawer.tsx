@@ -84,11 +84,19 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
     return <Tag color={m.color}>{m.text}</Tag>;
   };
 
-  const getContractStatusTag = (status: string) => {
+  const getContractStatusTag = (status: string, record?: any) => {
+    // Nếu status là DRAFT và chưa có images (chưa upload file), hiển thị "Chờ upload file" màu vàng
+    if (status === "DRAFT" && record && (!record.images || record.images.length === 0)) {
+      return <Tag color="gold">Chờ upload file</Tag>;
+    }
+    
     const map: Record<string, { color: string; text: string }> = {
       ACTIVE: { color: "#52c41a", text: "Đã ký" },
+      SIGNED: { color: "#52c41a", text: "Đã ký" },
+      WAITING_SIGN: { color: "#faad14", text: "Chờ ký" },
       ENDED: { color: "default", text: "Đã kết thúc" },
       CANCELED: { color: "red", text: "Đã hủy" },
+      DRAFT: { color: "default", text: "Nháp" },
     };
     const m = map[status] || { color: "default", text: status };
     return <Tag color={m.color}>{m.text}</Tag>;
@@ -138,11 +146,59 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
       title: "Trạng thái",
       dataIndex: "status",
       key: "status",
-      render: (status: string) => getContractStatusTag(status),
+      render: (status: string, record: any) => getContractStatusTag(status, record),
     },
   ];
 
-  // Table columns for bills
+  // Helper function to convert Decimal128 or string to number
+  const convertToNumber = (value: any): number => {
+    if (typeof value === 'number' && !isNaN(value)) {
+      return value;
+    }
+    if (typeof value === 'string') {
+      return parseFloat(value) || 0;
+    }
+    if (value && typeof value === 'object' && '$numberDecimal' in value) {
+      return parseFloat(value.$numberDecimal) || 0;
+    }
+    return 0;
+  };
+
+  // Table columns for receipts (Phiếu thu) - không có cột "Đã thanh toán"
+  const receiptColumns = [
+    {
+      title: "Loại",
+      dataIndex: "billType",
+      key: "billType",
+      render: (type: BillType) => getBillTypeTag(type),
+    },
+    {
+      title: "Ngày lập",
+      dataIndex: "billingDate",
+      key: "billingDate",
+      render: (v: string) => dayjs(v).format("DD/MM/YYYY"),
+    },
+    {
+      title: "Số tiền",
+      key: "amount",
+      render: (_: any, record: any) => {
+        // Lấy số tiền: nếu đã thanh toán thì lấy amountPaid, nếu chưa thì lấy amountDue
+        const amountPaid = convertToNumber(record.amountPaid);
+        const amountDue = convertToNumber(record.amountDue);
+        // Ưu tiên hiển thị số tiền thực tế đã thanh toán nếu có, nếu không thì hiển thị số tiền phải thanh toán
+        const amount = amountPaid > 0 ? amountPaid : amountDue;
+        return (amount || 0).toLocaleString() + " VNĐ";
+      },
+    },
+    {
+      title: "Trạng thái",
+      dataIndex: "status",
+      key: "status",
+      render: (status: BillStatus) => getBillStatusTag(status),
+    },
+  ];
+
+  // Table columns for bills (hóa đơn) - giữ nguyên có cột "Đã thanh toán"
   const billColumns = [
     {
       title: "Loại",
@@ -300,7 +356,7 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
                 <>
                   {room?.receiptBills && room.receiptBills.length > 0 ? (
                     <Table
-                      columns={billColumns}
+                      columns={receiptColumns}
                       dataSource={room.receiptBills}
                       rowKey="_id"
                       size="small"
