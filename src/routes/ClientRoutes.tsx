@@ -16,6 +16,7 @@ import MyContractsDetail from "../modules/client/pages/MyContractsDetail";
 import MyMoveOutRequests from "../modules/client/pages/MyMoveOutRequests";
 import ProtectedRoute from "../components/ProtectedRoute";
 import Information from "../modules/client/pages/Information";
+import Notifications from "../modules/client/pages/Notifications";
 
 const clientRoutes = [
   // Public routes
@@ -41,6 +42,7 @@ const clientRoutes = [
   { path: "invoices/:id", element: <ProtectedRoute><InvoiceDetail /></ProtectedRoute> },
   { path: "my-contracts", element: <ProtectedRoute><MyContractsDetail /></ProtectedRoute> },
   { path: "my-move-out-requests", element: <ProtectedRoute><MyMoveOutRequests /></ProtectedRoute> },
+  { path: "notifications", element: <ProtectedRoute><Notifications /></ProtectedRoute> },
 ];
 
 export default clientRoutes;

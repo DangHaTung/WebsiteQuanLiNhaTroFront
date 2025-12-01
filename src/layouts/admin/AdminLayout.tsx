@@ -22,6 +22,7 @@ import {
   SafetyCertificateOutlined,
   SettingOutlined,
   SwapOutlined,
+  FileTextOutlined,
 } from "@ant-design/icons";
 import "../../assets/styles/layoutAd.css";
 import SearchBar from "./SearchBar";
@@ -125,6 +126,11 @@ const AdminLayout: React.FC = () => {
           key: "/admin/users",
           icon: <UserOutlined style={{ fontSize: 20 }} />,
           label: "Người dùng",
+        },
+        {
+          key: "/admin/logs",
+          icon: <FileTextOutlined style={{ fontSize: 20 }} />,
+          label: "Logs Hệ Thống",
         },
       ]
       : []),

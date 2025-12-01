@@ -16,6 +16,7 @@ import UtilityFees from "../modules/admin/pages/UtilityFees";
 import CheckinsAD from "../modules/admin/pages/CheckinsAD";
 import MoveOutRequestsAD from "../modules/admin/pages/MoveOutRequestsAD";
 import ContractsAD from "../modules/admin/pages/ContractsAD";
+import Logs from "../modules/admin/pages/Logs";
 
 const RequireAdmin = ({ children }: { children: React.ReactElement }) => {
   // Kiểm tra cả admin_token và token (vì có thể đăng nhập từ form chung)
@@ -80,8 +81,9 @@ const adminRoutes = [
   { path: "roomsad", element: <RequireAdmin><RoomsAD /></RequireAdmin> },
   { path: "complaints", element: <RequireAdmin><Complaints /></RequireAdmin> },
 
-  // ADMIN
+  // ADMIN ONLY
   { path: "users", element: <RequireAdminOnly><Users /></RequireAdminOnly> },
+  { path: "logs", element: <RequireAdminOnly><Logs /></RequireAdminOnly> },
 ];
 
 export default adminRoutes;

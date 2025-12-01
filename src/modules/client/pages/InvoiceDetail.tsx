@@ -4,7 +4,6 @@ import { ArrowLeftOutlined, CreditCardOutlined, DollarOutlined, CheckCircleOutli
 import { useNavigate, useParams } from "react-router-dom";
 import dayjs from "dayjs";
 import { clientBillService, type Bill } from "../services/bill";
-import api from "../services/api";
 
 const { Text } = Typography;
 
@@ -50,13 +49,13 @@ const InvoiceDetail: React.FC = () => {
           const allBills = billsData.data || [];
           
           // Tìm RECEIPT bill có cùng contractId (RECEIPT bill được tạo cùng contract với CONTRACT bill)
-          const contractIdStr = typeof data.contractId === 'object' && data.contractId?._id 
-            ? data.contractId._id 
+          const contractIdStr = typeof data.contractId === 'object' && (data.contractId as any)?._id 
+            ? (data.contractId as any)._id 
             : data.contractId;
           
           const relatedReceipt = allBills.find((b: Bill) => {
-            const bContractId = typeof b.contractId === 'object' && b.contractId?._id 
-              ? b.contractId._id 
+            const bContractId = typeof b.contractId === 'object' && (b.contractId as any)?._id 
+              ? (b.contractId as any)._id 
               : b.contractId;
             return b.billType === "RECEIPT" && bContractId === contractIdStr;
           });
