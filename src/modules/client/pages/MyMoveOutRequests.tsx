@@ -17,6 +17,7 @@ import {
 import { PlusOutlined, LogoutOutlined } from "@ant-design/icons";
 import dayjs, { Dayjs } from "dayjs";
 import { clientMoveOutRequestService, type MoveOutRequest } from "../services/moveOutRequest";
+import { clientBillService } from "../services/bill";
 import api from "../services/api";
 
 const { TextArea } = Input;
@@ -27,9 +28,11 @@ interface FinalContract {
   startDate: string;
   endDate: string;
   deposit: number;
+  monthlyRent?: number; // Tiền thuê/tháng
   status: string;
   originContractId?: string | { _id: string };
   linkedContractId?: string | { _id: string };
+  totalDepositPaid?: number; // Tổng tiền cọc đã thanh toán (Khoản 1 + Khoản 2)
 }
 
 const MyMoveOutRequests = () => {
@@ -111,7 +114,104 @@ const MyMoveOutRequests = () => {
       });
       
       console.log("Filtered signedContracts:", signedContracts.length);
-      setMyContracts(signedContracts);
+      
+      // Tính tổng tiền cọc từ 2 bills (RECEIPT + CONTRACT) cho mỗi contract
+      const contractsWithDeposit = await Promise.all(signedContracts.map(async (fc: any) => {
+        let totalDepositPaid = 0;
+        
+        // Lấy contractId (từ Contract, không phải FinalContract)
+        const linkedId = typeof fc.linkedContractId === 'object' 
+          ? fc.linkedContractId?._id 
+          : fc.linkedContractId;
+        const originId = typeof fc.originContractId === 'object' 
+          ? fc.originContractId?._id 
+          : fc.originContractId;
+        const contractId = linkedId || originId;
+        
+        // Tính tổng tiền cọc = Khoản 1 (Cọc giữ phòng) + Khoản 2 (Cọc 1 tháng tiền phòng)
+        // Theo nghiệp vụ: Tiền cọc = 1 tháng tiền phòng = monthlyRent
+        
+        // Cách đơn giản: Tiền cọc = 1 tháng tiền phòng (monthlyRent)
+        // Hoặc tính chi tiết từ bills nếu muốn
+        const monthlyRent = Number(fc.monthlyRent) || 
+                           (typeof fc.roomId === 'object' ? Number(fc.roomId.pricePerMonth) : 0) || 
+                           0;
+        
+        if (monthlyRent > 0) {
+          // Cách đơn giản: Tiền cọc = 1 tháng tiền phòng
+          totalDepositPaid = monthlyRent;
+        } else {
+          // Cách 2: Tính từ bills (nếu không có monthlyRent)
+          if (contractId || fc._id) {
+            try {
+              // 1. Lấy RECEIPT bill (Cọc giữ phòng) - Khoản 1
+              const myBills = await clientBillService.getMyBills({ page: 1, limit: 100 });
+              const receiptBills = myBills.data.filter(
+                (bill: any) => {
+                  const billContractId = typeof bill.contractId === 'object' 
+                    ? bill.contractId?._id 
+                    : bill.contractId;
+                  return bill.billType === "RECEIPT" && 
+                         bill.status === "PAID" &&
+                         contractId &&
+                         String(billContractId) === String(contractId);
+                }
+              );
+              
+              let receiptPaid = 0;
+              if (receiptBills.length > 0) {
+                receiptPaid = Number(receiptBills[0].amountPaid) || Number(receiptBills[0].amountDue) || 0;
+              }
+              
+              // 2. Lấy CONTRACT bill - chỉ tính lineItem "Tiền cọc (1 tháng tiền phòng)" - Khoản 2
+              // KHÔNG tính "Tiền thuê tháng đầu"
+              const contractBills = await clientBillService.getBillsByFinalContract(fc._id);
+              const paidContractBill = contractBills.find(
+                (bill: any) => bill.billType === "CONTRACT" && bill.status === "PAID"
+              );
+              
+              let contractDeposit = 0;
+              if (paidContractBill && paidContractBill.lineItems && paidContractBill.lineItems.length > 0) {
+                // Tìm lineItem có chứa "cọc" hoặc "tiền cọc"
+                const depositLineItem = paidContractBill.lineItems.find(
+                  (item: any) => 
+                    item.item && (
+                      item.item.toLowerCase().includes('cọc') || 
+                      item.item.toLowerCase().includes('deposit')
+                    )
+                );
+                if (depositLineItem) {
+                  contractDeposit = Number(depositLineItem.lineTotal) || 0;
+                } else if (paidContractBill.lineItems.length >= 2) {
+                  // Fallback: lineItem thứ 2 thường là "Tiền cọc (1 tháng tiền phòng)"
+                  contractDeposit = Number(paidContractBill.lineItems[1].lineTotal) || 0;
+                }
+              }
+              
+              totalDepositPaid = receiptPaid + contractDeposit;
+              
+              // Nếu không tính được, fallback về 1 tháng tiền phòng
+              if (totalDepositPaid === 0) {
+                totalDepositPaid = Number(fc.deposit) || 0;
+              }
+            } catch (err) {
+              console.error(`Error loading deposit for contract ${contractId}:`, err);
+              // Fallback về deposit nếu có lỗi
+              totalDepositPaid = Number(fc.deposit) || 0;
+            }
+          } else {
+            // Nếu không có contractId, dùng deposit từ FinalContract
+            totalDepositPaid = Number(fc.deposit) || 0;
+          }
+        }
+        
+        return {
+          ...fc,
+          totalDepositPaid,
+        };
+      }));
+      
+      setMyContracts(contractsWithDeposit);
     } catch (error: any) {
       console.error("Load contracts error:", error);
       message.error(error.response?.data?.message || "Lỗi khi tải danh sách hợp đồng");
@@ -292,9 +392,18 @@ const MyMoveOutRequests = () => {
                 const roomNumber = typeof c.roomId === 'object' 
                   ? c.roomId?.roomNumber 
                   : 'N/A';
+                const depositAmount = c.totalDepositPaid || c.deposit || 0;
+                // Lấy contractId từ originContractId hoặc linkedContractId (Contract ID, không phải FinalContract ID)
+                const linkedId = typeof c.linkedContractId === 'object' 
+                  ? c.linkedContractId?._id 
+                  : c.linkedContractId;
+                const originId = typeof c.originContractId === 'object' 
+                  ? c.originContractId?._id 
+                  : c.originContractId;
+                const contractId = originId || linkedId || c._id; // Fallback về _id nếu không có contractId
                 return {
-                  value: c._id,
-                  label: `Phòng ${roomNumber} - Từ ${dayjs(c.startDate).format("DD/MM/YYYY")} - Cọc ${(c.deposit || 0).toLocaleString("vi-VN")} ₫`,
+                  value: contractId, // Dùng contractId thay vì finalContractId
+                  label: `Phòng ${roomNumber} - Từ ${dayjs(c.startDate).format("DD/MM/YYYY")} - Cọc ${depositAmount.toLocaleString("vi-VN")} ₫`,
                 };
               })}
             />

@@ -28,7 +28,7 @@ export interface Checkin {
   roomId: string | Room;
   contractId?: string;
   finalContractId?: string;
-  receiptBillId?: string;
+  receiptBillId?: string | any; // Can be populated Bill object
   checkinDate: string;
   durationMonths: number;
   deposit: number;
@@ -36,9 +36,14 @@ export interface Checkin {
   tenantSnapshot: TenantSnapshot;
   notes?: string;
   attachments?: FileInfo[];
+  cccdImages?: {
+    front?: FileInfo;
+    back?: FileInfo;
+  };
   status: CheckinStatus;
   depositDisposition?: DepositDisposition;
   receiptPaidAt?: string; // Thời điểm thanh toán phiếu thu (để tính thời hạn 3 ngày)
+  initialElectricReading?: number; // Số điện chốt ban đầu khi check-in (để tính số điện tiêu thụ cho hóa đơn hàng tháng)
   createdAt: string;
   updatedAt?: string;
 }

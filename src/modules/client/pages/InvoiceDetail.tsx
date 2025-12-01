@@ -104,6 +104,54 @@ const InvoiceDetail: React.FC = () => {
   const handleOnlinePayment = async () => {
     if (!bill) return;
 
+    // Helper function để convert số
+    const convertToNumber = (value: any): number => {
+      if (typeof value === 'number' && !isNaN(value)) {
+        return value;
+      } else if (typeof value === 'string') {
+        return parseFloat(value) || 0;
+      }
+      return 0;
+    };
+
+    // Tính số tiền cần thanh toán (số tiền còn lại)
+    let paymentAmount = 0;
+    if (bill.billType === "CONTRACT" && bill.lineItems && bill.lineItems.length > 0) {
+      // Với CONTRACT bill: tính tổng từ lineItems
+      // Nếu status = UNPAID, số tiền cần thanh toán = tổng từ lineItems (KHÔNG trừ amountPaid)
+      // Vì amountPaid có thể là số tiền từ RECEIPT bill, không phải số tiền đã thanh toán cho CONTRACT bill
+      let totalFromLineItems = 0;
+      bill.lineItems.forEach((item: any) => {
+        const itemTotal = convertToNumber(item.lineTotal);
+        totalFromLineItems += itemTotal;
+        console.log(`📋 CONTRACT lineItem (Frontend): ${item.item} = ${itemTotal}`);
+      });
+      
+      // Chỉ trừ amountPaid nếu status là PARTIALLY_PAID (đã thanh toán một phần CONTRACT bill)
+      // Với UNPAID hoặc PENDING_CASH_CONFIRM: số tiền cần thanh toán = tổng từ lineItems (KHÔNG trừ amountPaid)
+      if (bill.status === "PARTIALLY_PAID") {
+        const amountPaid = convertToNumber(bill.amountPaid || 0);
+        paymentAmount = totalFromLineItems - amountPaid;
+      } else {
+        // Với UNPAID hoặc PENDING_CASH_CONFIRM: số tiền cần thanh toán = tổng từ lineItems
+        paymentAmount = totalFromLineItems;
+      }
+      
+      console.log("📊 Payment calculation (Frontend):", {
+        totalFromLineItems,
+        amountPaid: convertToNumber(bill.amountPaid || 0),
+        paymentAmount,
+        billAmountDue: convertToNumber(bill.amountDue),
+        status: bill.status
+      });
+      
+      // Đảm bảo paymentAmount >= 0
+      if (paymentAmount < 0) paymentAmount = 0;
+    } else {
+      // Với các bill khác: dùng amountDue - amountPaid
+      paymentAmount = convertToNumber(bill.amountDue) - convertToNumber(bill.amountPaid || 0);
+    }
+
     const createPayment = async (provider: "vnpay" | "momo" | "zalopay") => {
       try {
         const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -121,19 +169,26 @@ const InvoiceDetail: React.FC = () => {
           },
           body: JSON.stringify({ 
             billId: bill._id, 
-            amount: bill.amountDue,
-            returnUrl: `${window.location.origin}/invoice-detail/${bill._id}`
+            amount: paymentAmount,
+            returnUrl: `${window.location.origin}/invoices`
           }),
         });
         const data = await response.json();
+
+        if (!response.ok) {
+          console.error(`❌ Payment error (${provider}):`, data);
+          const errorMsg = data.message || data.error || `Lỗi ${response.status}: Không thể tạo link thanh toán`;
+          message.error(errorMsg);
+          return;
+        }
 
         let paymentUrl = null;
         if (provider === "vnpay") {
           paymentUrl = data.url || data.paymentUrl;
         } else if (provider === "momo") {
-          paymentUrl = data.payUrl;
+          paymentUrl = data.payUrl || data.data?.payUrl;
         } else if (provider === "zalopay") {
-          paymentUrl = data.order_url;
+          paymentUrl = data.order_url || data.zaloData?.order_url;
         }
 
         if (paymentUrl) {
@@ -142,6 +197,7 @@ const InvoiceDetail: React.FC = () => {
           message.error(data.message || data.error || "Lỗi tạo link thanh toán");
         }
       } catch (error: any) {
+        console.error(`❌ Payment connection error (${provider}):`, error);
         message.error("Lỗi kết nối payment gateway");
       }
     };
@@ -152,7 +208,7 @@ const InvoiceDetail: React.FC = () => {
       content: (
         <div style={{ marginTop: 16 }}>
           <p style={{ fontSize: 16, marginBottom: 16 }}>
-            Số tiền: <strong style={{ color: "#1890ff" }}>{bill.amountDue.toLocaleString("vi-VN")} đ</strong>
+            Số tiền: <strong style={{ color: "#1890ff" }}>{paymentAmount.toLocaleString("vi-VN")} đ</strong>
           </p>
           <Space direction="vertical" style={{ width: "100%" }}>
             <Button 
@@ -304,7 +360,15 @@ const InvoiceDetail: React.FC = () => {
         </Space>
 
         <div style={{ marginBottom: 24 }}>
-          <h2 style={{ margin: 0 }}>Chi tiết hóa đơn hợp đồng</h2>
+          <h2 style={{ margin: 0 }}>
+            {bill.billType === "RECEIPT" 
+              ? "Chi tiết phiếu thu"
+              : bill.billType === "CONTRACT"
+              ? "Chi tiết hóa đơn hợp đồng"
+              : bill.billType === "MONTHLY"
+              ? "Chi tiết hóa đơn hàng tháng"
+              : "Chi tiết hóa đơn"}
+          </h2>
         </div>
 
         <Descriptions bordered column={2}>
@@ -489,7 +553,7 @@ const InvoiceDetail: React.FC = () => {
             })()}
           </div>
         ) : (
-          /* Hiển thị bình thường cho các bill khác */
+          /* Hiển thị bình thường cho các bill khác (RECEIPT, MONTHLY, etc.) */
           bill.lineItems && bill.lineItems.length > 0 ? (
           <Table
             columns={lineItemColumns}
@@ -497,40 +561,70 @@ const InvoiceDetail: React.FC = () => {
             rowKey={(record, index) => `${record.item}-${index}`}
             pagination={false}
             size="middle"
-            summary={() => (
-              <Table.Summary>
-                <Table.Summary.Row>
-                  <Table.Summary.Cell index={0} colSpan={2}>
-                    <strong>Tổng cộng</strong>
-                  </Table.Summary.Cell>
-                  <Table.Summary.Cell index={1} align="right">
-                    <strong style={{ fontSize: 18, color: "#1890ff" }}>
-                      {bill.amountDue.toLocaleString("vi-VN")} ₫
-                    </strong>
-                  </Table.Summary.Cell>
-                </Table.Summary.Row>
-              <Table.Summary.Row>
-                <Table.Summary.Cell index={0} colSpan={2}>
-                  <strong>Đã thanh toán</strong>
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={1} align="right">
-                  <strong style={{ fontSize: 18, color: "#52c41a" }}>
-                    {bill.amountPaid.toLocaleString("vi-VN")} ₫
-                  </strong>
-                </Table.Summary.Cell>
-              </Table.Summary.Row>
-              <Table.Summary.Row>
-                <Table.Summary.Cell index={0} colSpan={2}>
-                  <strong style={{ color: "#ff4d4f" }}>Còn lại</strong>
-                </Table.Summary.Cell>
-                <Table.Summary.Cell index={1} align="right">
-                  <strong style={{ fontSize: 20, color: "#ff4d4f" }}>
-                    {(bill.amountDue - bill.amountPaid).toLocaleString("vi-VN")} ₫
-                  </strong>
-                </Table.Summary.Cell>
-              </Table.Summary.Row>
-            </Table.Summary>
-          )}
+            summary={() => {
+              // Tính tổng từ lineItems (đảm bảo hiển thị đúng số tiền)
+              const totalFromLineItems = bill.lineItems?.reduce((sum: number, item: any) => {
+                const itemTotal = typeof item.lineTotal === 'number' 
+                  ? item.lineTotal 
+                  : parseFloat(item.lineTotal?.toString() || '0') || 0;
+                return sum + itemTotal;
+              }, 0) || 0;
+              
+              // Với RECEIPT bill: Tổng cộng = tổng từ lineItems hoặc amountPaid (nếu đã thanh toán)
+              const totalAmount = bill.billType === "RECEIPT" 
+                ? (bill.status === "PAID" && bill.amountPaid > 0 ? bill.amountPaid : totalFromLineItems)
+                : totalFromLineItems;
+              
+              return (
+                <Table.Summary>
+                  <Table.Summary.Row>
+                    <Table.Summary.Cell index={0} colSpan={2}>
+                      <strong>Tổng cộng</strong>
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={1} align="right">
+                      <strong style={{ fontSize: 18, color: "#1890ff" }}>
+                        {totalAmount.toLocaleString("vi-VN")} ₫
+                      </strong>
+                    </Table.Summary.Cell>
+                  </Table.Summary.Row>
+                  {bill.billType === "RECEIPT" ? (
+                    // Với RECEIPT bill: chỉ hiển thị Trạng thái
+                    <Table.Summary.Row>
+                      <Table.Summary.Cell index={0} colSpan={2}>
+                        <strong>Trạng thái</strong>
+                      </Table.Summary.Cell>
+                      <Table.Summary.Cell index={1} align="right">
+                        {getStatusTag(bill.status)}
+                      </Table.Summary.Cell>
+                    </Table.Summary.Row>
+                  ) : (
+                    // Với các bill khác: hiển thị Đã thanh toán và Còn lại
+                    <>
+                      <Table.Summary.Row>
+                        <Table.Summary.Cell index={0} colSpan={2}>
+                          <strong>Đã thanh toán</strong>
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={1} align="right">
+                          <strong style={{ fontSize: 18, color: "#52c41a" }}>
+                            {bill.amountPaid.toLocaleString("vi-VN")} ₫
+                          </strong>
+                        </Table.Summary.Cell>
+                      </Table.Summary.Row>
+                      <Table.Summary.Row>
+                        <Table.Summary.Cell index={0} colSpan={2}>
+                          <strong style={{ color: "#ff4d4f" }}>Còn lại</strong>
+                        </Table.Summary.Cell>
+                        <Table.Summary.Cell index={1} align="right">
+                          <strong style={{ fontSize: 20, color: "#ff4d4f" }}>
+                            {(bill.amountDue - bill.amountPaid).toLocaleString("vi-VN")} ₫
+                          </strong>
+                        </Table.Summary.Cell>
+                      </Table.Summary.Row>
+                    </>
+                  )}
+                </Table.Summary>
+              );
+            }}
           />
         ) : (
           <Alert message="Chưa có chi tiết các khoản phí" type="info" showIcon />

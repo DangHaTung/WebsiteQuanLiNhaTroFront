@@ -20,7 +20,7 @@ interface SingleBillResponse {
 }
 
 export const adminBillService = {
-  async getAll(params?: { page?: number; limit?: number; status?: string; billType?: string }): Promise<Bill[]> {
+  async getAll(params?: { page?: number; limit?: number; status?: string; billType?: string; contractId?: string; finalContractId?: string }): Promise<Bill[]> {
     const res = await api.get<BillResponse>("/bills", { params });
     return res.data.data;
   },

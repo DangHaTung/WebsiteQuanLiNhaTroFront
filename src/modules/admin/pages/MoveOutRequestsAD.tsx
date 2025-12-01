@@ -70,6 +70,7 @@ const MoveOutRequestsAD: React.FC = () => {
   const [refundForm] = Form.useForm();
   const [calculatedServiceFee, setCalculatedServiceFee] = useState<FeeCalculation | null>(null);
   const [roomOccupantCount, setRoomOccupantCount] = useState<number>(1);
+  const [totalDepositPaid, setTotalDepositPaid] = useState<number>(0); // Tổng tiền cọc đã thanh toán từ RECEIPT + CONTRACT bills
   
   // Theo dõi giá trị damageAmount từ form để tự động cập nhật hiển thị
   const damageAmount = Form.useWatch("damageAmount", refundForm) || 0;
@@ -137,12 +138,79 @@ const MoveOutRequestsAD: React.FC = () => {
     setRefundModalVisible(true);
     refundForm.resetFields();
     setCalculatedServiceFee(null);
+    setTotalDepositPaid(0);
     
-    // Load room để lấy số người ở (giống DraftBills)
+    // Load room để lấy số người ở (giống DraftBills) và load tổng tiền cọc
     try {
       const contractId = request.contractId._id;
       const contract = await adminContractService.getById(contractId);
       const roomId = typeof contract.roomId === 'object' ? contract.roomId._id : contract.roomId;
+      
+      // Load tổng tiền cọc từ 2 bills: RECEIPT + CONTRACT
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+      const token = localStorage.getItem("admin_token");
+      
+      let totalDeposit = 0;
+      
+      // 1. Lấy RECEIPT bill (Cọc giữ phòng)
+      const receiptBillsResponse = await fetch(`${apiUrl}/api/bills?contractId=${contractId}&billType=RECEIPT&status=PAID&limit=10`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+      
+      if (receiptBillsResponse.ok) {
+        const receiptBillsData = await receiptBillsResponse.json();
+        const receiptBills = receiptBillsData.data || [];
+        if (receiptBills.length > 0) {
+          const receiptPaid = dec(receiptBills[0].amountPaid) || 0;
+          totalDeposit += receiptPaid;
+          console.log(`[MoveOutRequestsAD] Found RECEIPT bill: amountPaid=${receiptPaid}`);
+        }
+      }
+      
+      // 2. Lấy CONTRACT bill (Cọc 1 tháng tiền phòng) - có thể qua finalContractId
+      // Tìm FinalContract
+      const finalContractsResponse = await fetch(`${apiUrl}/api/final-contracts?originContractId=${contractId}&limit=10`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+      
+      if (finalContractsResponse.ok) {
+        const finalContractsData = await finalContractsResponse.json();
+        const finalContracts = finalContractsData.data || [];
+        
+        // Tìm FinalContract SIGNED hoặc có bill CONTRACT đã thanh toán
+        for (const fc of finalContracts) {
+          const finalContractId = typeof fc._id === 'string' ? fc._id : fc._id;
+          const contractBillsResponse = await fetch(`${apiUrl}/api/bills?finalContractId=${finalContractId}&billType=CONTRACT&status=PAID&limit=10`, {
+            headers: {
+              "Authorization": `Bearer ${token}`,
+            },
+          });
+          
+          if (contractBillsResponse.ok) {
+            const contractBillsData = await contractBillsResponse.json();
+            const contractBills = contractBillsData.data || [];
+            if (contractBills.length > 0) {
+              const contractPaid = dec(contractBills[0].amountPaid) || 0;
+              totalDeposit += contractPaid;
+              console.log(`[MoveOutRequestsAD] Found CONTRACT bill: amountPaid=${contractPaid}`);
+              break; // Chỉ lấy bill đầu tiên
+            }
+          }
+        }
+      }
+      
+      // Fallback: nếu không tìm thấy, dùng contract.deposit
+      if (totalDeposit === 0) {
+        totalDeposit = dec(contract.deposit) || 0;
+        console.log(`[MoveOutRequestsAD] No paid bills found, using contract.deposit=${totalDeposit}`);
+      }
+      
+      setTotalDepositPaid(totalDeposit);
+      console.log(`[MoveOutRequestsAD] Total deposit paid: ${totalDeposit}`);
       
       if (roomId) {
         // Load tất cả rooms với pagination để lấy occupantCount (giống DraftBills)
@@ -693,9 +761,9 @@ const MoveOutRequestsAD: React.FC = () => {
             {(calculatedServiceFee || damageAmount) && selectedRequest && (
               <Card size="small" style={{ marginTop: 16, background: "#e6f7ff" }}>
                 <Descriptions title="Tính toán hoàn cọc" bordered column={1} size="small">
-                  <Descriptions.Item label="Tiền cọc ban đầu">
+                  <Descriptions.Item label="Tiền cọc ban đầu (Cọc giữ phòng + Cọc 1 tháng tiền phòng)">
                     <strong style={{ color: "#1890ff", fontSize: 16 }}>
-                      {Number(selectedRequest.contractId.deposit || 0).toLocaleString("vi-VN")} ₫
+                      {(totalDepositPaid || dec(selectedRequest.contractId.deposit) || 0).toLocaleString("vi-VN")} ₫
                     </strong>
                   </Descriptions.Item>
                   <Descriptions.Item label="Dịch vụ tháng cuối (không bao gồm tiền phòng)">
@@ -715,7 +783,7 @@ const MoveOutRequestsAD: React.FC = () => {
                   <Descriptions.Item label="Số tiền hoàn lại">
                     <strong style={{ color: "#52c41a", fontSize: 18 }}>
                       {(
-                        Number(selectedRequest.contractId.deposit || 0) -
+                        (totalDepositPaid || dec(selectedRequest.contractId.deposit) || 0) -
                         (calculatedServiceFee?.breakdown
                           ?.filter((item) => item.type !== "rent")
                           .reduce((sum, item) => sum + (item.total || 0), 0) || 0) -

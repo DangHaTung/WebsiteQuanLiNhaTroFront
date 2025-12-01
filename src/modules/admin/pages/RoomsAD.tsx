@@ -705,7 +705,7 @@ const RoomsAD: React.FC = () => {
           setSelectedRoom(null);
         }}
         onSuccess={() => {
-          message.success("Cấu hình tiện ích thành công!");
+          // Thông báo đã được hiển thị trong RoomFeesModal, không cần hiển thị lại ở đây
         }}
       />
     </div>

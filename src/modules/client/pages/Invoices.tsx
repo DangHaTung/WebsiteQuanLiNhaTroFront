@@ -60,11 +60,14 @@ const Invoices: React.FC = () => {
       return;
     }
     
+    // Tính số tiền còn lại phải thanh toán
+    const remainingAmount = bill.amountDue - (bill.amountPaid || 0);
+    
     Modal.confirm({
       title: "Chọn phương thức thanh toán",
       content: (
         <div style={{ marginTop: 16 }}>
-          <p>Số tiền: <strong style={{ color: "#1890ff", fontSize: 18 }}>{bill.amountDue.toLocaleString("vi-VN")} đ</strong></p>
+          <p>Số tiền: <strong style={{ color: "#1890ff", fontSize: 18 }}>{remainingAmount.toLocaleString("vi-VN")} đ</strong></p>
         </div>
       ),
       okText: "Thanh toán Online",
@@ -76,6 +79,9 @@ const Invoices: React.FC = () => {
   };
 
   const handleOnlinePayment = async (bill: Bill) => {
+    // Tính số tiền còn lại phải thanh toán (dùng chung cho cả modal và payment)
+    const remainingAmount = bill.amountDue - (bill.amountPaid || 0);
+
     const createPayment = async (provider: "vnpay" | "momo" | "zalopay") => {
       try {
         const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -87,7 +93,7 @@ const Invoices: React.FC = () => {
 
         // Tenant thanh toán xong phải về trang /invoices
         const returnUrl = `${window.location.origin}/invoices`;
-
+        
         const response = await fetch(endpoint, {
           method: "POST",
           headers: { 
@@ -96,7 +102,7 @@ const Invoices: React.FC = () => {
           },
           body: JSON.stringify({ 
             billId: bill._id, 
-            amount: bill.amountDue,
+            amount: remainingAmount,
             returnUrl: returnUrl,
           }),
         });
@@ -128,7 +134,7 @@ const Invoices: React.FC = () => {
       content: (
         <div style={{ marginTop: 16 }}>
           <p style={{ fontSize: 16, marginBottom: 16 }}>
-            Số tiền: <strong style={{ color: "#1890ff" }}>{bill.amountDue.toLocaleString("vi-VN")} đ</strong>
+            Số tiền: <strong style={{ color: "#1890ff" }}>{remainingAmount.toLocaleString("vi-VN")} đ</strong>
           </p>
           <Space direction="vertical" style={{ width: "100%" }}>
             <Button 

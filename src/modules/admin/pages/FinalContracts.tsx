@@ -159,28 +159,25 @@ const FinalContracts = () => {
         total: response.pagination?.totalRecords || 0,
       });
       
-      // Load bills cho từng contract để check trạng thái thanh toán
+      // Load bills CONTRACT cho từng finalContract để check trạng thái thanh toán
+      // Lưu ý: bill CONTRACT được tạo với finalContractId, không phải contractId
       const newBillsMap = new Map<string, any[]>();
-      const token = localStorage.getItem("admin_token");
-      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
       
       for (const contract of response.data) {
-        const contractId = typeof contract.originContractId === 'string' 
-          ? contract.originContractId 
-          : (contract.originContractId as { _id: string } | undefined)?._id;
+        const finalContractId = contract._id;
         
-        if (contractId) {
+        if (finalContractId) {
           try {
-            const billsResponse = await fetch(`${apiUrl}/api/bills?contractId=${contractId}&limit=100`, {
-              headers: {
-                "Authorization": `Bearer ${token}`,
-              },
+            // Load bills CONTRACT theo finalContractId bằng adminBillService
+            const bills = await adminBillService.getAll({
+              finalContractId: finalContractId,
+              billType: "CONTRACT",
+              limit: 100,
+              page: 1
             });
-            const billsData = await billsResponse.json();
-            const bills = billsData.data || [];
-            newBillsMap.set(contract._id, bills);
+            newBillsMap.set(finalContractId, bills || []);
           } catch (error) {
-            console.error(`Error loading bills for contract ${contract._id}:`, error);
+            console.error(`Error loading contract bills for finalContract ${finalContractId}:`, error);
           }
         }
       }
@@ -703,35 +700,44 @@ const FinalContracts = () => {
       return <Tag color="error">Đã hủy</Tag>;
     }
     
-    // Nếu status là DRAFT và chưa upload hợp đồng (chưa có images), hiển thị "Chờ xử lý"
-    if (status === "DRAFT" && record && (!record.images || record.images.length === 0)) {
-      return <Tag color="default">Chờ xử lý</Tag>;
-    }
-    
-    // Nếu status là SIGNED, hiển thị "Đã ký"
-    if (status === "SIGNED") {
-      return <Tag color="success">Đã ký</Tag>;
-    }
-    
-    // Nếu status là WAITING_SIGN, hiển thị "Chờ ký"
-    if (status === "WAITING_SIGN") {
-      return <Tag color="warning">Chờ ký</Tag>;
-    }
-    
-    // Kiểm tra trạng thái bill CONTRACT
+    // Ưu tiên kiểm tra trạng thái bill CONTRACT trước
     if (record) {
       const bills = contractBillsMap.get(record._id) || [];
       const contractBill = bills.find((bill: any) => bill.billType === "CONTRACT");
       
       if (contractBill) {
+        // Nếu bill CONTRACT đã thanh toán, hiển thị trạng thái theo status của FinalContract
         if (contractBill.status === "PAID") {
+          // Đã thanh toán bill CONTRACT → kiểm tra status FinalContract
+          if (status === "SIGNED") {
+            return <Tag color="success">Đã ký</Tag>;
+          } else if (status === "WAITING_SIGN") {
+            return <Tag color="warning">Chờ ký</Tag>;
+          } else {
+            // DRAFT nhưng đã thanh toán → hiển thị "Đã thanh toán"
           return <Tag color="success">Đã thanh toán</Tag>;
+          }
         } else if (contractBill.status === "PENDING_CASH_CONFIRM") {
           return <Tag color="gold">Chờ xác nhận thanh toán</Tag>;
         } else {
+          // Bill CONTRACT chưa thanh toán
           return <Tag color="error">Chờ thanh toán</Tag>;
         }
       }
+    }
+    
+    // Nếu chưa có bill CONTRACT, kiểm tra status FinalContract
+    if (status === "SIGNED") {
+      return <Tag color="success">Đã ký</Tag>;
+    }
+    
+    if (status === "WAITING_SIGN") {
+      return <Tag color="warning">Chờ ký</Tag>;
+    }
+    
+    // Nếu status là DRAFT và chưa upload hợp đồng (chưa có images), hiển thị "Chờ xử lý"
+    if (status === "DRAFT" && record && (!record.images || record.images.length === 0)) {
+      return <Tag color="default">Chờ xử lý</Tag>;
     }
     
     // Fallback: nếu chưa có bill CONTRACT thì hiển thị "Chờ thanh toán"
