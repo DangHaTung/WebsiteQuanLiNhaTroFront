@@ -1,33 +1,19 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, DatePicker, Form, InputNumber, Modal, Select, Table, Tag, Typography, message, Row, Col, Statistic } from "antd";
-import { PlusOutlined, FileTextOutlined } from "@ant-design/icons";
+import { Table, Tag, Typography, message, Row, Col, Statistic } from "antd";
+import { FileTextOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { Bill, BillStatus, BillType } from "../../../types/bill";
 import type { Tenant } from "../../../types/tenant";
 import type { Room } from "../../../types/room";
-import dayjs, { Dayjs } from "dayjs";
+import dayjs from "dayjs";
 import { adminBillService } from "../services/bill";
-import { adminContractService } from "../services/contract";
 import { adminTenantService } from "../services/tenant";
 import { adminRoomService } from "../services/room";
-import { adminUserService } from "../services/user";
-import type { User } from "../../../types/user";
 import BillDetailDrawer from "../components/BillDetailDrawer";
 import "../../../assets/styles/roomAd.css";
 import { useSearchParams } from "react-router-dom";
 
 const { Title } = Typography;
-const { Option } = Select;
-
-interface BillFormValues {
-    contractId: string;
-    billingDate: Dayjs;
-    billType: BillType;
-    status: BillStatus;
-    amountDue: number;
-    amountPaid: number;
-    tenantId?: string;
-}
 
 interface Contract {
     _id: string;
@@ -37,13 +23,10 @@ interface Contract {
 
 const BillsAD: React.FC = () => {
     const [bills, setBills] = useState<Bill[]>([]);
-    const [contracts, setContracts] = useState<Contract[]>([]);
+    const [contracts] = useState<Contract[]>([]);
     const [tenants, setTenants] = useState<Tenant[]>([]);
     const [rooms, setRooms] = useState<Room[]>([]);
-    const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
-    const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-    const [form] = Form.useForm<BillFormValues>();
     const [statusFilter, setStatusFilter] = useState<BillStatus | "ALL">("ALL");
     const [billTypeFilter, setBillTypeFilter] = useState<BillType | "ALL">("ALL");
 
@@ -52,10 +35,8 @@ const BillsAD: React.FC = () => {
     const [selectedBillId, setSelectedBillId] = useState<string | undefined>(undefined);
 
     // State để theo dõi đã load các dữ liệu phụ chưa
-    const [hasLoadedContracts, setHasLoadedContracts] = useState<boolean>(false);
     const [hasLoadedTenants, setHasLoadedTenants] = useState<boolean>(false);
     const [hasLoadedRooms, setHasLoadedRooms] = useState<boolean>(false);
-    const [hasLoadedUsers, setHasLoadedUsers] = useState<boolean>(false);
 
     const [searchParams, setSearchParams] = useSearchParams();
 
@@ -95,19 +76,6 @@ const BillsAD: React.FC = () => {
         }
     };
 
-    // Load contracts chỉ khi cần (khi mở modal)
-    const loadContractsIfNeeded = async () => {
-        if (!hasLoadedContracts) {
-            try {
-                const contractsData = await adminContractService.getAll({ limit: 100 });
-                setContracts(contractsData);
-                setHasLoadedContracts(true);
-            } catch (error: any) {
-                message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu hợp đồng");
-            }
-        }
-    };
-
     // Load tenants chỉ khi cần (khi mở drawer detail)
     const loadTenantsIfNeeded = async () => {
         if (!hasLoadedTenants) {
@@ -134,64 +102,7 @@ const BillsAD: React.FC = () => {
         }
     };
 
-    // Load users chỉ khi cần (khi mở modal và billType = RECEIPT)
-    const loadUsersIfNeeded = async () => {
-        if (!hasLoadedUsers) {
-            try {
-                const usersData = await adminUserService.list();
-                setUsers(usersData);
-                setHasLoadedUsers(true);
-            } catch (error: any) {
-                message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu tài khoản");
-            }
-        }
-    };
 
-    const openModal = async () => {
-        // Chỉ load contracts và users khi mở modal (vì cần cho dropdown)
-        await loadContractsIfNeeded();
-        await loadUsersIfNeeded();
-
-        form.resetFields();
-        form.setFieldsValue({ status: "UNPAID", billType: "MONTHLY" } as any);
-        setIsModalOpen(true);
-    };
-
-    const closeModal = () => {
-        setIsModalOpen(false);
-    };
-
-    const handleSave = async () => {
-        try {
-            const values = await form.validateFields();
-            const payload: any = {
-                contractId: values.contractId,
-                billingDate: values.billingDate.toISOString(),
-                billType: values.billType,
-                status: values.status,
-                amountDue: values.amountDue ?? 0,
-                amountPaid: values.amountPaid ?? 0,
-                lineItems: [{
-                    item: "Tiền thuê phòng",
-                    quantity: 1,
-                    unitPrice: values.amountDue ?? 0,
-                    lineTotal: values.amountDue ?? 0
-                }],
-            };
-
-            // Thêm tenantId nếu billType là RECEIPT và có chọn tenantId
-            if (values.billType === "RECEIPT" && values.tenantId) {
-                payload.tenantId = values.tenantId;
-            }
-
-            await adminBillService.create(payload);
-            message.success("Thêm hóa đơn thành công!");
-            closeModal();
-            loadBills();
-        } catch (error: any) {
-            message.error(error?.response?.data?.message || "Có lỗi xảy ra");
-        }
-    };
 
 
 
@@ -348,17 +259,6 @@ const BillsAD: React.FC = () => {
                             <FileTextOutlined style={{ color: "#1890ff", fontSize: 28 }} /> Quản lý Hóa đơn
                         </Title>
                     </Col>
-                    <Col>
-                        <Button
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            size="large"
-                            onClick={() => openModal()}
-                            className="btn-hover-gradient"
-                        >
-                            Thêm hóa đơn
-                        </Button>
-                    </Col>
                 </Row>
 
                 {/* Statistic - Status */}
@@ -508,118 +408,6 @@ const BillsAD: React.FC = () => {
                     })}
                 />
             </div>
-
-            {/* Modal (Add) */}
-            <Modal
-                title="Thêm hóa đơn"
-                open={isModalOpen}
-                onCancel={closeModal}
-                onOk={handleSave}
-                okText="Lưu"
-                cancelText="Hủy"
-                width={640}
-                centered
-                okButtonProps={{ style: { background: "#1890ff", borderColor: "#1890ff" } }}
-            >
-                <Form<BillFormValues> form={form} layout="vertical">
-                    <Row gutter={16}>
-                        <Col xs={24} md={12}>
-                            <Form.Item label="Hợp đồng" name="contractId" rules={[{ required: true, message: "Chọn hợp đồng" }]}>
-                                <Select
-                                    showSearch
-                                    placeholder="Chọn hợp đồng"
-                                    optionFilterProp="children"
-                                    filterOption={(input, option: any) => {
-                                        const children = option?.children;
-                                        if (children && typeof children === 'string') {
-                                            return children.toLowerCase().includes(input.toLowerCase());
-                                        }
-                                        return false;
-                                    }}
-                                >
-                                    {contracts.map((contract) => {
-                                        const tenantName = typeof contract.tenantId === "object" ? contract.tenantId?.fullName : "";
-                                        const roomNumber = typeof contract.roomId === "object" ? contract.roomId?.roomNumber : "";
-                                        return (
-                                            <Option key={contract._id} value={contract._id}>
-                                                {contract._id.substring(0, 8)}... {tenantName && `- ${tenantName}`} {roomNumber && `(${roomNumber})`}
-                                            </Option>
-                                        );
-                                    })}
-                                </Select>
-                            </Form.Item>
-                        </Col>
-                        <Col xs={24} md={12}>
-                            <Form.Item label="Ngày lập" name="billingDate" rules={[{ required: true, message: "Chọn ngày lập" }]}>
-                                <DatePicker style={{ width: "100%" }} format="DD/MM/YYYY" />
-                            </Form.Item>
-                        </Col>
-                        <Col xs={24} md={12}>
-                            <Form.Item label="Loại hóa đơn" name="billType" initialValue="MONTHLY" rules={[{ required: true, message: "Chọn loại hóa đơn" }]}>
-                                <Select>
-                                    <Option value="RECEIPT">Phiếu thu (Cọc)</Option>
-                                    <Option value="CONTRACT">Hợp đồng (Tháng 1)</Option>
-                                    <Option value="MONTHLY">Hàng tháng</Option>
-                                </Select>
-                            </Form.Item>
-                        </Col>
-                        <Col xs={24} md={12}>
-                            <Form.Item label="Tình trạng" name="status" initialValue="UNPAID" rules={[{ required: true }]}>
-                                <Select>
-                                    <Option value="PAID">Đã thanh toán</Option>
-                                    <Option value="UNPAID">Chưa thanh toán</Option>
-                                    <Option value="PARTIALLY_PAID">Một phần</Option>
-                                </Select>
-                            </Form.Item>
-                        </Col>
-                        <Col xs={24} md={12}>
-                            <Form.Item label="Phải thu (₫)" name="amountDue" rules={[{ required: true, message: "Nhập số tiền phải thu" }]}>
-                                <InputNumber min={0} style={{ width: "100%" }} />
-                            </Form.Item>
-                        </Col>
-                        <Col xs={24} md={12}>
-                            <Form.Item label="Đã thu (₫)" name="amountPaid" rules={[{ required: true, message: "Nhập số tiền đã thu" }]}>
-                                <InputNumber min={0} style={{ width: "100%" }} />
-                            </Form.Item>
-                        </Col>
-                    </Row>
-                    <Form.Item
-                        noStyle
-                        shouldUpdate={(prevValues, currentValues) => prevValues.billType !== currentValues.billType}
-                    >
-                        {({ getFieldValue }) => {
-                            const billType = getFieldValue("billType");
-                            return billType === "RECEIPT" ? (
-                                <Form.Item
-                                    label="Tài khoản khách hàng"
-                                    name="tenantId"
-                                    tooltip="Chọn tài khoản để khách hàng có thể thấy và thanh toán phiếu thu này"
-                                >
-                                    <Select
-                                        showSearch
-                                        placeholder="Chọn tài khoản (tùy chọn)"
-                                        optionFilterProp="children"
-                                        allowClear
-                                        filterOption={(input, option: any) => {
-                                            const children = option?.children;
-                                            if (children && typeof children === 'string') {
-                                                return children.toLowerCase().includes(input.toLowerCase());
-                                            }
-                                            return false;
-                                        }}
-                                    >
-                                        {users.map((user) => (
-                                            <Option key={user._id} value={user._id}>
-                                                {user.fullName} {user.email && `(${user.email})`}
-                                            </Option>
-                                        ))}
-                                    </Select>
-                                </Form.Item>
-                            ) : null;
-                        }}
-                    </Form.Item>
-                </Form>
-            </Modal>
 
             {/* Drawer: Detail view */}
             <BillDetailDrawer
