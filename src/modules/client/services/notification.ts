@@ -45,8 +45,15 @@ class NotificationService {
     isRead?: boolean;
     type?: string;
   }): Promise<NotificationListResponse> {
-    const response = await api.get('/notifications-crud', { params });
-    return response.data;
+    try {
+      const response = await api.get('/notifications-crud', { params });
+      return response.data;
+    } catch (error: any) {
+      console.error('[NotificationService] getNotifications error:', error);
+      console.error('[NotificationService] Response data:', error.response?.data);
+      console.error('[NotificationService] Status:', error.response?.status);
+      throw error;
+    }
   }
 
   /**

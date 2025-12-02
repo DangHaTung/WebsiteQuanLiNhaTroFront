@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Drawer, Descriptions, Image, Divider, Tag, Typography, Row, Col, Space, message, Spin, Table, Tabs } from "antd";
-import { CheckCircleOutlined, ExclamationCircleOutlined, ToolOutlined, HomeOutlined, FileTextOutlined, PayCircleOutlined, DollarOutlined, InfoCircleOutlined, HistoryOutlined } from "@ant-design/icons";
+import { CheckCircleOutlined, ExclamationCircleOutlined, ToolOutlined, HomeOutlined, FileTextOutlined, PayCircleOutlined, DollarOutlined, InfoCircleOutlined, HistoryOutlined, UserOutlined, IdcardOutlined, MailOutlined, PhoneOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import type { Room } from "../../../types/room";
 import type { Checkin } from "../../../types/checkin";
@@ -54,6 +54,8 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
           console.log("Room data received:", data);
           console.log("Contracts (finalContracts):", data.contracts);
           console.log("Contracts length:", data.contracts?.length);
+          console.log("Checkins:", data.checkins);
+          console.log("Checkins length:", data.checkins?.length);
           console.log("Receipt bills:", data.receiptBills);
           console.log("Bills:", data.bills);
           setRoom(data);
@@ -84,7 +86,35 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
   const processedImages = room?.images?.map(img =>
     typeof img === "string" ? img : (img as any).url
   );
-    // Render the Drawer component with room details
+  
+  // Lấy thông tin người thuê từ checkin đầu tiên (ưu tiên) hoặc contract
+  // Checkin có tenantSnapshot đầy đủ (bao gồm identityNo và address)
+  const firstCheckin = room?.checkins && room.checkins.length > 0 ? room.checkins[0] : null;
+  const firstContract = room?.contracts && room.contracts.length > 0 ? room.contracts[0] : null;
+  
+  // Debug log
+  if (firstCheckin) {
+    console.log('[RoomDetailDrawer] First checkin tenantSnapshot:', firstCheckin.tenantSnapshot);
+  }
+  if (firstContract) {
+    console.log('[RoomDetailDrawer] First contract tenantSnapshot:', firstContract.tenantSnapshot);
+    console.log('[RoomDetailDrawer] First contract originContractId:', firstContract.originContractId);
+  }
+  
+  // Ưu tiên lấy từ checkin (vì có tenantSnapshot đầy đủ), nếu không có thì lấy từ contract
+  const tenant = firstCheckin && typeof firstCheckin.tenantId === "object"
+    ? firstCheckin.tenantId
+    : (firstContract && typeof firstContract.tenantId === "object" 
+      ? firstContract.tenantId 
+      : null);
+  
+  // Ưu tiên tenantSnapshot từ checkin (có đầy đủ identityNo và address)
+  // Nếu checkin không có, lấy từ contract (có thể từ originContractId)
+  const tenantSnapshot = firstCheckin?.tenantSnapshot || firstContract?.tenantSnapshot || null;
+  
+  console.log('[RoomDetailDrawer] Final tenantSnapshot:', tenantSnapshot);
+  
+  // Render the Drawer component with room details
 
   // Helper functions for status tags
 
@@ -322,6 +352,63 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
               )}
             </Descriptions.Item>
           </Descriptions>
+
+          {/* Thông tin người thuê */}
+          {(tenant || tenantSnapshot) && (
+            <>
+              <Divider orientation="left" style={{ marginTop: 24 }}>
+                <UserOutlined /> Thông tin người thuê
+              </Divider>
+              
+              <Descriptions
+                bordered
+                column={1}
+                size="middle"
+                styles={{
+                  label: { fontWeight: 600, background: "#fafafa", width: "200px" },
+                  content: { background: "#fff" },
+                }}
+              >
+                <Descriptions.Item label="Họ tên">
+                  <Space>
+                    <UserOutlined />
+                    <Text strong>
+                      {tenant?.fullName || tenantSnapshot?.fullName || "N/A"}
+                    </Text>
+                  </Space>
+                </Descriptions.Item>
+
+                <Descriptions.Item label="Số điện thoại">
+                  <Space>
+                    <PhoneOutlined />
+                    {tenant?.phone || tenantSnapshot?.phone || "N/A"}
+                  </Space>
+                </Descriptions.Item>
+
+                <Descriptions.Item label="Email">
+                  <Space>
+                    <MailOutlined />
+                    {tenant?.email || tenantSnapshot?.email || "N/A"}
+                  </Space>
+                </Descriptions.Item>
+
+                <Descriptions.Item label="CMND/CCCD">
+                  <Space>
+                    <IdcardOutlined />
+                    {tenantSnapshot?.identityNo || "N/A"}
+                  </Space>
+                </Descriptions.Item>
+
+                <Descriptions.Item label="Địa chỉ">
+                  {tenantSnapshot?.address || tenant?.address || "N/A"}
+                </Descriptions.Item>
+
+                <Descriptions.Item label="Ghi chú">
+                  {tenantSnapshot?.note || "Không có"}
+                </Descriptions.Item>
+              </Descriptions>
+            </>
+          )}
 
           <Divider orientation="left" style={{ marginTop: 24 }}>
             Hình ảnh phòng

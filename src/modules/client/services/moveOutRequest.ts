@@ -40,6 +40,12 @@ export interface MoveOutRequest {
   };
   processedAt?: string;
   refundProcessed: boolean;
+  refundQrCode?: {
+    url?: string;
+    secure_url?: string;
+    public_id?: string;
+    resource_type?: string;
+  };
   createdAt: string;
   updatedAt: string;
 }

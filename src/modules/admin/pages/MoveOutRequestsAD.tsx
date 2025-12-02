@@ -19,12 +19,24 @@ import {
   Statistic,
   Alert,
   Divider,
+  Image,
+  Drawer,
+  Avatar,
+  Badge,
 } from "antd";
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   ClockCircleOutlined,
   DollarOutlined,
+  EyeOutlined,
+  CalendarOutlined,
+  MailOutlined,
+  PhoneOutlined,
+  FileTextOutlined,
+  QrcodeOutlined,
+  HomeOutlined,
+  UserOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
@@ -71,6 +83,8 @@ const MoveOutRequestsAD: React.FC = () => {
   const [calculatedServiceFee, setCalculatedServiceFee] = useState<FeeCalculation | null>(null);
   const [roomOccupantCount, setRoomOccupantCount] = useState<number>(1);
   const [totalDepositPaid, setTotalDepositPaid] = useState<number>(0); // Tổng tiền cọc đã thanh toán từ RECEIPT + CONTRACT bills
+  const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
+  const [detailRequest, setDetailRequest] = useState<MoveOutRequest | null>(null);
   
   // Theo dõi giá trị damageAmount từ form để tự động cập nhật hiển thị
   const damageAmount = Form.useWatch("damageAmount", refundForm) || 0;
@@ -353,6 +367,17 @@ const MoveOutRequestsAD: React.FC = () => {
     return <Tag color={s.color}>{s.text}</Tag>;
   };
 
+  /**
+   * Mở drawer xem chi tiết yêu cầu
+   * @param request - Yêu cầu cần xem chi tiết
+   */
+  const handleViewDetail = (request: MoveOutRequest) => {
+    console.log('[MoveOutRequestsAD] Opening detail for request:', request._id);
+    console.log('[MoveOutRequestsAD] refundQrCode:', request.refundQrCode);
+    setDetailRequest(request);
+    setDetailDrawerVisible(true);
+  };
+
   // Cấu hình các cột cho bảng hiển thị danh sách yêu cầu
   const columns: ColumnsType<MoveOutRequest> = [
     {
@@ -377,12 +402,6 @@ const MoveOutRequestsAD: React.FC = () => {
       render: (date: string) => dayjs(date).format("DD/MM/YYYY"),
     },
     {
-      title: "Lý do",
-      dataIndex: "reason",
-      key: "reason",
-      ellipsis: true,
-    },
-    {
       title: "Trạng thái",
       dataIndex: "status",
       key: "status",
@@ -393,6 +412,14 @@ const MoveOutRequestsAD: React.FC = () => {
       key: "actions",
       render: (_: any, record: MoveOutRequest) => (
         <Space>
+          <Button
+            type="link"
+            size="small"
+            icon={<EyeOutlined />}
+            onClick={() => handleViewDetail(record)}
+          >
+            Chi tiết
+          </Button>
           {record.status === "PENDING" && (
             <>
               <Button
@@ -406,19 +433,20 @@ const MoveOutRequestsAD: React.FC = () => {
                 size="small"
                 danger
                 onClick={() => {
+                  let rejectNote = '';
                   Modal.confirm({
                     title: "Từ chối yêu cầu",
                     content: (
                       <Input
                         placeholder="Nhập lý do từ chối (tùy chọn)"
                         onChange={(e) => {
-                          const note = e.target.value;
-                          Modal.destroyAll();
-                          handleReject(record._id, note);
+                          rejectNote = e.target.value;
                         }}
                       />
                     ),
-                    onOk: () => {},
+                    onOk: () => {
+                      handleReject(record._id, rejectNote);
+                    },
                   });
                 }}
               >
@@ -514,74 +542,6 @@ const MoveOutRequestsAD: React.FC = () => {
           rowKey="_id"
           loading={loading}
           pagination={{ pageSize: 10 }}
-          expandable={{
-            expandedRowRender: (record: MoveOutRequest) => (
-              <div style={{ padding: 16, background: "#f5f5f5", borderRadius: 8 }}>
-                <Descriptions bordered column={2} size="small">
-                  <Descriptions.Item label="Ngày tạo">
-                    {dayjs(record.requestedAt).format("DD/MM/YYYY HH:mm")}
-                  </Descriptions.Item>
-                  <Descriptions.Item label="Lý do">
-                    {record.reason}
-                  </Descriptions.Item>
-                  {record.adminNote && (
-                    <Descriptions.Item label="Ghi chú từ admin" span={2}>
-                      {record.adminNote}
-                    </Descriptions.Item>
-                  )}
-                  {record.processedBy && (
-                    <Descriptions.Item label="Người xử lý">
-                      {record.processedBy.fullName}
-                    </Descriptions.Item>
-                  )}
-                  {record.processedAt && (
-                    <Descriptions.Item label="Thời gian xử lý">
-                      {dayjs(record.processedAt).format("DD/MM/YYYY HH:mm")}
-                    </Descriptions.Item>
-                  )}
-                  {record.status === "COMPLETED" && record.contractId.depositRefund && (() => {
-                    const deposit = dec(record.contractId.deposit);
-                    const serviceFee = dec(record.contractId.depositRefund.finalMonthServiceFee || 0);
-                    const damage = dec(record.contractId.depositRefund.damageAmount || 0);
-                    // Tính lại số tiền hoàn lại để đảm bảo đúng (tiền cọc - dịch vụ - thiệt hại)
-                    const calculatedRefund = deposit - serviceFee - damage;
-                    const savedRefund = dec(record.contractId.depositRefund.amount);
-                    
-                    return (
-                      <>
-                        <Descriptions.Item label="Tiền cọc ban đầu">
-                          <strong style={{ color: "#1890ff", fontSize: 16 }}>
-                            {deposit.toLocaleString("vi-VN")} ₫
-                          </strong>
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Dịch vụ tháng cuối (không bao gồm tiền phòng)">
-                          <span style={{ color: "#ff4d4f" }}>
-                            - {serviceFee.toLocaleString("vi-VN")} ₫
-                          </span>
-                        </Descriptions.Item>
-                        <Descriptions.Item label="Thiệt hại">
-                          <span style={{ color: "#ff4d4f" }}>
-                            - {damage.toLocaleString("vi-VN")} ₫
-                          </span>
-                        </Descriptions.Item>
-                        <Divider style={{ margin: "8px 0" }} />
-                        <Descriptions.Item label="Số tiền hoàn lại">
-                          <strong style={{ color: "#52c41a", fontSize: 18 }}>
-                            {calculatedRefund.toLocaleString("vi-VN")} ₫
-                          </strong>
-                          {Math.abs(calculatedRefund - savedRefund) > 1 && (
-                            <div style={{ fontSize: 12, color: "#ff4d4f", marginTop: 4 }}>
-                              (Đã sửa: {savedRefund.toLocaleString("vi-VN")} ₫ → {calculatedRefund.toLocaleString("vi-VN")} ₫)
-                            </div>
-                          )}
-                        </Descriptions.Item>
-                      </>
-                    );
-                  })()}
-                </Descriptions>
-              </div>
-            ),
-          }}
         />
       </div>
 
@@ -797,6 +757,381 @@ const MoveOutRequestsAD: React.FC = () => {
           </Form>
         )}
       </Modal>
+
+      {/* Drawer xem chi tiết */}
+      <Drawer
+        title={
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <FileTextOutlined style={{ fontSize: 20, color: "#1890ff" }} />
+            <span>Chi tiết yêu cầu chuyển đi / hoàn cọc</span>
+          </div>
+        }
+        placement="right"
+        width={window.innerWidth < 768 ? "90%" : 720}
+        open={detailDrawerVisible}
+        onClose={() => {
+          setDetailDrawerVisible(false);
+          setDetailRequest(null);
+        }}
+        styles={{
+          body: {
+            padding: 24,
+            display: "flex",
+            flexDirection: "column",
+            gap: 20,
+            background: "#f5f5f5",
+          },
+        }}
+      >
+        {detailRequest && (
+          <div style={{ wordBreak: "break-word", flex: 1, display: "flex", flexDirection: "column", gap: 20 }}>
+            {/* Thông tin yêu cầu */}
+            <Card 
+              title={
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <HomeOutlined style={{ color: "#1890ff" }} />
+                  <span>Thông tin yêu cầu</span>
+                </div>
+              }
+              size="small"
+              style={{
+                borderRadius: 12,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+              }}
+            >
+              <Row gutter={[16, 16]}>
+                <Col xs={24} sm={12}>
+                  <Space direction="vertical" size={4}>
+                    <div style={{ fontSize: 12, color: "#8c8c8c", fontWeight: 500 }}>Phòng</div>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: "#1890ff" }}>
+                      <HomeOutlined style={{ marginRight: 8 }} />
+                      {detailRequest.roomId.roomNumber}
+                    </div>
+                  </Space>
+                </Col>
+                <Col xs={24} sm={12}>
+                  <Space direction="vertical" size={4}>
+                    <div style={{ fontSize: 12, color: "#8c8c8c", fontWeight: 500 }}>Trạng thái</div>
+                    <div>{getStatusTag(detailRequest.status)}</div>
+                  </Space>
+                </Col>
+              </Row>
+              
+              <Divider style={{ margin: "16px 0" }} />
+              
+              <Space direction="vertical" size={16} style={{ width: "100%" }}>
+                <div>
+                  <div style={{ fontSize: 12, color: "#8c8c8c", fontWeight: 500, marginBottom: 8 }}>Người thuê</div>
+                  <Space>
+                    <Avatar size={48} icon={<UserOutlined />} style={{ backgroundColor: "#1890ff" }} />
+                    <Space direction="vertical" size={4}>
+                      <div style={{ fontSize: 16, fontWeight: 600 }}>{detailRequest.tenantId.fullName}</div>
+                      <Space size={12}>
+                        <span style={{ color: "#666", fontSize: 13 }}>
+                          <MailOutlined style={{ marginRight: 4 }} />
+                          {detailRequest.tenantId.email}
+                        </span>
+                      </Space>
+                      <span style={{ color: "#666", fontSize: 13 }}>
+                        <PhoneOutlined style={{ marginRight: 4 }} />
+                        {detailRequest.tenantId.phone}
+                      </span>
+                    </Space>
+                  </Space>
+                </div>
+                
+                <Row gutter={[16, 16]}>
+                  <Col xs={24} sm={12}>
+                    <Space direction="vertical" size={4}>
+                      <div style={{ fontSize: 12, color: "#8c8c8c", fontWeight: 500 }}>Ngày dự kiến chuyển đi</div>
+                      <div style={{ fontSize: 14, fontWeight: 500 }}>
+                        <CalendarOutlined style={{ marginRight: 8, color: "#fa8c16" }} />
+                        {dayjs(detailRequest.moveOutDate).format("DD/MM/YYYY")}
+                      </div>
+                    </Space>
+                  </Col>
+                  <Col xs={24} sm={12}>
+                    <Space direction="vertical" size={4}>
+                      <div style={{ fontSize: 12, color: "#8c8c8c", fontWeight: 500 }}>Ngày tạo yêu cầu</div>
+                      <div style={{ fontSize: 14, fontWeight: 500 }}>
+                        <ClockCircleOutlined style={{ marginRight: 8, color: "#722ed1" }} />
+                        {dayjs(detailRequest.requestedAt).format("DD/MM/YYYY HH:mm")}
+                      </div>
+                    </Space>
+                  </Col>
+                </Row>
+                
+                <div>
+                  <div style={{ fontSize: 12, color: "#8c8c8c", fontWeight: 500, marginBottom: 8 }}>Lý do</div>
+                  <div style={{ 
+                    padding: 12, 
+                    background: "#fafafa", 
+                    borderRadius: 6, 
+                    wordBreak: "break-word", 
+                    whiteSpace: "pre-wrap",
+                    borderLeft: "3px solid #1890ff"
+                  }}>
+                    {detailRequest.reason}
+                  </div>
+                </div>
+              </Space>
+            </Card>
+
+            {/* QR Code */}
+            {detailRequest.refundQrCode && (
+              (detailRequest.refundQrCode.url || 
+               detailRequest.refundQrCode.secure_url || 
+               (typeof detailRequest.refundQrCode === 'object' && Object.keys(detailRequest.refundQrCode).length > 0)) && (
+                <Card 
+                  title={
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <QrcodeOutlined style={{ color: "#52c41a" }} />
+                      <span>QR nhận tiền hoàn cọc</span>
+                    </div>
+                  }
+                  size="small"
+                  style={{
+                    borderRadius: 12,
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                  }}
+                >
+                  <div style={{ 
+                    textAlign: "center", 
+                    padding: 16,
+                    background: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
+                    borderRadius: 12,
+                    border: "2px dashed #91d5ff"
+                  }}>
+                    <Image
+                      src={detailRequest.refundQrCode.secure_url || detailRequest.refundQrCode.url || ''}
+                      alt="QR code nhận tiền hoàn cọc"
+                      width={280}
+                      style={{ 
+                        borderRadius: 12, 
+                        maxWidth: "100%",
+                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                      }}
+                      preview={{
+                        mask: "Phóng to",
+                      }}
+                      onError={(e) => {
+                        console.error('[MoveOutRequestsAD] Error loading QR image:', e);
+                        console.error('[MoveOutRequestsAD] refundQrCode data:', detailRequest.refundQrCode);
+                      }}
+                    />
+                  </div>
+                </Card>
+              )
+            )}
+
+            {/* Thông tin hoàn cọc (nếu đã hoàn tất) */}
+            {detailRequest.status === "COMPLETED" && detailRequest.contractId.depositRefund && (
+              <Card title="Thông tin hoàn cọc" size="small">
+                <Descriptions column={1} size="small" bordered>
+                  {(() => {
+                    const deposit = dec(detailRequest.contractId.deposit);
+                    const serviceFee = dec(detailRequest.contractId.depositRefund.finalMonthServiceFee || 0);
+                    const damage = dec(detailRequest.contractId.depositRefund.damageAmount || 0);
+                    // Tính lại số tiền hoàn lại để đảm bảo đúng (tiền cọc - dịch vụ - thiệt hại)
+                    const calculatedRefund = deposit - serviceFee - damage;
+                    const savedRefund = dec(detailRequest.contractId.depositRefund.amount);
+                    
+                    return (
+                      <>
+                        <Descriptions.Item label="Tiền cọc ban đầu">
+                          <strong style={{ color: "#1890ff", fontSize: 16 }}>
+                            {deposit.toLocaleString("vi-VN")} ₫
+                          </strong>
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Dịch vụ tháng cuối (không bao gồm tiền phòng)">
+                          <span style={{ color: "#ff4d4f" }}>
+                            - {serviceFee.toLocaleString("vi-VN")} ₫
+                          </span>
+                        </Descriptions.Item>
+                        <Descriptions.Item label="Thiệt hại">
+                          <span style={{ color: "#ff4d4f" }}>
+                            - {damage.toLocaleString("vi-VN")} ₫
+                          </span>
+                          {detailRequest.contractId.depositRefund.damageNote && (
+                            <div style={{ fontSize: 12, color: "#666", marginTop: 4, wordBreak: "break-word", whiteSpace: "pre-wrap" }}>
+                              {detailRequest.contractId.depositRefund.damageNote}
+                            </div>
+                          )}
+                        </Descriptions.Item>
+                        <Divider style={{ margin: "8px 0" }} />
+                        <Descriptions.Item label="Số tiền hoàn lại">
+                          <strong style={{ color: "#52c41a", fontSize: 18 }}>
+                            {calculatedRefund.toLocaleString("vi-VN")} ₫
+                          </strong>
+                          {Math.abs(calculatedRefund - savedRefund) > 1 && (
+                            <div style={{ fontSize: 12, color: "#ff4d4f", marginTop: 4 }}>
+                              (Đã sửa: {savedRefund.toLocaleString("vi-VN")} ₫ → {calculatedRefund.toLocaleString("vi-VN")} ₫)
+                            </div>
+                          )}
+                        </Descriptions.Item>
+                        {detailRequest.contractId.depositRefund.method && (
+                          <Descriptions.Item label="Phương thức hoàn cọc">
+                            {detailRequest.contractId.depositRefund.method === "BANK" ? "Chuyển khoản" :
+                             detailRequest.contractId.depositRefund.method === "CASH" ? "Tiền mặt" :
+                             detailRequest.contractId.depositRefund.method}
+                          </Descriptions.Item>
+                        )}
+                        {detailRequest.contractId.depositRefund.transactionId && (
+                          <Descriptions.Item label="Mã giao dịch">
+                            {detailRequest.contractId.depositRefund.transactionId}
+                          </Descriptions.Item>
+                        )}
+                        {detailRequest.contractId.depositRefund.note && (
+                          <Descriptions.Item label="Ghi chú">
+                            <div style={{ wordBreak: "break-word", whiteSpace: "pre-wrap" }}>
+                              {detailRequest.contractId.depositRefund.note}
+                            </div>
+                          </Descriptions.Item>
+                        )}
+                        {detailRequest.contractId.depositRefund.refundedAt && (
+                          <Descriptions.Item label="Ngày hoàn cọc">
+                            {dayjs(detailRequest.contractId.depositRefund.refundedAt).format("DD/MM/YYYY HH:mm")}
+                          </Descriptions.Item>
+                        )}
+                      </>
+                    );
+                  })()}
+                </Descriptions>
+              </Card>
+            )}
+
+            {/* Action Buttons */}
+            <Card 
+              size="small" 
+              style={{ 
+                marginTop: "auto",
+                borderRadius: 12,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                background: detailRequest.status === "PENDING" ? "linear-gradient(135deg, #fff7e6 0%, #fffbf0 100%)" : "white",
+                border: detailRequest.status === "PENDING" ? "1px solid #ffd591" : "1px solid #d9d9d9"
+              }}
+            >
+              <Space direction="vertical" style={{ width: "100%" }} size={16}>
+                {(detailRequest.processedBy || detailRequest.processedAt || detailRequest.adminNote) && (
+                  <>
+                    {detailRequest.processedBy && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <UserOutlined style={{ color: "#1890ff" }} />
+                        <span style={{ fontSize: 13, color: "#666" }}>Người xử lý: </span>
+                        <strong>{detailRequest.processedBy.fullName}</strong>
+                      </div>
+                    )}
+                    {detailRequest.processedAt && (
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <ClockCircleOutlined style={{ color: "#722ed1" }} />
+                        <span style={{ fontSize: 13, color: "#666" }}>Thời gian xử lý: </span>
+                        <strong>{dayjs(detailRequest.processedAt).format("DD/MM/YYYY HH:mm")}</strong>
+                      </div>
+                    )}
+                    {detailRequest.adminNote && (
+                      <div>
+                        <div style={{ fontSize: 13, color: "#666", marginBottom: 8 }}>
+                          <FileTextOutlined style={{ marginRight: 4 }} />
+                          Ghi chú từ admin:
+                        </div>
+                        <div style={{ 
+                          padding: 12, 
+                          background: "#fafafa", 
+                          borderRadius: 6, 
+                          wordBreak: "break-word", 
+                          whiteSpace: "pre-wrap",
+                          borderLeft: "3px solid #faad14"
+                        }}>
+                          {detailRequest.adminNote}
+                        </div>
+                      </div>
+                    )}
+                    <Divider style={{ margin: "8px 0" }} />
+                  </>
+                )}
+                <Space style={{ width: "100%", justifyContent: "flex-end" }} size={12}>
+                  {detailRequest.status === "PENDING" && (
+                    <>
+                      <Button
+                        type="primary"
+                        size="large"
+                        icon={<CheckCircleOutlined />}
+                        style={{
+                          borderRadius: 8,
+                          height: 40,
+                          fontWeight: 600,
+                          boxShadow: "0 2px 8px rgba(24, 144, 255, 0.3)",
+                        }}
+                        onClick={() => {
+                          handleApprove(detailRequest._id);
+                          setDetailDrawerVisible(false);
+                          setDetailRequest(null);
+                        }}
+                      >
+                        Duyệt yêu cầu
+                      </Button>
+                      <Button
+                        danger
+                        size="large"
+                        icon={<CloseCircleOutlined />}
+                        style={{
+                          borderRadius: 8,
+                          height: 40,
+                          fontWeight: 600,
+                          boxShadow: "0 2px 8px rgba(255, 77, 79, 0.3)",
+                        }}
+                        onClick={() => {
+                          let rejectNote = '';
+                          Modal.confirm({
+                            title: "Từ chối yêu cầu",
+                            content: (
+                              <Input
+                                placeholder="Nhập lý do từ chối (tùy chọn)"
+                                onChange={(e) => {
+                                  rejectNote = e.target.value;
+                                }}
+                              />
+                            ),
+                            onOk: () => {
+                              handleReject(detailRequest._id, rejectNote);
+                              setDetailDrawerVisible(false);
+                              setDetailRequest(null);
+                            },
+                          });
+                        }}
+                      >
+                        Từ chối
+                      </Button>
+                    </>
+                  )}
+                  {detailRequest.status === "APPROVED" && (
+                    <Button
+                      type="primary"
+                      size="large"
+                      icon={<DollarOutlined />}
+                      style={{
+                        borderRadius: 8,
+                        height: 40,
+                        fontWeight: 600,
+                        boxShadow: "0 2px 8px rgba(82, 196, 26, 0.3)",
+                        background: "linear-gradient(135deg, #52c41a 0%, #73d13d 100%)",
+                        border: "none",
+                      }}
+                      onClick={() => {
+                        handleOpenRefundModal(detailRequest);
+                        setDetailDrawerVisible(false);
+                        setDetailRequest(null);
+                      }}
+                    >
+                      Hoàn cọc
+                    </Button>
+                  )}
+                </Space>
+              </Space>
+            </Card>
+          </div>
+        )}
+      </Drawer>
     </div>
   );
 };
