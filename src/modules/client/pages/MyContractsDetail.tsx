@@ -131,10 +131,19 @@ const MyContractsDetail = () => {
       PAID: { color: "success", text: "Đã thanh toán" },
       UNPAID: { color: "error", text: "Chưa thanh toán" },
       PENDING_CASH_CONFIRM: { color: "gold", text: "Chờ xác nhận tiền mặt" },
-      PARTIALLY_PAID: { color: "processing", text: "Thanh toán 1 phần" },
+      PARTIALLY_PAID: { color: "warning", text: "Thanh toán 1 phần" },
     };
     const s = statusMap[status] || { color: "default", text: status };
     return <Tag color={s.color}>{s.text}</Tag>;
+  };
+  const getBillTypeTag = (billType: string) => {
+    const map: Record<string, { color: string; text: string }> = {
+      RECEIPT: { color: "purple", text: "Phiếu thu (Cọc)" },
+      CONTRACT: { color: "cyan", text: "Hợp đồng" },
+      MONTHLY: { color: "magenta", text: "Hàng tháng" },
+    };
+    const m = map[billType] || { color: "default", text: billType };
+    return <Tag color={m.color}>{m.text}</Tag>;
   };
 // Định nghĩa cột cho bảng hợp đồng
   const columns = [
@@ -246,19 +255,25 @@ const MyContractsDetail = () => {
                   {
                     title: "Loại",
                     dataIndex: "billType",
-                    render: (type: string) => {
-                      const typeMap: Record<string, string> = {
-                        RECEIPT: "Phiếu thu (Cọc)",
-                        CONTRACT: "Tháng đầu",
-                        MONTHLY: "Hàng tháng",
-                      };
-                      return typeMap[type] || type;
-                    },
+                    render: (type: string) => getBillTypeTag(type),
                   },
                   {
-                    title: "Số tiền",
+                    title: "Tổng tiền",
                     dataIndex: "amountDue",
-                    render: (val: number) => `${val?.toLocaleString("vi-VN")} đ`,
+                    render: (amount: number, record: any) => {
+                      let totalAmount = amount;
+                      if (record.status === "PAID" && amount === 0) {
+                        totalAmount = record.amountPaid || 0;
+                      } else if (record.status === "PARTIALLY_PAID") {
+                        totalAmount = amount + (record.amountPaid || 0);
+                      }
+                      if (totalAmount === 0 && record.lineItems && record.lineItems.length > 0) {
+                        totalAmount = record.lineItems.reduce((sum: number, item: any) => {
+                          return sum + (Number(item.lineTotal) || 0);
+                        }, 0);
+                      }
+                      return `${totalAmount?.toLocaleString("vi-VN")} đ`;
+                    },
                   },
                   {
                     title: "Đã thanh toán",
