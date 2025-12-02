@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Table, Button, Tag, Modal, Upload, message, Space, Popconfirm, Image, Tooltip, Select, Descriptions, Divider, Form, Input, Card, Tabs, Avatar, Row, Col, Typography, Alert } from "antd";
 import { UploadOutlined, EyeOutlined, DeleteOutlined, FilePdfOutlined, PlusOutlined, DollarOutlined, SearchOutlined, UserOutlined, ClockCircleOutlined } from "@ant-design/icons";
+import { useLocation } from "react-router-dom";
 import ExtendContractModal from "../components/ExtendContractModal";
 import type { UploadFile } from "antd";
 import dayjs from "dayjs";
@@ -72,6 +73,7 @@ interface FinalContract {
 
 
 const FinalContracts = () => {
+  const location = useLocation();
   const [contracts, setContracts] = useState<FinalContract[]>([]);
   const [loading, setLoading] = useState(false);
   const [pagination, setPagination] = useState({ current: 1, pageSize: 10, total: 0 });
@@ -82,13 +84,11 @@ const FinalContracts = () => {
   const [contractBills, setContractBills] = useState<any[]>([]);
   // Map để lưu bills của từng contract (key: contractId, value: bills[])
   const [contractBillsMap, setContractBillsMap] = useState<Map<string, any[]>>(new Map());
-  
-  // New contract upload
+   // New contract upload
   const [newContractModalVisible, setNewContractModalVisible] = useState(false);
   const [availableContracts, setAvailableContracts] = useState<any[]>([]);
   const [selectedContractId, setSelectedContractId] = useState<string>("");
-  
-  // Assign tenant modal
+   // Assign tenant modal
   const [assignTenantModalVisible, setAssignTenantModalVisible] = useState(false);
   const [assigningContract, setAssigningContract] = useState<FinalContract | null>(null);
   const [tenantForm] = Form.useForm();
@@ -96,12 +96,10 @@ const FinalContracts = () => {
   const [searchTenants, setSearchTenants] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [selectedTenantId, setSelectedTenantId] = useState<string>("");
-  
-  // PDF viewer modal
+   // PDF viewer modal
   const [pdfViewerVisible, setPdfViewerVisible] = useState(false);
   const [pdfViewerUrl, setPdfViewerUrl] = useState<string>("");
-  
-  // Extend contract modal
+   // Extend contract modal
   const [extendModalVisible, setExtendModalVisible] = useState(false);
   const [extendingContract, setExtendingContract] = useState<FinalContract | null>(null);
 
@@ -277,6 +275,19 @@ const FinalContracts = () => {
   useEffect(() => {
     fetchContracts();
   }, []);
+
+  // Xử lý tự động mở detail modal khi có contractId từ state (khi navigate từ RoomDetailDrawer)
+  useEffect(() => {
+    const state = location.state as { contractId?: string } | null;
+    if (state?.contractId && contracts.length > 0 && !loading) {
+      const contract = contracts.find((c) => c._id === state.contractId);
+      if (contract) {
+        openDetail(contract);
+        // Clear state để tránh mở lại khi refresh
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [location.state, contracts, loading]);
 
   const openDetail = async (contract: FinalContract) => {
     setViewModalVisible(true);

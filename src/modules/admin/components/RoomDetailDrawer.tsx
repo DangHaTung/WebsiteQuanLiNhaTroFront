@@ -87,11 +87,11 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
   const processedImages = room?.images?.map(img =>
     typeof img === "string" ? img : (img as any).url
   );
-   // Lấy thông tin người thuê từ checkin đầu tiên (ưu tiên) hoặc contract
+  // Lấy thông tin người thuê từ checkin đầu tiên (ưu tiên) hoặc contract
   // Checkin có tenantSnapshot đầy đủ (bao gồm identityNo và address)
   const firstCheckin = room?.checkins && room.checkins.length > 0 ? room.checkins[0] : null;
   const firstContract = room?.contracts && room.contracts.length > 0 ? room.contracts[0] : null;
-   // Debug log
+  // Debug log
   if (firstCheckin) {
     console.log('[RoomDetailDrawer] First checkin tenantSnapshot:', firstCheckin.tenantSnapshot);
   }
@@ -99,17 +99,17 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
     console.log('[RoomDetailDrawer] First contract tenantSnapshot:', firstContract.tenantSnapshot);
     console.log('[RoomDetailDrawer] First contract originContractId:', firstContract.originContractId);
   }
-   // Ưu tiên lấy từ checkin (vì có tenantSnapshot đầy đủ), nếu không có thì lấy từ contract
+  // Ưu tiên lấy từ checkin (vì có tenantSnapshot đầy đủ), nếu không có thì lấy từ contract
   const tenant = firstCheckin && typeof firstCheckin.tenantId === "object"
     ? firstCheckin.tenantId
     : (firstContract && typeof firstContract.tenantId === "object"
       ? firstContract.tenantId
       : null);
-   // Ưu tiên tenantSnapshot từ checkin (có đầy đủ identityNo và address)
+  // Ưu tiên tenantSnapshot từ checkin (có đầy đủ identityNo và address)
   // Nếu checkin không có, lấy từ contract (có thể từ originContractId)
   const tenantSnapshot = firstCheckin?.tenantSnapshot || firstContract?.tenantSnapshot || null;
-   console.log('[RoomDetailDrawer] Final tenantSnapshot:', tenantSnapshot);
-   // Render the Drawer component with room details
+  console.log('[RoomDetailDrawer] Final tenantSnapshot:', tenantSnapshot);
+  // Render the Drawer component with room details
 
   // Helper functions for status tags
 
@@ -469,38 +469,38 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
                           let checkinId: string | null = null;
                          
                           // Tìm trong room.checkins trước (đã có sẵn)
-                          if (room?.checkins && room.checkins.length > 0) {
-                            const checkin = room.checkins.find((c: Checkin) => {
-                              const cReceiptBillId = typeof c.receiptBillId === 'string'
-                                ? c.receiptBillId
-                                : (c.receiptBillId as any)?._id;
-                              return cReceiptBillId === receiptBillId;
-                            });
-                            if (checkin) {
-                              checkinId = checkin._id;
-                            }
-                          }
-                         
-                          // Nếu không tìm thấy trong room.checkins, gọi API để tìm
-                          if (!checkinId) {
-                            try {
-                              const response = await adminCheckinService.getAll({ limit: 100 });
-                              const allCheckins = response.data || [];
-                              const checkin = allCheckins.find((c: Checkin) => {
-                                const cReceiptBillId = typeof c.receiptBillId === 'string'
-                                  ? c.receiptBillId
-                                  : (c.receiptBillId as any)?._id;
-                                return cReceiptBillId === receiptBillId;
-                              });
-                              if (checkin) {
-                                checkinId = checkin._id;
-                              }
-                            } catch (error) {
-                              console.error("Error finding checkin:", error);
-                            }
-                          }
-                         
-                          // Đóng drawer và chuyển sang trang checkins với checkinId
+                         if (room?.checkins && room.checkins.length > 0) {
+                           const checkin = room.checkins.find((c: Checkin) => {
+                             const cReceiptBillId = typeof c.receiptBillId === 'string'
+                               ? c.receiptBillId
+                               : (c.receiptBillId as any)?._id;
+                             return cReceiptBillId === receiptBillId;
+                           });
+                           if (checkin) {
+                             checkinId = checkin._id;
+                           }
+                         }
+                       
+                         // Nếu không tìm thấy trong room.checkins, gọi API để tìm
+                         if (!checkinId) {
+                           try {
+                             const response = await adminCheckinService.getAll({ limit: 100 });
+                             const allCheckins = response.data || [];
+                             const checkin = allCheckins.find((c: Checkin) => {
+                               const cReceiptBillId = typeof c.receiptBillId === 'string'
+                                 ? c.receiptBillId
+                                 : (c.receiptBillId as any)?._id;
+                               return cReceiptBillId === receiptBillId;
+                             });
+                             if (checkin) {
+                               checkinId = checkin._id;
+                             }
+                           } catch (error) {
+                             console.error("Error finding checkin:", error);
+                           }
+                         }
+                       
+                         // Đóng drawer và chuyển sang trang checkins với checkinId
                           onClose();
                           if (checkinId) {
                             navigate(`/admin/checkins`, { state: { checkinId } });
@@ -535,11 +535,12 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
                       rowKey="_id"
                       size="small"
                       pagination={{ pageSize: 10 }}
-                      onRow={() => ({
+                      onRow={(record) => ({
                         onClick: () => {
-                          // Đóng drawer và chuyển sang trang hợp đồng
+                          // Đóng drawer và chuyển sang trang hợp đồng với contractId
+                          const contractId = record._id;
                           onClose();
-                          navigate(`/admin/final-contracts`);
+                          navigate(`/admin/final-contracts`, { state: { contractId } });
                         },
                         style: { cursor: 'pointer' }
                       })}
@@ -556,22 +557,30 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
               key: "4",
               label: (
                 <span>
-                  <DollarOutlined /> Hóa đơn ({room?.bills?.length || 0})
+                  <DollarOutlined /> Hóa đơn ({room?.bills?.filter((b: any) => b.billType === "MONTHLY").length || 0})
                 </span>
               ),
               children: (
                 <>
-                  {room?.bills && room.bills.length > 0 ? (
+                  {room?.bills && room.bills.filter((b: any) => b.billType === "MONTHLY").length > 0 ? (
                     <Table
                       columns={billColumns}
-                      dataSource={room.bills}
+                      dataSource={room.bills.filter((b: any) => b.billType === "MONTHLY")}
                       rowKey="_id"
                       size="small"
                       pagination={{ pageSize: 10 }}
+                      onRow={(record) => ({
+                        onClick: () => {
+                          // Đóng drawer và chuyển sang trang quản lý hóa đơn hàng tháng với billId
+                          onClose();
+                          navigate(`/admin/bills?billId=${record._id}`);
+                        },
+                        style: { cursor: 'pointer' }
+                      })}
                     />
                   ) : (
                     <div style={{ textAlign: "center", padding: "40px 0" }}>
-                      <Text type="secondary">Không có hóa đơn</Text>
+                      <Text type="secondary">Không có hóa đơn hàng tháng</Text>
                     </div>
                   )}
                 </>
