@@ -28,7 +28,6 @@ const BillsAD: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [statusFilter, setStatusFilter] = useState<BillStatus | "ALL">("ALL");
-  const [billTypeFilter, setBillTypeFilter] = useState<BillType | "ALL">("ALL");
 
   // Drawer detail
   const [detailVisible, setDetailVisible] = useState(false);
@@ -44,7 +43,7 @@ const BillsAD: React.FC = () => {
 
   useEffect(() => {
     loadBills();
-  }, [statusFilter, billTypeFilter]);
+  }, [statusFilter]);
 
   // Tự động mở drawer khi có billId trong URL
   useEffect(() => {
@@ -58,19 +57,18 @@ const BillsAD: React.FC = () => {
     }
   }, [searchParams, bills]);
 
-  // Load bills với filter
+  // Load bills với filter - chỉ lấy MONTHLY bills
   const loadBills = async () => {
     try {
       setLoading(true);
-      const params: any = { limit: 100 };
+      const params: any = { limit: 100, billType: "MONTHLY" }; // Chỉ lấy hóa đơn hàng tháng
       if (statusFilter && statusFilter !== "ALL") {
         params.status = statusFilter;
       }
-      if (billTypeFilter && billTypeFilter !== "ALL") {
-        params.billType = billTypeFilter;
-      }
       const billsData = await adminBillService.getAll(params);
-      setBills(billsData);
+      // Filter thêm để đảm bảo chỉ có MONTHLY
+      const monthlyBills = billsData.filter((b: Bill) => b.billType === "MONTHLY");
+      setBills(monthlyBills);
     } catch (error: any) {
       message.error(
         error?.response?.data?.message || "Lỗi khi tải dữ liệu hóa đơn"
@@ -110,60 +108,21 @@ const BillsAD: React.FC = () => {
     }
   };
 
-  const getContractInfo = (contractId: string | Contract): string => {
-    if (typeof contractId === "object" && contractId?._id) {
-      return contractId._id.substring(0, 8) + "...";
-    }
-
-    // Nếu backend đã populate contract data trong bill, không cần tìm trong contracts list
-    const bill = bills.find(
-      (b) =>
-        (typeof b.contractId === "object" &&
-          b.contractId?._id === contractId) ||
-        (typeof b.contractId === "string" && b.contractId === contractId)
-    );
-
-    if (bill && typeof bill.contractId === "object") {
-      return bill.contractId._id.substring(0, 8) + "...";
-    }
-
-    const contract = contracts.find((c) => c._id === contractId);
-    return (
-      contract?._id.substring(0, 8) + "..." ||
-      (typeof contractId === "string"
-        ? contractId.substring(0, 8) + "..."
-        : "N/A")
-    );
-  };
-
   const filteredBills = useMemo(() => {
-    return bills;
+    // Chỉ hiển thị MONTHLY bills
+    return bills.filter((b) => b.billType === "MONTHLY");
   }, [bills]);
 
   const paidCount = useMemo(
-    () => bills.filter((b) => b.status === "PAID").length,
+    () => bills.filter((b) => b.billType === "MONTHLY" && b.status === "PAID").length,
     [bills]
   );
   const unpaidCount = useMemo(
-    () => bills.filter((b) => b.status === "UNPAID").length,
+    () => bills.filter((b) => b.billType === "MONTHLY" && b.status === "UNPAID").length,
     [bills]
   );
   const partiallyPaidCount = useMemo(
-    () => bills.filter((b) => b.status === "PARTIALLY_PAID").length,
-    [bills]
-  );
-
-  // Bill type counts
-  const receiptCount = useMemo(
-    () => bills.filter((b) => b.billType === "RECEIPT").length,
-    [bills]
-  );
-  const contractCount = useMemo(
-    () => bills.filter((b) => b.billType === "CONTRACT").length,
-    [bills]
-  );
-  const monthlyCount = useMemo(
-    () => bills.filter((b) => b.billType === "MONTHLY").length,
+    () => bills.filter((b) => b.billType === "MONTHLY" && b.status === "PARTIALLY_PAID").length,
     [bills]
   );
 
@@ -183,7 +142,7 @@ const BillsAD: React.FC = () => {
   // Helper function để lấy tên khách hàng từ contract
   const getTenantName = (
     contractId: string | Contract | null | undefined,
-    record: Bill
+    _record: Bill
   ): string => {
     // Nếu contractId là object và đã được populate
     if (contractId && typeof contractId === "object" && contractId.tenantId) {
@@ -200,7 +159,7 @@ const BillsAD: React.FC = () => {
   // Helper function để lấy số phòng từ contract
   const getRoomNumber = (
     contractId: string | Contract | null | undefined,
-    record: Bill
+    _record: Bill
   ): string => {
     // Nếu contractId là object và đã được populate
     if (contractId && typeof contractId === "object" && contractId.roomId) {
@@ -359,7 +318,7 @@ const BillsAD: React.FC = () => {
               }}
             >
               <FileTextOutlined style={{ color: "#1890ff", fontSize: 28 }} />{" "}
-              Quản lý Hóa đơn
+              Quản lý Hóa đơn hàng tháng
             </Title>
           </Col>
         </Row>
@@ -499,140 +458,7 @@ const BillsAD: React.FC = () => {
           </Col>
         </Row>
 
-        {/* Statistic - Bill Type */}
-        <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-          <Col span={24}>
-            <div
-              style={{ background: "#fafafa", padding: 16, borderRadius: 8 }}
-            >
-              <Title level={5} style={{ margin: "0 0 12px 0" }}>
-                Lọc theo loại hóa đơn
-              </Title>
-              <Row gutter={[16, 16]}>
-                <Col xs={24} sm={12} md={6}>
-                  <div
-                    style={{
-                      background: "#fff",
-                      padding: 20,
-                      borderRadius: 12,
-                      textAlign: "center",
-                      cursor: "pointer",
-                      border:
-                        billTypeFilter === "RECEIPT"
-                          ? "2px solid #722ed1"
-                          : "1px solid #e8e8e8",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                    }}
-                    onClick={() => setBillTypeFilter("RECEIPT")}
-                  >
-                    <FileTextOutlined
-                      style={{
-                        fontSize: 28,
-                        color: "#722ed1",
-                        marginBottom: 8,
-                      }}
-                    />
-                    <Statistic
-                      title="Phiếu thu (Cọc)"
-                      value={receiptCount}
-                      valueStyle={{ color: "#722ed1", fontWeight: 600 }}
-                    />
-                  </div>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <div
-                    style={{
-                      background: "#fff",
-                      padding: 20,
-                      borderRadius: 12,
-                      textAlign: "center",
-                      cursor: "pointer",
-                      border:
-                        billTypeFilter === "CONTRACT"
-                          ? "2px solid #13c2c2"
-                          : "1px solid #e8e8e8",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                    }}
-                    onClick={() => setBillTypeFilter("CONTRACT")}
-                  >
-                    <FileTextOutlined
-                      style={{
-                        fontSize: 28,
-                        color: "#13c2c2",
-                        marginBottom: 8,
-                      }}
-                    />
-                    <Statistic
-                      title="Hợp đồng (Tháng 1)"
-                      value={contractCount}
-                      valueStyle={{ color: "#13c2c2", fontWeight: 600 }}
-                    />
-                  </div>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <div
-                    style={{
-                      background: "#fff",
-                      padding: 20,
-                      borderRadius: 12,
-                      textAlign: "center",
-                      cursor: "pointer",
-                      border:
-                        billTypeFilter === "MONTHLY"
-                          ? "2px solid #eb2f96"
-                          : "1px solid #e8e8e8",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                    }}
-                    onClick={() => setBillTypeFilter("MONTHLY")}
-                  >
-                    <FileTextOutlined
-                      style={{
-                        fontSize: 28,
-                        color: "#eb2f96",
-                        marginBottom: 8,
-                      }}
-                    />
-                    <Statistic
-                      title="Hóa đơn hàng tháng"
-                      value={monthlyCount}
-                      valueStyle={{ color: "#eb2f96", fontWeight: 600 }}
-                    />
-                  </div>
-                </Col>
-                <Col xs={24} sm={12} md={6}>
-                  <div
-                    style={{
-                      background: "#fff",
-                      padding: 20,
-                      borderRadius: 12,
-                      textAlign: "center",
-                      cursor: "pointer",
-                      border:
-                        billTypeFilter === "ALL"
-                          ? "2px solid #1890ff"
-                          : "1px solid #e8e8e8",
-                      boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-                    }}
-                    onClick={() => setBillTypeFilter("ALL")}
-                  >
-                    <FileTextOutlined
-                      style={{
-                        fontSize: 28,
-                        color: "#1890ff",
-                        marginBottom: 8,
-                      }}
-                    />
-                    <Statistic
-                      title="Tất cả loại"
-                      value={bills.length}
-                      valueStyle={{ color: "#1890ff", fontWeight: 600 }}
-                    />
-                  </div>
-                </Col>
-              </Row>
-            </div>
-          </Col>
-        </Row>
+
 
         {/* Table */}
         <Table<Bill>
