@@ -223,28 +223,16 @@ const Invoices: React.FC = () => {
   // Tính tổng amountDue của các bill chưa thanh toán (không trừ amountPaid)
   const totalUnpaid = unpaidBills.reduce((sum, bill) => sum + bill.amountDue, 0);
   
-  // Tính tổng "Đã thanh toán":
-  // Tính tổng từ lineItems của tất cả bills đã thanh toán (giống như hiển thị trong chi tiết)
-  // Đặc biệt với CONTRACT bill: tính tổng 3 khoản (Cọc giữ phòng + Cọc 1 tháng + Tiền phòng tháng đầu)
+  // Tính tổng "Đã thanh toán": 
+  // - Không tính RECEIPT bill (tiền cọc giữ phòng) vì nó được tính riêng
+  // - Chỉ tính CONTRACT và MONTHLY bills
   const totalPaid = paidBills.reduce((sum, bill) => {
-    // Tính tổng từ lineItems (các khoản phí trong chi tiết)
-    if (bill.lineItems && bill.lineItems.length > 0) {
-      const calculatedAmount = bill.lineItems.reduce((itemSum: number, item: any) => {
-        return itemSum + (Number(item.lineTotal) || 0);
-      }, 0);
-      return sum + calculatedAmount;
+    // Bỏ qua RECEIPT bills khi tính tổng "Đã thanh toán"
+    // Vì RECEIPT (tiền cọc giữ phòng) là khoản riêng biệt, không liên quan đến tổng thanh toán hóa đơn
+    if (bill.billType === "RECEIPT") {
+      return sum;
     }
-   
-    // Fallback: nếu không có lineItems, dùng amountPaid hoặc amountDue
-    if (bill.amountPaid && bill.amountPaid > 0) {
-      return sum + bill.amountPaid;
-    }
-   
-    if (bill.status === "PAID" && bill.amountDue > 0) {
-      return sum + bill.amountDue;
-    }
-   
-    return sum;
+    return sum + (bill.amountPaid || 0);
   }, 0);
 
   const getStatusTag = (status: string) => {

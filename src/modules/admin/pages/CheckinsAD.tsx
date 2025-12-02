@@ -26,7 +26,6 @@ import {
   CheckOutlined,
   SendOutlined,
   DownloadOutlined,
-  EyeOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { Checkin } from "../../../types/checkin";
@@ -206,8 +205,6 @@ const CheckinsAD: React.FC = () => {
       }
 
       // Load FinalContract cho từng finalContractId
-      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
-      const token = localStorage.getItem("admin_token");
       const newFinalContractsMap = new Map<string, any>();
 
       await Promise.all(
@@ -508,7 +505,9 @@ const CheckinsAD: React.FC = () => {
       dataIndex: "status",
       key: "status",
       render: (_: any, record: Checkin) => {
-        // Hiển thị trạng thái của receiptBill thay vì trạng thái checkin
+        if (record.status === "CANCELED") {
+          return <Tag color="error">Đã hủy</Tag>;
+        }
         const receiptBill = typeof record.receiptBillId === "object" ? record.receiptBillId : null;
         if (receiptBill) {
           const billStatus = (receiptBill as any).status;
@@ -523,7 +522,6 @@ const CheckinsAD: React.FC = () => {
           const m = map[billStatus] || { color: "default", text: billStatus || "Trạng thái" };
           return <Tag color={m.color}>{m.text}</Tag>;
         }
-        // Fallback: hiển thị trạng thái checkin nếu chưa có bill
         return getStatusTag(record.status);
       },
     },
@@ -601,6 +599,9 @@ const CheckinsAD: React.FC = () => {
       align: "center",
       width: 200,
       render: (_: any, record: Checkin) => {
+        if (record.status === "CANCELED") {
+          return <span style={{ color: "#999" }}>-</span>;
+        }
         const receiptBill = typeof record.receiptBillId === "object" ? record.receiptBillId : null;
         const receiptBillId = receiptBill ? (receiptBill as any)._id : (typeof record.receiptBillId === "string" ? record.receiptBillId : null);
         const isPendingCash = receiptBill && (receiptBill as any).status === "PENDING_CASH_CONFIRM";
@@ -657,10 +658,10 @@ const CheckinsAD: React.FC = () => {
                 type="default"
                 icon={<DownloadOutlined />}
                 onClick={() => handleDownloadDocx(record._id)}
-                disabled={record.status === "CANCELED" || !isPaid}
+                disabled={(record.status as string) === "CANCELED" || !isPaid}
               />
             </Tooltip>
-            {record.status === "CREATED" && (
+            {record.status === "CREATED" && isUnpaid && (
               <Tooltip title="Hủy">
                 <Popconfirm
                   title="Hủy check-in này? (Sẽ mất 100% tiền cọc)"
@@ -784,7 +785,11 @@ const CheckinsAD: React.FC = () => {
                   min={0}
                   style={{ width: "100%" }}
                   formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-                  parser={(value) => value!.replace(/\$\s?|(,*)/g, "")}
+                  parser={(value) => {
+                    if (!value) return 0 as any;
+                    const parsed = value.replace(/\$\s?|(,*)/g, "");
+                    return (parsed === "" ? 0 : Number(parsed) || 0) as any;
+                  }}
                   placeholder="Nhập tiền cọc (tối thiểu 500,000 VNĐ)"
                 />
               </Form.Item>
