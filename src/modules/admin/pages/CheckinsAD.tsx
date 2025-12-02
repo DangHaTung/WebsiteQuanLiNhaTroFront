@@ -33,6 +33,7 @@ import type { Checkin } from "../../../types/checkin";
 import type { Room } from "../../../types/room";
 import type { User } from "../../../types/user";
 import dayjs, { Dayjs } from "dayjs";
+import { useLocation } from "react-router-dom";
 import { adminCheckinService } from "../services/checkin";
 import { adminRoomService } from "../services/room";
 import { adminUserService } from "../services/user";
@@ -55,6 +56,7 @@ interface CheckinFormValues {
 }
 
 const CheckinsAD: React.FC = () => {
+  const location = useLocation();
   const [checkins, setCheckins] = useState<Checkin[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -80,29 +82,41 @@ const CheckinsAD: React.FC = () => {
   // State để theo dõi đã load các dữ liệu phụ chưa
   const [hasLoadedRooms, setHasLoadedRooms] = useState(false);
   const [hasLoadedUsers, setHasLoadedUsers] = useState(false);
-  
-  // Map để lưu bill CONTRACT theo finalContractId (key: finalContractId, value: bill CONTRACT)
+   // Map để lưu bill CONTRACT theo finalContractId (key: finalContractId, value: bill CONTRACT)
   const [contractBillsMap, setContractBillsMap] = useState<Map<string, any>>(new Map());
-  
-  // Map để lưu FinalContract info theo finalContractId (key: finalContractId, value: FinalContract)
+   // Map để lưu FinalContract info theo finalContractId (key: finalContractId, value: FinalContract)
   const [finalContractsMap, setFinalContractsMap] = useState<Map<string, any>>(new Map());
 
   useEffect(() => {
     loadCheckins();
   }, []);
 
+  // Xử lý tự động mở drawer khi có checkinId từ state (khi navigate từ RoomDetailDrawer)
+  useEffect(() => {
+    const state = location.state as { checkinId?: string } | null;
+    if (state?.checkinId && checkins.length > 0) {
+      const checkin = checkins.find((c) => c._id === state.checkinId);
+      if (checkin) {
+        setSelectedCheckin(checkin);
+        setDetailVisible(true);
+        // Clear state để tránh mở lại khi refresh
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [location.state, checkins]);
+
   const loadCheckins = async () => {
     try {
       setLoading(true);
       const response = await adminCheckinService.getAll({ limit: 100 });
       const allCheckins = response.data || [];
-      
+     
       // Hiển thị tất cả checkins, không ẩn bất kỳ checkin nào (kể cả đã thanh toán)
       setCheckins(allCheckins);
-      
+     
       // Load các bill CONTRACT để kiểm tra trạng thái thanh toán
       await loadContractBills(allCheckins);
-      
+     
       // Load FinalContract info để kiểm tra images
       await loadFinalContracts(allCheckins);
     } catch (error: any) {
@@ -116,12 +130,12 @@ const CheckinsAD: React.FC = () => {
   const loadContractBills = async (checkins: Checkin[]) => {
     try {
       const finalContractIds = new Set<string>();
-      
+     
       // Lấy tất cả finalContractId từ checkins
       checkins.forEach((checkin: any) => {
         if (checkin.finalContractId) {
-          const fcId = typeof checkin.finalContractId === 'string' 
-            ? checkin.finalContractId 
+          const fcId = typeof checkin.finalContractId === 'string'
+            ? checkin.finalContractId
             : checkin.finalContractId._id;
           if (fcId) {
             finalContractIds.add(fcId);
@@ -149,12 +163,12 @@ const CheckinsAD: React.FC = () => {
             });
             const data = await response.json();
             const bills = data.data || [];
-            
+           
             // Tìm bill CONTRACT đã thanh toán (PAID)
-            const paidContractBill = bills.find((bill: any) => 
+            const paidContractBill = bills.find((bill: any) =>
               bill.billType === "CONTRACT" && bill.status === "PAID"
             );
-            
+           
             if (paidContractBill) {
               newContractBillsMap.set(fcId, paidContractBill);
             }
@@ -174,12 +188,12 @@ const CheckinsAD: React.FC = () => {
   const loadFinalContracts = async (checkins: Checkin[]) => {
     try {
       const finalContractIds = new Set<string>();
-      
+     
       // Lấy tất cả finalContractId từ checkins
       checkins.forEach((checkin: any) => {
         if (checkin.finalContractId) {
-          const fcId = typeof checkin.finalContractId === 'string' 
-            ? checkin.finalContractId 
+          const fcId = typeof checkin.finalContractId === 'string'
+            ? checkin.finalContractId
             : checkin.finalContractId._id;
           if (fcId) {
             finalContractIds.add(fcId);
@@ -305,7 +319,7 @@ const CheckinsAD: React.FC = () => {
   const handleSave = async () => {
     try {
       const values = await form.validateFields();
-      
+     
       // Validate CCCD images
       if (!cccdFrontFile || !cccdBackFile) {
         message.error("Vui lòng upload đầy đủ ảnh CCCD mặt trước và mặt sau");
@@ -319,7 +333,7 @@ const CheckinsAD: React.FC = () => {
       formData.append("deposit", values.deposit.toString());
       // Mặc định là ONLINE vì khách hàng sẽ tự chọn phương thức thanh toán ở client
       formData.append("paymentMethod", "ONLINE");
-      
+     
       if (values.identityNo) {
         formData.append("identityNo", values.identityNo);
       }
@@ -340,7 +354,7 @@ const CheckinsAD: React.FC = () => {
       formData.append("cccdBack", cccdBackFile);
 
       setLoading(true);
-      
+     
       // Luôn dùng createOnlineWithFiles vì khách sẽ thanh toán online ở client
       await adminCheckinService.createOnlineWithFiles(formData);
 
@@ -385,7 +399,7 @@ const CheckinsAD: React.FC = () => {
         `Đã tạo link thanh toán! Link: ${result.paymentUrl}`,
         10
       );
-      
+     
       // Copy link to clipboard
       if (navigator.clipboard) {
         await navigator.clipboard.writeText(result.paymentUrl);
@@ -530,12 +544,12 @@ const CheckinsAD: React.FC = () => {
           const fcId = typeof finalContractId === 'string' ? finalContractId : finalContractId._id;
           const contractBill = contractBillsMap.get(fcId);
           const finalContract = finalContractsMap.get(fcId);
-          
+         
           // Nếu bill CONTRACT đã thanh toán (PAID)
           if (contractBill && contractBill.status === "PAID") {
             // Kiểm tra xem FinalContract có file upload chưa
             const hasImages = finalContract && finalContract.images && Array.isArray(finalContract.images) && finalContract.images.length > 0;
-            
+           
             if (hasImages) {
               // Đã upload file → "Hợp đồng đã được ký"
               return <Tag color="success">Hợp đồng đã được ký</Tag>;
@@ -544,22 +558,22 @@ const CheckinsAD: React.FC = () => {
               return <Tag color="gold">Chờ upload file</Tag>;
             }
           }
-          
+         
           // Nếu có finalContractId nhưng chưa thanh toán bill CONTRACT, hiển thị đếm ngược
         }
-        
+       
         // Nếu chưa có receiptPaidAt, chưa thanh toán phiếu thu
         if (!record.receiptPaidAt) {
           return <Tag color="default">Chưa bắt đầu</Tag>;
         }
-        
+       
         // Hiển thị đếm ngược thời hạn (3 ngày từ khi thanh toán phiếu thu)
         const receiptPaidAt = dayjs(record.receiptPaidAt);
         const now = dayjs();
         const expirationDate = receiptPaidAt.add(3, 'day');
         const daysRemaining = expirationDate.diff(now, 'day', true);
         const hoursRemaining = expirationDate.diff(now, 'hour', true);
-        
+       
         if (daysRemaining < 0) {
           return <Tag color="error">Đã hết hạn</Tag>;
         } else if (daysRemaining < 1) {
