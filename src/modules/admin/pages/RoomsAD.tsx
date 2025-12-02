@@ -21,7 +21,6 @@ import {
 import {
   PlusOutlined,
   EditOutlined,
-  DeleteOutlined,
   ApartmentOutlined,
   SettingOutlined,
   AppstoreOutlined,
@@ -32,7 +31,6 @@ import { adminRoomService } from "../services/room";
 import type { Room } from "../../../types/room";
 import "../../../assets/styles/roomAd.css";
 import RoomDetailDrawer from "../components/RoomDetailDrawer";
-import { isAdmin } from "../../../utils/roleChecker";
 import ExpandableSearch from "../components/ExpandableSearch";
 import type { ColumnsType } from "antd/es/table";
 
@@ -174,24 +172,7 @@ const RoomsAD: React.FC = () => {
     setRemovedImages([]);
   };
 
-  const onDelete = (room: Room) => {
-    Modal.confirm({
-      title: "Xác nhận xóa",
-      content: `Bạn có chắc chắn muốn xóa phòng ${room.roomNumber}?`,
-      okText: "Xóa",
-      cancelText: "Hủy",
-      okButtonProps: { danger: true },
-      onOk: async () => {
-        try {
-          await adminRoomService.remove(room._id!);
-          message.success("Xóa phòng thành công!");
-          fetchRooms();
-        } catch (error) {
-          message.error("Xóa phòng thất bại!");
-        }
-      },
-    });
-  };
+
 
   // Thống kê
   const availableCount = useMemo(() => rooms.filter((r) => r.status === "AVAILABLE").length, [rooms]);
@@ -408,21 +389,6 @@ const RoomsAD: React.FC = () => {
               className="btn-hover"
             />
           </Tooltip>
-          {isAdmin() && (
-            <Tooltip title="Xóa">
-              <Button
-                type="primary"
-                danger
-                icon={<DeleteOutlined />}
-                shape="circle"
-                onClick={(e) => {
-                  e?.stopPropagation();
-                  onDelete(record);
-                }}
-                className="btn-hover"
-              />
-            </Tooltip>
-          )}
         </Space>
       ),
     },
