@@ -1,9 +1,12 @@
 import { useState, useEffect } from "react";
-import { Card, Descriptions, Divider, Image, Space, Tag, Table, Button, message, Modal } from "antd";
+import { Card, Descriptions, Divider, Image, Space, Tag, Table, Button, message, Modal, Row, Col, Typography } from "antd";
 import { FileTextOutlined, FilePdfOutlined, EyeOutlined, DollarOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import api from "../services/api";
 import { clientBillService } from "../services/bill";
+
+const { Text } = Typography;
+
 // Định nghĩa kiểu dữ liệu hợp đồng
 interface FinalContract {
   _id: string;
@@ -13,6 +16,7 @@ interface FinalContract {
   deposit: number;
   monthlyRent: number;
   status: "DRAFT" | "WAITING_SIGN" | "SIGNED" | "CANCELED";
+  originContractId?: string | { _id: string };
   images?: Array<{ url: string; secure_url: string; viewUrl?: string; format?: string }>;
   createdAt: string;
 }
@@ -87,17 +91,99 @@ const MyContractsDetail = () => {
       setLoading(false);
     }
   };
+// Helper function để convert số
+const convertToNumber = (value: any): number => {
+  if (typeof value === 'number' && !isNaN(value)) {
+    return value;
+  } else if (typeof value === 'string') {
+    return parseFloat(value) || 0;
+  } else if (value && typeof value.toString === 'function') {
+    return parseFloat(value.toString()) || 0;
+  }
+  return 0;
+};
+
 // Hàm mở modal chi tiết hợp đồng
   const openDetail = async (contract: FinalContract) => {
     setSelectedContract(contract);
     setViewModalVisible(true);
-    // Load hóa đơn liên quan hợp đồng
+    setBills([]); // Clear bills
+    
+    // Load full contract details với originContractId
     try {
-      const billsData = await clientBillService.getBillsByFinalContract(contract._id);
-      setBills(billsData);
+      const fullContractResponse = await api.get(`/final-contracts/public/${contract._id}`);
+      const fullContract = fullContractResponse.data.data;
+      setSelectedContract(fullContract);
+      
+      // Load bills từ contractId (giống admin)
+      const contractId = typeof fullContract.originContractId === 'string' 
+        ? fullContract.originContractId 
+        : (fullContract.originContractId as { _id: string } | undefined)?._id;
+      
+      if (contractId) {
+        try {
+          const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+          const token = localStorage.getItem("token");
+          
+          // Load bills từ my-bills API
+          const myBillsResponse = await fetch(`${apiUrl}/api/bills/my-bills?limit=100`, {
+            headers: { "Authorization": `Bearer ${token}` },
+          });
+          
+          const myBillsData = await myBillsResponse.json();
+          const allBillsFromMyBills = myBillsData.data || [];
+          
+          // Filter: lấy RECEIPT và CONTRACT bills liên quan đến contract này
+          const contractBills = allBillsFromMyBills.filter((bill: any) => {
+            const billContractId = typeof bill.contractId === 'object' && (bill.contractId as any)?._id 
+              ? (bill.contractId as any)._id 
+              : bill.contractId;
+            
+            // Lấy RECEIPT và CONTRACT bills có cùng contractId
+            if (billContractId === contractId && (bill.billType === "RECEIPT" || bill.billType === "CONTRACT")) {
+              // Nếu là CONTRACT bill, kiểm tra finalContractId (nếu có)
+              if (bill.billType === "CONTRACT") {
+                const billFinalContractId = typeof bill.finalContractId === 'string' 
+                  ? bill.finalContractId 
+                  : bill.finalContractId?._id;
+                // Nếu có finalContractId, chỉ hiển thị nếu khớp với FinalContract hiện tại
+                if (billFinalContractId) {
+                  return billFinalContractId === fullContract._id;
+                }
+                // Nếu không có finalContractId (bill CONTRACT cũ), vẫn hiển thị
+                return true;
+              }
+              // RECEIPT bill: luôn hiển thị nếu có cùng contractId
+              return true;
+            }
+            return false;
+          });
+          
+          setBills(contractBills);
+        } catch (error) {
+          console.error("Load bills error:", error);
+          setBills([]);
+        }
+      } else {
+        // Fallback: load từ finalContractId nếu không có contractId
+        try {
+          const billsData = await clientBillService.getBillsByFinalContract(contract._id);
+          setBills(billsData);
+        } catch (error) {
+          console.error("Load bills error:", error);
+          setBills([]);
+        }
+      }
     } catch (error) {
-      console.error("Load bills error:", error);
-      setBills([]);
+      console.error("Load contract detail error:", error);
+      // Fallback: load từ finalContractId
+      try {
+        const billsData = await clientBillService.getBillsByFinalContract(contract._id);
+        setBills(billsData);
+      } catch (err) {
+        console.error("Load bills error:", err);
+        setBills([]);
+      }
     }
   };
 // Hàm hiển thị tag trạng thái hợp đồng
@@ -135,15 +221,6 @@ const MyContractsDetail = () => {
     };
     const s = statusMap[status] || { color: "default", text: status };
     return <Tag color={s.color}>{s.text}</Tag>;
-  };
-  const getBillTypeTag = (billType: string) => {
-    const map: Record<string, { color: string; text: string }> = {
-      RECEIPT: { color: "purple", text: "Phiếu thu (Cọc)" },
-      CONTRACT: { color: "cyan", text: "Hợp đồng" },
-      MONTHLY: { color: "magenta", text: "Hàng tháng" },
-    };
-    const m = map[billType] || { color: "default", text: billType };
-    return <Tag color={m.color}>{m.text}</Tag>;
   };
 // Định nghĩa cột cho bảng hợp đồng
   const columns = [
@@ -243,50 +320,135 @@ const MyContractsDetail = () => {
             </Descriptions>
 
             <Divider orientation="left">
-              <DollarOutlined /> Hóa đơn
+              <DollarOutlined /> Hóa đơn thanh toán
             </Divider>
             {bills.length > 0 ? (
-              <Table
-                size="small"
-                dataSource={bills}
-                rowKey="_id"
-                pagination={false}
-                columns={[
-                  {
-                    title: "Loại",
-                    dataIndex: "billType",
-                    render: (type: string) => getBillTypeTag(type),
-                  },
-                  {
-                    title: "Tổng tiền",
-                    dataIndex: "amountDue",
-                    render: (amount: number, record: any) => {
-                      let totalAmount = amount;
-                      if (record.status === "PAID" && amount === 0) {
-                        totalAmount = record.amountPaid || 0;
-                      } else if (record.status === "PARTIALLY_PAID") {
-                        totalAmount = amount + (record.amountPaid || 0);
+              <div>
+                {(() => {
+                  // Tìm RECEIPT bill và CONTRACT bill
+                  const receiptBill = bills.find((b: any) => b.billType === "RECEIPT");
+                  const contractBill = bills.find((b: any) => b.billType === "CONTRACT");
+                  
+                  // Tính toán các khoản
+                  let receiptAmount = 0;
+                  let receiptStatus = "Chưa thanh toán";
+                  if (receiptBill) {
+                    if (receiptBill.status === "PAID") {
+                      receiptAmount = convertToNumber(receiptBill.amountPaid);
+                      if (receiptAmount === 0 && receiptBill.lineItems && receiptBill.lineItems.length > 0) {
+                        receiptAmount = convertToNumber(receiptBill.lineItems[0]?.lineTotal);
                       }
-                      if (totalAmount === 0 && record.lineItems && record.lineItems.length > 0) {
-                        totalAmount = record.lineItems.reduce((sum: number, item: any) => {
-                          return sum + (Number(item.lineTotal) || 0);
-                        }, 0);
-                      }
-                      return `${totalAmount?.toLocaleString("vi-VN")} đ`;
-                    },
-                  },
-                  {
-                    title: "Đã thanh toán",
-                    dataIndex: "amountPaid",
-                    render: (val: number) => `${val?.toLocaleString("vi-VN")} đ`,
-                  },
-                  {
-                    title: "Trạng thái",
-                    dataIndex: "status",
-                    render: (status: string) => getBillStatusTag(status),
-                  },
-                ]}
-              />
+                      receiptStatus = "Đã thanh toán";
+                    } else {
+                      receiptAmount = convertToNumber(receiptBill.amountDue);
+                      receiptStatus = receiptBill.status === "PENDING_CASH_CONFIRM" ? "Chờ xác nhận tiền mặt" : "Chờ thanh toán";
+                    }
+                  }
+
+                  // Lấy từ lineItems của CONTRACT bill
+                  let depositRemaining = 0; // Cọc còn lại
+                  let firstMonthRent = 0; // Tiền thuê tháng đầu
+                  let contractStatus = "Chờ thanh toán";
+                  
+                  if (contractBill) {
+                    contractStatus = contractBill.status === "PAID" ? "Đã thanh toán" 
+                      : contractBill.status === "PARTIALLY_PAID" ? "Thanh toán 1 phần"
+                      : contractBill.status === "PENDING_CASH_CONFIRM" ? "Chờ xác nhận tiền mặt"
+                      : "Chờ thanh toán";
+                    
+                    if (contractBill.lineItems && contractBill.lineItems.length > 0) {
+                      contractBill.lineItems.forEach((item: any) => {
+                        const itemName = item.item || "";
+                        const itemTotal = convertToNumber(item.lineTotal);
+                        if (itemName.includes("Tiền cọc")) {
+                          depositRemaining = itemTotal;
+                        } else if (itemName.includes("Tiền thuê tháng đầu")) {
+                          firstMonthRent = itemTotal;
+                        }
+                      });
+                    }
+                  }
+
+                  return (
+                    <div>
+                      {/* 1. Cọc giữ phòng */}
+                      {receiptBill && (
+                        <div style={{ marginBottom: 16, padding: 12, border: "1px solid #d9d9d9", borderRadius: 4 }}>
+                          <Row justify="space-between" align="middle">
+                            <Col>
+                              <Text strong>1. Cọc giữ phòng</Text>
+                            </Col>
+                            <Col>
+                              <Space>
+                                <Text strong style={{ color: "#1890ff", fontSize: 16 }}>
+                                  {receiptAmount.toLocaleString("vi-VN")} đ
+                                </Text>
+                                <Tag color={receiptBill.status === "PAID" ? "success" : "warning"}>
+                                  {receiptStatus}
+                                </Tag>
+                              </Space>
+                            </Col>
+                          </Row>
+                        </div>
+                      )}
+
+                      {/* 2. Cọc 1 tháng tiền phòng */}
+                      {contractBill && depositRemaining > 0 && (
+                        <div style={{ marginBottom: 16, padding: 12, border: "1px solid #d9d9d9", borderRadius: 4 }}>
+                          <Row justify="space-between" align="middle">
+                            <Col>
+                              <Text strong>2. Cọc 1 tháng tiền phòng</Text>
+                            </Col>
+                            <Col>
+                              <Space>
+                                <Text strong style={{ color: "#1890ff", fontSize: 16 }}>
+                                  {depositRemaining.toLocaleString("vi-VN")} đ
+                                </Text>
+                                <Tag color={
+                                  contractBill.status === "PAID" ? "success" 
+                                  : contractBill.status === "PENDING_CASH_CONFIRM" ? "warning"
+                                  : "error"
+                                }>
+                                  {contractBill.status === "PAID" ? "Đã thanh toán"
+                                    : contractBill.status === "PENDING_CASH_CONFIRM" ? "Chờ xác nhận tiền mặt"
+                                    : "Chờ thanh toán"}
+                                </Tag>
+                              </Space>
+                            </Col>
+                          </Row>
+                        </div>
+                      )}
+
+                      {/* 3. Tiền phòng tháng đầu */}
+                      {contractBill && firstMonthRent > 0 && (
+                        <div style={{ marginBottom: 16, padding: 12, border: "1px solid #d9d9d9", borderRadius: 4 }}>
+                          <Row justify="space-between" align="middle">
+                            <Col>
+                              <Text strong>3. Tiền phòng tháng đầu</Text>
+                            </Col>
+                            <Col>
+                              <Space>
+                                <Text strong style={{ color: "#1890ff", fontSize: 16 }}>
+                                  {firstMonthRent.toLocaleString("vi-VN")} đ
+                                </Text>
+                                <Tag color={
+                                  contractBill.status === "PAID" ? "success" 
+                                  : contractBill.status === "PENDING_CASH_CONFIRM" ? "warning"
+                                  : "error"
+                                }>
+                                  {contractBill.status === "PAID" ? "Đã thanh toán"
+                                    : contractBill.status === "PENDING_CASH_CONFIRM" ? "Chờ xác nhận tiền mặt"
+                                    : "Chờ thanh toán"}
+                                </Tag>
+                              </Space>
+                            </Col>
+                          </Row>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
             ) : (
               <p style={{ textAlign: "center", color: "#999" }}>Không có hóa đơn</p>
             )}
