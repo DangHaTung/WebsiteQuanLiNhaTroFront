@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Avatar, Button, Card, Form, Input, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message, Row, Col, Statistic } from "antd";
-import { PlusOutlined, EditOutlined, DeleteOutlined, UserOutlined, TeamOutlined } from "@ant-design/icons";
+import { Avatar, Button, Card, Form, Input, Modal, Table, Tag, Typography, message, Row, Col, Statistic } from "antd";
+import { PlusOutlined, EditOutlined, UserOutlined, TeamOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { motion } from "framer-motion";
 import type { User, UserRole } from "../../../types/user";
@@ -8,7 +8,6 @@ import { adminUserService } from "../services/user";
 import ExpandableSearch from "../components/ExpandableSearch";
 
 const { Title } = Typography;
-const { Option } = Select;
 
 type FormValues = Partial<User> & { password?: string };
 
@@ -19,7 +18,7 @@ const Users: React.FC = () => {
     const [editing, setEditing] = useState<User | null>(null);
     const [form] = Form.useForm<FormValues>();
     const [keyword, setKeyword] = useState<string>("");
-    const [roleFilter, setRoleFilter] = useState<string | undefined>(undefined);
+    const [roleFilter] = useState<string | undefined>(undefined);
 
     useEffect(() => {
         let mounted = true;
@@ -93,13 +92,7 @@ const Users: React.FC = () => {
         } catch (e) { }
     };
 
-    const handleDelete = async (id?: string) => {
-        const key = id ?? "";
-        if (!key) return;
-        await adminUserService.remove(key);
-        setUsers((prev) => prev.filter((u) => (u._id ?? u.id) !== key));
-        message.success("Đã xóa người dùng!");
-    };
+
 
     const filteredUsers = useMemo(() => {
         let data = [...users];
@@ -189,31 +182,13 @@ const Users: React.FC = () => {
             key: "actions",
             align: "center",
             render: (_: any, record: User) => (
-                <Space>
-                    <Button
-                        type="primary"
-                        icon={<EditOutlined />}
-                        shape="circle"
-                        onClick={() => openModal(record)}
-                        className="btn-hover"
-                    />
-                    <Tooltip title="Xóa">
-                        <Popconfirm
-                            title="Xóa người dùng này?"
-                            okText="Xóa"
-                            cancelText="Hủy"
-                            onConfirm={() => handleDelete(record._id)}
-                        >
-                            <Button
-                                type="primary"
-                                danger
-                                icon={<DeleteOutlined />}
-                                shape="circle"
-                                className="btn-hover"
-                            />
-                        </Popconfirm>
-                    </Tooltip>
-                </Space>
+                <Button
+                    type="primary"
+                    icon={<EditOutlined />}
+                    shape="circle"
+                    onClick={() => openModal(record)}
+                    className="btn-hover"
+                />
             ),
         },
     ];
