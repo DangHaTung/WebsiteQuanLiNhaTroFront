@@ -150,14 +150,12 @@ const Users: React.FC = () => {
             filters: [
                 { text: "Quản trị", value: "ADMIN" },
                 { text: "Người dùng", value: "TENANT" },
-                { text: "Nhân viên", value: "STAFF" },
             ],
             onFilter: (value: boolean | React.Key, record: User) => String(record.role) === String(value),
             render: (role: string) => {
                 const map: Record<string, { color: string; text: string }> = {
                     ADMIN: { color: "#fa8c16", text: "Quản trị" },
                     TENANT: { color: "#52c41a", text: "Người dùng" },
-                    STAFF: { color: "#1890ff", text: "Nhân viên" },
                 };
                 const m = map[role] || { color: "#8c8c8c", text: role };
                 return (
@@ -252,10 +250,9 @@ const Users: React.FC = () => {
                             <Row gutter={[16, 16]} justify="end">
                                 {[
                                     { label: "Quản trị", icon: <UserOutlined />, color: "#fa8c16", value: users.filter((u) => u.role === "ADMIN").length },
-                                    { label: "Nhân viên", icon: <UserOutlined />, color: "#1677ff", value: users.filter((u) => u.role === "STAFF").length },
                                     { label: "Người dùng", icon: <UserOutlined />, color: "#52c41a", value: users.filter((u) => u.role === "TENANT" as UserRole).length },
                                 ].map((item, idx) => (
-                                    <Col xs={24} sm={8} key={idx}>
+                                    <Col xs={24} sm={12} key={idx}>
                                         <Card
                                             size="small"
                                             bordered={false}
@@ -265,6 +262,8 @@ const Users: React.FC = () => {
                                                 background: "white",
                                                 boxShadow: "0 3px 10px rgba(0,0,0,0.06)",
                                                 padding: 12,
+                                                height: "100%",
+                                                minHeight: 100
                                             }}
                                         >
                                             <Statistic
@@ -276,6 +275,8 @@ const Users: React.FC = () => {
                                                             alignItems: "center",
                                                             justifyContent: "center",
                                                             gap: 6,
+                                                            minHeight: 24,
+                                                            whiteSpace: "nowrap"
                                                         }}
                                                     >
                                                         {item.icon}
