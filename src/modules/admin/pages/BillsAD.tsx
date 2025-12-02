@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, DatePicker, Form, InputNumber, Modal, Select, Table, Tag, Tooltip, Typography, message, Row, Col, Statistic } from "antd";
-import { PlusOutlined, EditOutlined, FileTextOutlined } from "@ant-design/icons";
+import { Button, DatePicker, Form, InputNumber, Modal, Select, Table, Tag, Typography, message, Row, Col, Statistic } from "antd";
+import { PlusOutlined, FileTextOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { Bill, BillStatus, BillType } from "../../../types/bill";
 import type { Tenant } from "../../../types/tenant";
@@ -43,7 +43,6 @@ const BillsAD: React.FC = () => {
     const [users, setUsers] = useState<User[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-    const [editing, setEditing] = useState<Bill | null>(null);
     const [form] = Form.useForm<BillFormValues>();
     const [statusFilter, setStatusFilter] = useState<BillStatus | "ALL">("ALL");
     const [billTypeFilter, setBillTypeFilter] = useState<BillType | "ALL">("ALL");
@@ -148,50 +147,23 @@ const BillsAD: React.FC = () => {
         }
     };
 
-    const openModal = async (record?: Bill) => {
+    const openModal = async () => {
         // Chỉ load contracts và users khi mở modal (vì cần cho dropdown)
         await loadContractsIfNeeded();
         await loadUsersIfNeeded();
 
-        if (record) {
-            setEditing(record);
-            const contractId = typeof record.contractId === "string" ? record.contractId : record.contractId?._id;
-            const tenantId = (record as any).tenantId ? (typeof (record as any).tenantId === "string" ? (record as any).tenantId : (record as any).tenantId?._id) : undefined;
-            form.setFieldsValue({
-                contractId,
-                billingDate: dayjs(record.billingDate),
-                billType: record.billType,
-                status: record.status,
-                amountDue: Number(record.amountDue || 0),
-                amountPaid: Number(record.amountPaid || 0),
-                tenantId,
-            });
-        } else {
-            setEditing(null);
-            form.resetFields();
-            form.setFieldsValue({ status: "UNPAID", billType: "MONTHLY" } as any);
-        }
+        form.resetFields();
+        form.setFieldsValue({ status: "UNPAID", billType: "MONTHLY" } as any);
         setIsModalOpen(true);
     };
 
     const closeModal = () => {
         setIsModalOpen(false);
-        setEditing(null);
     };
 
     const handleSave = async () => {
         try {
             const values = await form.validateFields();
-            // Nếu hóa đơn đang ở trạng thái PAID, không cho phép chuyển về trạng thái khác
-            if (editing?.status === "PAID" && values.status !== "PAID") {
-                message.error("Hóa đơn đã thanh toán, không thể chuyển về chưa thanh toán hoặc hủy");
-                return;
-            }
-            // Nếu hóa đơn đang ở trạng thái PARTIALLY_PAID, không cho phép chuyển về UNPAID hoặc VOID (cho phép chuyển lên PAID)
-            if (editing?.status === "PARTIALLY_PAID" && (values.status === "UNPAID" || values.status === ("VOID" as any))) {
-                message.error("Hóa đơn đã thanh toán một phần, không thể chuyển về chưa thanh toán hoặc hủy");
-                return;
-            }
             const payload: any = {
                 contractId: values.contractId,
                 billingDate: values.billingDate.toISOString(),
@@ -199,7 +171,7 @@ const BillsAD: React.FC = () => {
                 status: values.status,
                 amountDue: values.amountDue ?? 0,
                 amountPaid: values.amountPaid ?? 0,
-                lineItems: editing?.lineItems || [{
+                lineItems: [{
                     item: "Tiền thuê phòng",
                     quantity: 1,
                     unitPrice: values.amountDue ?? 0,
@@ -212,13 +184,8 @@ const BillsAD: React.FC = () => {
                 payload.tenantId = values.tenantId;
             }
 
-            if (editing) {
-                await adminBillService.update(editing._id, payload);
-                message.success("Cập nhật hóa đơn thành công!");
-            } else {
-                await adminBillService.create(payload);
-                message.success("Thêm hóa đơn thành công!");
-            }
+            await adminBillService.create(payload);
+            message.success("Thêm hóa đơn thành công!");
             closeModal();
             loadBills();
         } catch (error: any) {
@@ -368,23 +335,7 @@ const BillsAD: React.FC = () => {
                 return display.toLocaleString("vi-VN");
             },
         },
-        {
-            title: "",
-            key: "actions",
-            align: "center",
-            width: 80,
-            render: (_: any, record: Bill) => (
-                <Tooltip title="Sửa">
-                    <Button
-                        shape="circle"
-                        type="primary"
-                        icon={<EditOutlined />}
-                        className="btn-hover"
-                        onClick={(e) => { e.stopPropagation(); openModal(record); }}
-                    />
-                </Tooltip>
-            ),
-        },
+
     ];
 
     return (
@@ -558,9 +509,9 @@ const BillsAD: React.FC = () => {
                 />
             </div>
 
-            {/* Modal (Add/Edit) */}
+            {/* Modal (Add) */}
             <Modal
-                title={editing ? "Chỉnh sửa hóa đơn" : "Thêm hóa đơn"}
+                title="Thêm hóa đơn"
                 open={isModalOpen}
                 onCancel={closeModal}
                 onOk={handleSave}
@@ -614,7 +565,7 @@ const BillsAD: React.FC = () => {
                         </Col>
                         <Col xs={24} md={12}>
                             <Form.Item label="Tình trạng" name="status" initialValue="UNPAID" rules={[{ required: true }]}>
-                                <Select disabled={editing?.status === 'PAID'}>
+                                <Select>
                                     <Option value="PAID">Đã thanh toán</Option>
                                     <Option value="UNPAID">Chưa thanh toán</Option>
                                     <Option value="PARTIALLY_PAID">Một phần</Option>
