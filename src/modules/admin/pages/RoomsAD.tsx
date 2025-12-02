@@ -185,13 +185,20 @@ const RoomsAD: React.FC = () => {
       data = data.filter((r) => r.status === filterStatus);
     }
 
-    // Filter theo keyword
+    // Filter theo keyword (số phòng hoặc diện tích)
     if (keyword.trim() !== "") {
-      const k = keyword.toLowerCase();
+      const k = keyword.toLowerCase().trim();
       data = data.filter((r) => {
         const roomNumber = r.roomNumber?.toString().toLowerCase() || "";
-        const type = r.type?.toLowerCase() || "";
-        return roomNumber.includes(k) || type.includes(k);
+        const areaM2 = r.areaM2?.toString() || "";
+        
+        // Tìm theo số phòng
+        if (roomNumber.includes(k)) return true;
+        
+        // Tìm theo diện tích (chính xác hoặc gần đúng)
+        if (areaM2.includes(k)) return true;
+        
+        return false;
       });
     }
 
@@ -432,7 +439,7 @@ const RoomsAD: React.FC = () => {
                 <ExpandableSearch
                   value={keyword}
                   onChange={(e) => setKeyword(e.target.value)}
-                  placeholder="Tìm theo số phòng, loại phòng"
+                  placeholder="Tìm theo số phòng, diện tích"
                 />
               </Col>
 
