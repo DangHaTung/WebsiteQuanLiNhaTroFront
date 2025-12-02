@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Button, DatePicker, Form, InputNumber, Modal, Popconfirm, Select, Space, Table, Tag, Tooltip, Typography, message, Row, Col, Statistic } from "antd";
-import { PlusOutlined, EditOutlined, DeleteOutlined, FileTextOutlined } from "@ant-design/icons";
+import { Button, DatePicker, Form, InputNumber, Modal, Select, Table, Tag, Tooltip, Typography, message, Row, Col, Statistic } from "antd";
+import { PlusOutlined, EditOutlined, FileTextOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { Bill, BillStatus, BillType } from "../../../types/bill";
-import type { Contract } from "../../../types/contract";
 import type { Tenant } from "../../../types/tenant";
 import type { Room } from "../../../types/room";
 import dayjs, { Dayjs } from "dayjs";
@@ -15,7 +14,6 @@ import { adminUserService } from "../services/user";
 import type { User } from "../../../types/user";
 import BillDetailDrawer from "../components/BillDetailDrawer";
 import "../../../assets/styles/roomAd.css";
-import { isAdmin } from "../../../utils/roleChecker";
 import { useSearchParams } from "react-router-dom";
 
 const { Title } = Typography;
@@ -29,6 +27,12 @@ interface BillFormValues {
     amountDue: number;
     amountPaid: number;
     tenantId?: string;
+}
+
+interface Contract {
+    _id: string;
+    tenantId?: { fullName?: string } | string;
+    roomId?: { roomNumber?: string } | string;
 }
 
 const BillsAD: React.FC = () => {
@@ -222,15 +226,7 @@ const BillsAD: React.FC = () => {
         }
     };
 
-    const handleDelete = async (id: string) => {
-        try {
-            await adminBillService.remove(id);
-            message.success("Đã xóa hóa đơn!");
-            loadBills();
-        } catch (error: any) {
-            message.error(error?.response?.data?.message || "Lỗi khi xóa hóa đơn");
-        }
-    };
+
 
     const getContractInfo = (contractId: string | Contract): string => {
         if (typeof contractId === "object" && contractId?._id) {
@@ -376,38 +372,17 @@ const BillsAD: React.FC = () => {
             title: "",
             key: "actions",
             align: "center",
-            width: 120,
+            width: 80,
             render: (_: any, record: Bill) => (
-                <Space>
-                    <Tooltip title="Sửa">
-                        <Button
-                            shape="circle"
-                            type="primary"
-                            icon={<EditOutlined />}
-                            className="btn-hover"
-                            onClick={(e) => { e.stopPropagation(); openModal(record); }}
-                        />
-                    </Tooltip>
-                    {isAdmin() && (
-                        <Tooltip title="Xóa">
-                            <Popconfirm
-                                title="Xóa hóa đơn này?"
-                                okText="Xóa"
-                                cancelText="Hủy"
-                                onConfirm={() => handleDelete(record._id)}
-                            >
-                                <Button
-                                    shape="circle"
-                                    type="primary"
-                                    danger
-                                    icon={<DeleteOutlined />}
-                                    className="btn-hover"
-                                    onClick={(e) => e.stopPropagation()}
-                                />
-                            </Popconfirm>
-                        </Tooltip>
-                    )}
-                </Space>
+                <Tooltip title="Sửa">
+                    <Button
+                        shape="circle"
+                        type="primary"
+                        icon={<EditOutlined />}
+                        className="btn-hover"
+                        onClick={(e) => { e.stopPropagation(); openModal(record); }}
+                    />
+                </Tooltip>
             ),
         },
     ];
