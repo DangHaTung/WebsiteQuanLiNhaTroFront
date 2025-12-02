@@ -274,26 +274,93 @@ const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
               <Divider orientation="left"><DollarOutlined /> Chi tiết các khoản thu</Divider>
               <Table
                 dataSource={(() => {
-                  // Nếu là bill CONTRACT và có receiptBill, thêm "Cọc giữ phòng" vào đầu
-                  if (bill.billType === "CONTRACT" && receiptBill && receiptBill.lineItems && receiptBill.lineItems.length > 0) {
-                    const receiptItem = receiptBill.lineItems[0];
-                    const contractItems = bill.lineItems.map((item: any) => {
-                      // Đổi tên cho đúng
-                      let itemName = item.item || "";
-                      if (itemName.includes("Tiền cọc")) {
-                        itemName = "Cọc 1 tháng tiền phòng";
-                      } else if (itemName.includes("Tiền thuê tháng đầu")) {
-                        itemName = "Tiền phòng tháng đầu";
+                  // Helper function để convert giá trị sang number (giống FinalContracts và InvoiceDetail)
+                  const convertToNumber = (value: any): number => {
+                    if (value === null || value === undefined) return 0;
+                    if (typeof value === "number") return value;
+                    if (typeof value === "string") return parseFloat(value) || 0;
+                    if (typeof value === "object") {
+                      if (typeof (value as any).$numberDecimal === "string") {
+                        return parseFloat((value as any).$numberDecimal) || 0;
                       }
-                      return { ...item, item: itemName };
-                    });
-                    // Thêm "Cọc giữ phòng" vào đầu
-                    return [
-                      { ...receiptItem, item: "Cọc giữ phòng" },
-                      ...contractItems
-                    ];
+                      if (typeof value.toString === "function") {
+                        return parseFloat(value.toString()) || 0;
+                      }
+                    }
+                    return 0;
+                  };
+
+
+                  // Nếu là bill CONTRACT, tính toán giống như trong FinalContracts và InvoiceDetail
+                  if (bill.billType === "CONTRACT") {
+                    // 1. Tính Cọc giữ phòng từ receiptBill (nếu có)
+                    let receiptAmount = 0;
+                    if (receiptBill) {
+                      if (receiptBill.status === "PAID") {
+                        receiptAmount = convertToNumber(receiptBill.amountPaid);
+                        if (receiptAmount === 0 && receiptBill.lineItems && receiptBill.lineItems.length > 0) {
+                          receiptAmount = convertToNumber(receiptBill.lineItems[0]?.lineTotal);
+                        }
+                      } else {
+                        receiptAmount = convertToNumber(receiptBill.amountDue);
+                      }
+                    }
+
+
+                    // 2. Tính Cọc 1 tháng tiền phòng và Tiền phòng tháng đầu từ contractBill lineItems
+                    let depositRemaining = 0;
+                    let firstMonthRent = 0;
+                   
+                    if (bill.lineItems && bill.lineItems.length > 0) {
+                      bill.lineItems.forEach((item: any) => {
+                        const itemName = item.item || "";
+                        const itemTotal = convertToNumber(item.lineTotal);
+                        if (itemName.includes("Tiền cọc")) {
+                          depositRemaining = itemTotal;
+                        } else if (itemName.includes("Tiền thuê tháng đầu")) {
+                          firstMonthRent = itemTotal;
+                        }
+                      });
+                    }
+
+
+                    // Tạo mảng lineItems với đúng thứ tự và tên (giống FinalContracts)
+                    const items: any[] = [];
+                   
+                    // 1. Cọc giữ phòng
+                    if (receiptAmount > 0) {
+                      items.push({
+                        item: "Cọc giữ phòng",
+                        quantity: 1,
+                        unitPrice: receiptAmount,
+                        lineTotal: receiptAmount,
+                      });
+                    }
+                   
+                    // 2. Cọc 1 tháng tiền phòng
+                    if (depositRemaining > 0) {
+                      items.push({
+                        item: "Cọc 1 tháng tiền phòng",
+                        quantity: 1,
+                        unitPrice: depositRemaining,
+                        lineTotal: depositRemaining,
+                      });
+                    }
+                   
+                    // 3. Tiền phòng tháng đầu
+                    if (firstMonthRent > 0) {
+                      items.push({
+                        item: "Tiền phòng tháng đầu",
+                        quantity: 1,
+                        unitPrice: firstMonthRent,
+                        lineTotal: firstMonthRent,
+                      });
+                    }
+                   
+                    return items;
                   }
-                  // Nếu không phải CONTRACT hoặc không có receiptBill, hiển thị bình thường
+                 
+                  // Nếu không phải CONTRACT, hiển thị bình thường
                   return bill.lineItems;
                 })()}
                 rowKey={(item, index) => `${item.item}-${item.unitPrice}-${item.lineTotal}-${index}`}
