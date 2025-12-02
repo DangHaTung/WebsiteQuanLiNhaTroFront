@@ -210,6 +210,16 @@ const FinalContracts = () => {
       
       console.log("📥 Raw checkins from API:", checkinsData.length);
       
+      // Debug: Log tất cả checkins để kiểm tra
+      checkinsData.forEach((checkin: any) => {
+        const roomNumber = checkin.roomId?.roomNumber || "N/A";
+        const status = checkin.status;
+        const contractId = typeof checkin.contractId === 'string' 
+          ? checkin.contractId 
+          : checkin.contractId?._id;
+        console.log(`  - Room ${roomNumber}: status=${status}, contractId=${contractId || "MISSING"}`);
+      });
+      
       // Lọc chỉ lấy checkins COMPLETED
       // Logic: Hiển thị tất cả checkin COMPLETED, backend sẽ validate khi tạo
       // (Backend sẽ kiểm tra xem có FinalContract nào với bill CONTRACT đã thanh toán không)
@@ -219,7 +229,12 @@ const FinalContracts = () => {
           : checkin.contractId?._id;
         
         // Chỉ hiển thị checkin COMPLETED và có contractId
-        return checkin.status === "COMPLETED" && contractId;
+        const isValid = checkin.status === "COMPLETED" && contractId;
+        if (!isValid) {
+          const roomNumber = checkin.roomId?.roomNumber || "N/A";
+          console.log(`  ⚠️ Filtered out Room ${roomNumber}: status=${checkin.status}, contractId=${contractId || "MISSING"}`);
+        }
+        return isValid;
       });
       
       console.log("✅ Completed checkins:", completedCheckins.length);
@@ -710,23 +725,35 @@ const FinalContracts = () => {
       return <Tag color="error">Đã hủy</Tag>;
     }
     
-    // Ưu tiên kiểm tra trạng thái bill CONTRACT trước
+    // Logic: File hợp đồng chỉ được upload khi đã thanh toán hóa đơn hợp đồng
+    // Hợp đồng có hiệu lực từ ngày upload file (finalizedAt), không phải từ ngày check-in (startDate)
+    if (record && record.images && record.images.length > 0) {
+      const now = dayjs();
+      // Ngày bắt đầu hiệu lực = ngày upload file (finalizedAt hoặc tenantSignedAt)
+      const effectiveStartDate = record.finalizedAt 
+        ? dayjs(record.finalizedAt) 
+        : (record.tenantSignedAt ? dayjs(record.tenantSignedAt) : dayjs(record.startDate));
+      // EndDate vẫn dùng từ record.endDate (tính từ ngày check-in + duration)
+      const endDate = dayjs(record.endDate);
+      
+      if (now.isBefore(effectiveStartDate)) {
+        return <Tag color="default">Chưa hiệu lực</Tag>;
+      } else if (now.isAfter(endDate)) {
+        return <Tag color="warning">Hết hạn</Tag>;
+      } else {
+        return <Tag color="success">Hiệu lực</Tag>;
+      }
+    }
+    
+    // Nếu chưa upload file → kiểm tra trạng thái bill CONTRACT
     if (record) {
       const bills = contractBillsMap.get(record._id) || [];
       const contractBill = bills.find((bill: any) => bill.billType === "CONTRACT");
       
       if (contractBill) {
-        // Nếu bill CONTRACT đã thanh toán, hiển thị trạng thái theo status của FinalContract
         if (contractBill.status === "PAID") {
-          // Đã thanh toán bill CONTRACT → kiểm tra status FinalContract
-          if (status === "SIGNED") {
-            return <Tag color="success">Đã ký</Tag>;
-          } else if (status === "WAITING_SIGN") {
-            return <Tag color="warning">Chờ ký</Tag>;
-          } else {
-            // DRAFT nhưng đã thanh toán → hiển thị "Đã thanh toán"
-          return <Tag color="success">Đã thanh toán</Tag>;
-          }
+          // Đã thanh toán nhưng chưa upload file
+          return <Tag color="default">Chờ upload file</Tag>;
         } else if (contractBill.status === "PENDING_CASH_CONFIRM") {
           return <Tag color="gold">Chờ xác nhận thanh toán</Tag>;
         } else {
@@ -737,20 +764,18 @@ const FinalContracts = () => {
     }
     
     // Nếu chưa có bill CONTRACT, kiểm tra status FinalContract
-    if (status === "SIGNED") {
-      return <Tag color="success">Đã ký</Tag>;
+    if (status === "DRAFT") {
+      return <Tag color="default">Chờ upload file</Tag>;
     }
-    
     if (status === "WAITING_SIGN") {
-      return <Tag color="warning">Chờ ký</Tag>;
+      return <Tag color="processing">Chờ ký</Tag>;
+    }
+    if (status === "SIGNED") {
+      // Nếu SIGNED nhưng chưa có images, vẫn hiển thị "Chờ upload file"
+      return <Tag color="default">Chờ upload file</Tag>;
     }
     
-    // Nếu status là DRAFT và chưa upload hợp đồng (chưa có images), hiển thị "Chờ xử lý"
-    if (status === "DRAFT" && record && (!record.images || record.images.length === 0)) {
-      return <Tag color="default">Chờ xử lý</Tag>;
-    }
-    
-    // Fallback: nếu chưa có bill CONTRACT thì hiển thị "Chờ thanh toán"
+    // Fallback
     return <Tag color="error">Chờ thanh toán</Tag>;
   };
 
