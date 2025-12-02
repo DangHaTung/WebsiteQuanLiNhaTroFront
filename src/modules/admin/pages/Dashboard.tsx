@@ -1,8 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { Card, Col, Row, Table, Tag, Progress, Avatar, Button, message } from "antd";
-import { HomeOutlined, UserOutlined, DollarOutlined, ClockCircleOutlined, LineChartOutlined } from "@ant-design/icons";
-import { Line } from "react-chartjs-2";
-import { Chart as ChartJS, CategoryScale, LinearScale, Tooltip, PointElement, LineElement, Title, Legend } from "chart.js";
+import { HomeOutlined, UserOutlined, DollarOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import { adminRoomService } from "../services/room";
 import { adminBillService } from "../services/bill";
 import "../../../assets/styles/dashboard.css";
@@ -14,7 +12,7 @@ import isoWeek from "dayjs/plugin/isoWeek";
 import type { Bill } from "../../../types/bill";
 dayjs.extend(isoWeek);
 
-ChartJS.register(CategoryScale, Tooltip, LinearScale, PointElement, LineElement, Title, Legend);
+
 
 // Hook animate progress
 const useAnimatedProgress = (target: number, duration: number = 1000) => {
@@ -37,31 +35,14 @@ const useAnimatedProgress = (target: number, duration: number = 1000) => {
 
 const Dashboard: React.FC = () => {
   const [rooms, setRooms] = useState<any[]>([]);
-  const [tenants, setTenants] = useState<any[]>([]);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [recentRentals, setRecentRentals] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [revenueData, setRevenueData] = useState<{ labels: string[]; datasets: any[] }>({
-    labels: ["Tuần 1", "Tuần 2", "Tuần 3", "Tuần 4"],
-    datasets: [
-      {
-        label: "Doanh thu (₫)",
-        data: [0, 0, 0, 0],
-        borderColor: "#eb2f96",
-        backgroundColor: "rgba(235, 47, 150, 0.2)",
-        tension: 0.3,
-        fill: true,
-        pointRadius: 5,
-        pointHoverRadius: 7,
-      },
-    ],
-  });
 
-  const revenueOptions = {
-    responsive: true,
-    plugins: { legend: { display: false } },
-    scales: { y: { beginAtZero: true } },
-  };
+  // Thống kê điện và doanh thu
+  const [electricityStats, setElectricityStats] = useState<any[]>([]);
+  const [yearlyRevenue, setYearlyRevenue] = useState(0);
+  const [lastMonthRevenue, setLastMonthRevenue] = useState(0);
 
   const resolveTenantName = (c: any, tenantsList: any[]) => {
     if (c.tenant && typeof c.tenant === "object") {
@@ -98,7 +79,6 @@ const Dashboard: React.FC = () => {
 
       // Lấy tenants
       const tenantsData = await adminTenantService.getAll({ limit: 50 });
-      setTenants(Array.isArray(tenantsData) ? tenantsData : []);
 
       // Lấy danh sách phòng
       const roomsData = await adminRoomService.getAll();
@@ -127,7 +107,7 @@ const Dashboard: React.FC = () => {
 
       setRecentRentals(mappedRentals);
 
-      // Lấy hóa đơn để tính doanh thu tuần
+      // Lấy hóa đơn để tính doanh thu tuần và thống kê điện
       const billRes: any = await adminBillService.getAll();
       const bills: Bill[] = Array.isArray(billRes) ? billRes : billRes?.data || [];
 
@@ -135,6 +115,11 @@ const Dashboard: React.FC = () => {
         const now = new Date();
         const weeklyTotals = [0, 0, 0, 0];
         let monthTotal = 0;
+        let yearTotal = 0;
+        let lastMonthTotal = 0;
+
+        // Map để lưu điện tiêu thụ theo phòng
+        const electricityByRoom: Record<string, { roomNumber: string; electricity: number; amount: number }> = {};
 
         bills.forEach((bill: Bill) => {
           const dateStr = bill.createdAt || bill.billingDate;
@@ -143,45 +128,67 @@ const Dashboard: React.FC = () => {
           const date = new Date(dateStr);
           if (isNaN(date.getTime())) return;
 
+          const amount = bill.status === 'PAID' ? (bill.amountPaid ?? 0) : 0;
+
+          // Tính doanh thu tháng này
           const sameMonth = date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
           if (sameMonth) {
             const weekIndex = Math.min(Math.floor((date.getDate() - 1) / 7), 3);
-            const amount = bill.amountPaid ?? bill.amountDue ?? 0;
             weeklyTotals[weekIndex] += amount;
             monthTotal += amount;
           }
+
+          // Tính doanh thu năm nay
+          if (date.getFullYear() === now.getFullYear()) {
+            yearTotal += amount;
+          }
+
+          // Tính doanh thu tháng trước
+          const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+          if (date.getMonth() === lastMonth.getMonth() && date.getFullYear() === lastMonth.getFullYear()) {
+            lastMonthTotal += amount;
+
+            // Thống kê điện tháng trước (chỉ hóa đơn đã thanh toán)
+            if (bill.status === 'PAID' && bill.lineItems && Array.isArray(bill.lineItems)) {
+              const electricityItem = bill.lineItems.find((item: any) => 
+                item.item?.toLowerCase().includes('điện') || 
+                item.item?.toLowerCase().includes('electric')
+              );
+
+              if (electricityItem && electricityItem.quantity) {
+                const roomId = typeof bill.contractId === 'object' && (bill.contractId as any)?.roomId 
+                  ? (typeof (bill.contractId as any).roomId === 'object' 
+                      ? (bill.contractId as any).roomId._id 
+                      : (bill.contractId as any).roomId)
+                  : null;
+
+                const roomNumber = typeof bill.contractId === 'object' && (bill.contractId as any)?.roomId
+                  ? (typeof (bill.contractId as any).roomId === 'object'
+                      ? (bill.contractId as any).roomId.roomNumber
+                      : resolveRoomNumber(bill.contractId, Array.isArray(roomsData) ? roomsData : []))
+                  : 'N/A';
+
+                if (roomId) {
+                  if (!electricityByRoom[roomId]) {
+                    electricityByRoom[roomId] = { roomNumber, electricity: 0, amount: 0 };
+                  }
+                  electricityByRoom[roomId].electricity += electricityItem.quantity;
+                  electricityByRoom[roomId].amount += electricityItem.lineTotal || 0;
+                }
+              }
+            }
+          }
         });
 
-        setRevenueData({
-          labels: ["Tuần 1", "Tuần 2", "Tuần 3", "Tuần 4"],
-          datasets: [
-            {
-              label: "Doanh thu (₫)",
-              data: weeklyTotals,
-              borderColor: "#eb2f96",
-              backgroundColor: "rgba(235, 47, 150, 0.2)",
-              tension: 0.3,
-              fill: true,
-              pointRadius: 5,
-              pointHoverRadius: 7,
-            },
-          ],
-        });
+        // Chuyển map thành array và sắp xếp theo điện tiêu thụ
+        const electricityArray = Object.values(electricityByRoom)
+          .sort((a, b) => b.electricity - a.electricity)
+          .slice(0, 10); // Top 10 phòng
+
+        setElectricityStats(electricityArray);
+        setYearlyRevenue(yearTotal);
+        setLastMonthRevenue(lastMonthTotal);
         setTotalRevenue(monthTotal);
-      } else {
-        setRevenueData({
-          labels: ["Tuần 1", "Tuần 2", "Tuần 3", "Tuần 4"],
-          datasets: [
-            {
-              label: "Doanh thu (₫)",
-              data: [0, 0, 0, 0],
-              borderColor: "#eb2f96",
-              backgroundColor: "rgba(235, 47, 150, 0.1)",
-              tension: 0.3,
-              fill: true,
-            },
-          ],
-        });
       }
     } catch (error) {
       console.error(error);
@@ -210,7 +217,28 @@ const Dashboard: React.FC = () => {
     { title: "Tổng phòng", value: totalRooms, icon: <HomeOutlined />, color: "#1677ff" },
     { title: "Phòng đang thuê", value: occupiedCount, icon: <UserOutlined />, color: "#52c41a" },
     { title: "Phòng còn trống", value: availableCount, icon: <ClockCircleOutlined />, color: "#faad14" },
-    { title: "Doanh thu tháng", value: totalRevenue, icon: <DollarOutlined />, color: "#eb2f96", prefix: "₫" },
+    { title: "Doanh thu tháng này", value: totalRevenue, icon: <DollarOutlined />, color: "#eb2f96", prefix: "₫" },
+  ];
+
+  const electricityColumns = [
+    { 
+      title: "Phòng", 
+      dataIndex: "roomNumber", 
+      key: "roomNumber",
+      render: (text: string) => <b>{text}</b>
+    },
+    { 
+      title: "Điện tiêu thụ (kWh)", 
+      dataIndex: "electricity", 
+      key: "electricity",
+      render: (val: number) => <span style={{ color: "#fa8c16", fontWeight: 600 }}>{val.toLocaleString()}</span>
+    },
+    { 
+      title: "Tiền điện (₫)", 
+      dataIndex: "amount", 
+      key: "amount",
+      render: (val: number) => <span style={{ color: "#1890ff" }}>{val.toLocaleString()}</span>
+    },
   ];
 
   const occupiedPercent = useAnimatedProgress(
@@ -378,69 +406,59 @@ const Dashboard: React.FC = () => {
 
         <Col xs={24} md={12}>
           <Card
-            title={
-              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <LineChartOutlined style={{ color: "#1677ff", fontSize: 20 }} />
-                <span>Doanh thu theo tuần</span>
-              </span>
-            }
-            className="hover-glow-card card-chart"
-            style={{ overflow: "visible" }}
+            title="Thống kê doanh thu"
+            className="hover-glow-card"
+            style={{ marginBottom: 24 }}
           >
-            <div style={{ height: 250, position: "relative" }}>
-              {revenueData ? (
-                <Line
-                  data={revenueData}
-                  options={{
-                    ...revenueOptions,
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: "index", intersect: false },
-                    animation: { duration: 800, easing: "easeOutQuart" },
-                    plugins: {
-                      legend: { display: true, position: "top" },
-                      tooltip: {
-                        backgroundColor: "#fff",
-                        titleColor: "#333",
-                        bodyColor: "#333",
-                        borderColor: "#eb2f96",
-                        borderWidth: 1,
-                        padding: 10,
-                        displayColors: false,
-                        titleFont: { size: 14, weight: "bold" },
-                        bodyFont: { size: 13 },
-                        callbacks: {
-                          title: (context) => `📅 ${context[0].label}`,
-                          label: (context) =>
-                            `💰 Doanh thu: ${(context.parsed.y ?? 0).toLocaleString("vi-VN")} ₫`,
-                        },
-                      },
-                    },
-                    scales: {
-                      y: {
-                        beginAtZero: true,
-                        ticks: {
-                          callback: (value) =>
-                            `${Number(value).toLocaleString("vi-VN")} ₫`,
-                        },
-                      },
-                    },
-                  }}
-                />
-              ) : (
-                <div
-                  style={{
-                    height: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: "#999",
-                  }}
-                >
-                  Đang tải dữ liệu doanh thu...
+            <Row gutter={[16, 16]}>
+              <Col span={12}>
+                <div style={{ 
+                  padding: 20, 
+                  background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)", 
+                  borderRadius: 12,
+                  color: "white",
+                  textAlign: "center"
+                }}>
+                  <div style={{ fontSize: 14, marginBottom: 8, opacity: 0.9 }}>Doanh thu tháng trước</div>
+                  <div style={{ fontSize: 24, fontWeight: "bold" }}>
+                    {lastMonthRevenue.toLocaleString("vi-VN")} ₫
+                  </div>
                 </div>
-              )}
-            </div>
+              </Col>
+              <Col span={12}>
+                <div style={{ 
+                  padding: 20, 
+                  background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)", 
+                  borderRadius: 12,
+                  color: "white",
+                  textAlign: "center"
+                }}>
+                  <div style={{ fontSize: 14, marginBottom: 8, opacity: 0.9 }}>Doanh thu năm nay</div>
+                  <div style={{ fontSize: 24, fontWeight: "bold" }}>
+                    {yearlyRevenue.toLocaleString("vi-VN")} ₫
+                  </div>
+                </div>
+              </Col>
+            </Row>
+          </Card>
+
+          <Card
+            title="Top 10 phòng tiêu thụ điện nhiều nhất (Tháng trước)"
+            className="hover-glow-card"
+          >
+            {electricityStats.length > 0 ? (
+              <Table
+                size="small"
+                pagination={false}
+                columns={electricityColumns}
+                dataSource={electricityStats.map((item, idx) => ({ ...item, key: idx }))}
+                scroll={{ y: 300 }}
+              />
+            ) : (
+              <p style={{ color: "#999", textAlign: "center", margin: 0 }}>
+                Chưa có dữ liệu điện tháng trước
+              </p>
+            )}
           </Card>
         </Col>
       </Row>
