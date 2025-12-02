@@ -1,11 +1,28 @@
 import React, { useEffect, useState } from "react";
 import { Drawer, Descriptions, Divider, Tag, Typography, Space, Spin, Table, message } from "antd";
-import { FileTextOutlined, CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined, DollarOutlined, PayCircleOutlined } from "@ant-design/icons";
+import { FileTextOutlined, CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined, DollarOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import type { Bill, BillStatus } from "../../../types/bill";
-import type { Contract } from "../../../types/contract";
 import type { Tenant } from "../../../types/tenant";
 import type { Room } from "../../../types/room";
+
+
+interface Contract {
+  _id: string;
+  tenantId?: { fullName?: string } | string;
+  roomId?: { roomNumber?: string } | string;
+  tenantSnapshot?: {
+    fullName?: string;
+    phone?: string;
+    identityNo?: string;
+    address?: string;
+    note?: string;
+  };
+  deposit?: any;
+  monthlyRent?: any;
+  startDate?: string;
+  endDate?: string;
+}
 import { adminBillService } from "../services/bill";
 // Helper function to safely convert various types to number
 const dec = (v: any): number => {
@@ -34,6 +51,7 @@ interface BillDetailDrawerProps {
 // Main component for displaying bill details in a drawer
 const { Title, Text } = Typography;
 
+
 const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
   open,
   onClose,
@@ -43,13 +61,16 @@ const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
   rooms,
 }) => {
   const [bill, setBill] = useState<Bill | null>(null);
+  const [receiptBill, setReceiptBill] = useState<Bill | null>(null);
   const [loading, setLoading] = useState(false);
 // Configuration for bill status display
   const statusConfig: Record<BillStatus, { color: string; label: string; icon: React.ReactNode }> = {
+    DRAFT: { color: "#faad14", label: "Nháp", icon: <FileTextOutlined /> },
     PAID: { color: "#52c41a", label: "Đã thanh toán", icon: <CheckCircleOutlined /> },
     UNPAID: { color: "#ff4d4f", label: "Chưa thanh toán", icon: <ExclamationCircleOutlined /> },
     PARTIALLY_PAID: { color: "#fa8c16", label: "Thanh toán một phần", icon: <ClockCircleOutlined /> },
     VOID: { color: "#8c8c8c", label: "Đã hủy", icon: <ExclamationCircleOutlined /> },
+    PENDING_CASH_CONFIRM: { color: "#faad14", label: "Chờ xác nhận tiền mặt", icon: <ClockCircleOutlined /> },
   };
 // Fetch bill details when billId or open state changes
   useEffect(() => {
@@ -63,6 +84,20 @@ const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
         } else {
           setBill(data);
           console.log("Dữ liệu hóa đơn:", data);
+         
+          // Nếu là bill CONTRACT, tìm receiptBill liên quan
+          if (data.billType === "CONTRACT" && data.contractId) {
+            const contractId = typeof data.contractId === "string" ? data.contractId : data.contractId._id;
+            try {
+              const bills = await adminBillService.getByContractId(contractId);
+              const receipt = bills.find((b: Bill) => b.billType === "RECEIPT");
+              if (receipt) {
+                setReceiptBill(receipt);
+              }
+            } catch (err) {
+              console.error("Lỗi khi lấy receipt bill:", err);
+            }
+          }
         }
       } catch (err: any) {
         console.error("Lỗi API:", err);
@@ -77,24 +112,26 @@ const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
 // Return null if no bill data and not loading
   if (!bill && !loading) return null;
 
+
   const getContract = (contractId: string | Contract): Contract | null => {
     if (typeof contractId === "object") return contractId;
     return contracts.find(c => c._id === contractId) || null;
   };
-// Helper functions to get tenant and room details
-  const getTenant = (tenantId: string | Tenant): Tenant | null => {
-    if (typeof tenantId === "object") return tenantId;
-    return tenants.find(t => t._id === tenantId) || null;
-  };
 // Helper function to get room details
-  const getRoom = (roomId: string | Room): Room | null => {
-    if (typeof roomId === "object") return rooms.find(r => r._id === roomId._id) || roomId;
+  const getRoom = (roomId: string | Room | { roomNumber?: string } | undefined): Room | null => {
+    if (!roomId) return null;
+    if (typeof roomId === "object" && "roomNumber" in roomId && !("_id" in roomId)) {
+      // Nếu là object chỉ có roomNumber (từ contract.roomId), không có _id, không thể tìm được
+      return null;
+    }
+    if (typeof roomId === "object" && "_id" in roomId) {
+      return rooms.find(r => r._id === (roomId as any)._id) || (roomId as Room);
+    }
     return rooms.find(r => r._id === roomId) || null;
   };
-// Get related contract, tenant, and room data
+// Get related contract and room data
   const contract = bill ? getContract(bill.contractId) : null;
-  const tenant = contract ? getTenant(contract.tenantId) : null;
-  const room = contract ? getRoom(contract.roomId) : null;
+  const room = contract && contract.roomId ? getRoom(contract.roomId) : null;
 // Render the drawer with bill details
   return (
     <Drawer
@@ -110,6 +147,7 @@ const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
       width={600}
       onClose={() => {
         setBill(null);
+        setReceiptBill(null);
         onClose();
       }}
       open={open}
@@ -160,6 +198,7 @@ const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
             <Descriptions.Item label="Ngày tạo">{dayjs(bill.createdAt).format("DD/MM/YYYY HH:mm")}</Descriptions.Item>
             <Descriptions.Item label="Cập nhật lần cuối">{dayjs(bill.updatedAt).format("DD/MM/YYYY HH:mm")}</Descriptions.Item>
           </Descriptions>
+
 
           {/* Thông tin khách thuê (từ tenantSnapshot khi tạo) */}
           {contract && contract.tenantSnapshot && (
@@ -228,23 +267,47 @@ const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
             </>
           )}
 
+
           {/* Chi tiết các khoản thu */}
           {bill.lineItems?.length > 0 && (
             <>
               <Divider orientation="left"><DollarOutlined /> Chi tiết các khoản thu</Divider>
               <Table
-                dataSource={bill.lineItems}
-                rowKey={item => `${item.item}-${item.unitPrice}-${item.lineTotal}`}
+                dataSource={(() => {
+                  // Nếu là bill CONTRACT và có receiptBill, thêm "Cọc giữ phòng" vào đầu
+                  if (bill.billType === "CONTRACT" && receiptBill && receiptBill.lineItems && receiptBill.lineItems.length > 0) {
+                    const receiptItem = receiptBill.lineItems[0];
+                    const contractItems = bill.lineItems.map((item: any) => {
+                      // Đổi tên cho đúng
+                      let itemName = item.item || "";
+                      if (itemName.includes("Tiền cọc")) {
+                        itemName = "Cọc 1 tháng tiền phòng";
+                      } else if (itemName.includes("Tiền thuê tháng đầu")) {
+                        itemName = "Tiền phòng tháng đầu";
+                      }
+                      return { ...item, item: itemName };
+                    });
+                    // Thêm "Cọc giữ phòng" vào đầu
+                    return [
+                      { ...receiptItem, item: "Cọc giữ phòng" },
+                      ...contractItems
+                    ];
+                  }
+                  // Nếu không phải CONTRACT hoặc không có receiptBill, hiển thị bình thường
+                  return bill.lineItems;
+                })()}
+                rowKey={(item, index) => `${item.item}-${item.unitPrice}-${item.lineTotal}-${index}`}
                 pagination={false}
                 size="small"
                 columns={[
-                  { title: "Tên khoản", dataIndex: "description", key: "description" },
+                  { title: "Tên khoản", dataIndex: "item", key: "item" },
                   { title: "Đơn giá (₫)", dataIndex: "unitPrice", key: "unitPrice", align: "right" as const, render: val => Number(val || 0).toLocaleString("vi-VN") },
                   { title: "Thành tiền (₫)", dataIndex: "lineTotal", key: "lineTotal", align: "right" as const, render: val => Number(val || 0).toLocaleString("vi-VN") },
                 ]}
               />
             </>
           )}
+
 
           {/* Lịch sử thanh toán */}
           {/* {bill.payments?.length > 0 && (
@@ -270,5 +333,6 @@ const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
     </Drawer>
   );
 };
+
 
 export default BillDetailDrawer;
