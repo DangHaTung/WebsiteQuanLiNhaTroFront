@@ -25,7 +25,6 @@ import {
   FileTextOutlined,
 } from "@ant-design/icons";
 import "../../assets/styles/layoutAd.css";
-import SearchBar from "./SearchBar";
 import { adminAuthService } from "../../modules/admin/services/auth";
 
 const { Header, Sider, Content, Footer } = Layout;
@@ -204,10 +203,6 @@ const AdminLayout: React.FC = () => {
               style: { fontSize: 22, cursor: "pointer" },
             }
           )}
-
-          <div className="header-center">
-            <SearchBar />
-          </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
 
