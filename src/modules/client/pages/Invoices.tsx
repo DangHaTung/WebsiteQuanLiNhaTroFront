@@ -222,7 +222,18 @@ const Invoices: React.FC = () => {
   
   // Tính tổng amountDue của các bill chưa thanh toán (không trừ amountPaid)
   const totalUnpaid = unpaidBills.reduce((sum, bill) => sum + bill.amountDue, 0);
-  const totalPaid = paidBills.reduce((sum, bill) => sum + bill.amountPaid, 0);
+  
+  // Tính tổng "Đã thanh toán": 
+  // - Không tính RECEIPT bill (tiền cọc giữ phòng) vì nó được tính riêng
+  // - Chỉ tính CONTRACT và MONTHLY bills
+  const totalPaid = paidBills.reduce((sum, bill) => {
+    // Bỏ qua RECEIPT bills khi tính tổng "Đã thanh toán"
+    // Vì RECEIPT (tiền cọc giữ phòng) là khoản riêng biệt, không liên quan đến tổng thanh toán hóa đơn
+    if (bill.billType === "RECEIPT") {
+      return sum;
+    }
+    return sum + (bill.amountPaid || 0);
+  }, 0);
 
   const getStatusTag = (status: string) => {
     const map: Record<string, { color: string; text: string; icon: React.ReactNode }> = {
@@ -294,17 +305,6 @@ const Invoices: React.FC = () => {
           </strong>
         );
       },
-    },
-    {
-      title: "Đã thanh toán",
-      dataIndex: "amountPaid",
-      key: "amountPaid",
-      align: "right" as const,
-      render: (amount: number) => (
-        <span style={{ color: "#52c41a" }}>
-          {amount.toLocaleString("vi-VN")} ₫
-        </span>
-      ),
     },
     {
       title: "Trạng thái",

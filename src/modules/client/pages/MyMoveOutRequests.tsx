@@ -13,14 +13,19 @@ import {
   message,
   Descriptions,
   Divider,
+  Upload,
+  Typography,
 } from "antd";
-import { PlusOutlined, LogoutOutlined } from "@ant-design/icons";
+import { PlusOutlined, LogoutOutlined, UploadOutlined, InboxOutlined } from "@ant-design/icons";
+import type { UploadFile } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 import { clientMoveOutRequestService, type MoveOutRequest } from "../services/moveOutRequest";
 import { clientBillService } from "../services/bill";
 import api from "../services/api";
 
 const { TextArea } = Input;
+const { Dragger } = Upload;
+const { Text } = Typography;
 
 interface FinalContract {
   _id: string;
@@ -38,9 +43,11 @@ interface FinalContract {
 const MyMoveOutRequests = () => {
   const [requests, setRequests] = useState<MoveOutRequest[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [myContracts, setMyContracts] = useState<FinalContract[]>([]);
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [form] = Form.useForm();
+  const [qrCodeFileList, setQrCodeFileList] = useState<UploadFile[]>([]);
 
   useEffect(() => {
     loadRequests();
@@ -223,19 +230,71 @@ const MyMoveOutRequests = () => {
     moveOutDate: Dayjs;
     reason: string;
   }) => {
+    setUploading(true);
     try {
-      await clientMoveOutRequestService.create({
+      console.log('[MyMoveOutRequests] handleCreate values:', {
         contractId: values.contractId,
-        moveOutDate: values.moveOutDate.format("YYYY-MM-DD"),
+        moveOutDate: values.moveOutDate,
         reason: values.reason,
+        qrCodeFileListLength: qrCodeFileList.length,
       });
+      
+      // Nếu có file upload, tạo FormData (giống FinalContract)
+      if (qrCodeFileList.length > 0 && qrCodeFileList[0]?.originFileObj) {
+        console.log('[MyMoveOutRequests] File detected, creating FormData');
+        console.log('[MyMoveOutRequests] File info:', {
+          name: qrCodeFileList[0].name,
+          size: qrCodeFileList[0].size,
+          type: qrCodeFileList[0].type,
+          originFileObj: !!qrCodeFileList[0].originFileObj,
+        });
+        
+        const formData = new FormData();
+        formData.append("contractId", values.contractId);
+        formData.append("moveOutDate", values.moveOutDate.format("YYYY-MM-DD"));
+        formData.append("reason", values.reason);
+        formData.append("refundQrCode", qrCodeFileList[0].originFileObj as File);
+        
+        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+        const token = localStorage.getItem("token");
+        
+        console.log('[MyMoveOutRequests] Uploading QR code...');
+        const response = await fetch(`${apiUrl}/api/move-out-requests`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            // KHÔNG set Content-Type header, để browser tự set với boundary
+          },
+          body: formData,
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+          throw new Error(data.message || "Lỗi khi tạo yêu cầu");
+        }
+        console.log('[MyMoveOutRequests] Upload successful:', data);
+      } else {
+        console.log('[MyMoveOutRequests] No file, using JSON request');
+        // Không có file, gửi như bình thường
+        await clientMoveOutRequestService.create({
+          contractId: values.contractId,
+          moveOutDate: values.moveOutDate.format("YYYY-MM-DD"),
+          reason: values.reason,
+        });
+      }
+      
       message.success("Tạo yêu cầu thành công");
       setCreateModalVisible(false);
       form.resetFields();
+      setQrCodeFileList([]);
       loadRequests();
       loadMyContracts();
     } catch (error: any) {
-      message.error(error.response?.data?.message || "Lỗi khi tạo yêu cầu");
+      console.error('[MyMoveOutRequests] Error creating request:', error);
+      message.error(error.response?.data?.message || error.message || "Lỗi khi tạo yêu cầu");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -371,8 +430,10 @@ const MyMoveOutRequests = () => {
         onCancel={() => {
           setCreateModalVisible(false);
           form.resetFields();
+          setQrCodeFileList([]);
         }}
         onOk={() => form.submit()}
+        confirmLoading={uploading}
         width={600}
       >
         <Form
@@ -446,6 +507,44 @@ const MyMoveOutRequests = () => {
               maxLength={500}
               showCount
             />
+          </Form.Item>
+
+          <div style={{ marginBottom: 16 }}>
+            <Text type="danger" style={{ fontSize: 12 }}>
+              Ghi thông tin STK nhận hoàn cọc của bạn hoặc upload mã QR
+            </Text>
+          </div>
+
+          <Form.Item
+            label={
+              <span 
+                style={{ 
+                  pointerEvents: "none", 
+                  cursor: "default",
+                  userSelect: "none"
+                }}
+                onClick={(e) => e.preventDefault()}
+              >
+                QR nhận tiền hoàn cọc
+              </span>
+            }
+          >
+            <div onClick={(e) => e.stopPropagation()}>
+              <Upload
+                listType="picture"
+                maxCount={1}
+                accept="image/*"
+                beforeUpload={() => false} // Prevent auto upload
+                showUploadList={true}
+                fileList={qrCodeFileList}
+                onChange={({ fileList }) => {
+                  console.log('[MyMoveOutRequests] Upload onChange:', fileList);
+                  setQrCodeFileList(fileList);
+                }}
+              >
+                <Button icon={<UploadOutlined />} type="button">Chọn ảnh QR</Button>
+              </Upload>
+            </div>
           </Form.Item>
         </Form>
       </Modal>
