@@ -10,7 +10,7 @@ import type { IUserToken } from "../../../types/user";
 import { clientAuthService } from "../services/auth";
 
 const { Title, Text } = Typography;
-
+// Định nghĩa kiểu cho thông tin phòng
 interface RoomInfo {
     roomNumber: string;
     pricePerMonth: number;
@@ -19,20 +19,20 @@ interface RoomInfo {
     status: string;
     occupantCount?: number;
 }
-
+// Trang hồ sơ người dùng
 const Profile: React.FC = () => {
     const [user, setUser] = useState<IUserToken | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [roomInfo, setRoomInfo] = useState<RoomInfo | null>(null);
     const [pwdForm] = Form.useForm<{ currentPassword: string; newPassword: string }>();
     const [pwdModalOpen, setPwdModalOpen] = useState(false);
-
+// Tải thông tin người dùng khi component được mount
     useEffect(() => {
         const loadUserInfo = async () => {
             try {
                 const token = localStorage.getItem("token");
                 if (!token) throw new Error("Chưa đăng nhập");
-
+                // Giải mã token để lấy thông tin người dùng
                 const decoded = jwtDecode<IUserToken>(token);
                 const stored = clientAuthService.getCurrentUser();
                 const issuedAt = (decoded as any)?.iat ? new Date((decoded as any).iat * 1000).toISOString() : undefined;
@@ -57,10 +57,10 @@ const Profile: React.FC = () => {
                 setLoading(false);
             }
         };
-
+// Gọi hàm tải thông tin người dùng
         loadUserInfo();
     }, []);
-
+// Tải thông tin phòng đang thuê
     const loadRoomInfo = async () => {
         try {
             const response = await api.get("/final-contracts/my-contracts", { params: { limit: 1 } });
@@ -80,10 +80,10 @@ const Profile: React.FC = () => {
             console.error("Lỗi tải thông tin phòng:", error);
         }
     };
-
+// Hiển thị trang hồ sơ
     if (loading) return <div style={{ textAlign: "center", padding: "120px" }}>Đang tải...</div>;
     if (!user) return <div>Không tìm thấy người dùng</div>;
-
+// Giao diện trang hồ sơ
     return (
         <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
             <Row gutter={[24, 24]}>
@@ -173,7 +173,7 @@ const Profile: React.FC = () => {
                     )}
                 </Col>
             </Row>
-
+            {/* Modal đổi mật khẩu */}
             <Modal
                 title="Đổi mật khẩu"
                 open={pwdModalOpen}

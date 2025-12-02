@@ -3,10 +3,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Card, Descriptions, Button, message, Space, Tag, Modal, Spin, Alert, Typography } from "antd";
 import { CreditCardOutlined, DollarOutlined, CheckCircleOutlined, HomeOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
-
+// Trang thanh toán công khai cho khách hàng
 const { Title, Text } = Typography;
 
 interface BillInfo {
+  // Thông tin hóa đơn và hợp đồng liên quan
   bill: {
     _id: string;
     billType: string;
@@ -15,6 +16,7 @@ interface BillInfo {
     amountPaid: number;
     billingDate: string;
   };
+  // Thông tin hợp đồng và phòng liên quan
   contract: {
     _id: string;
     tenantSnapshot: {
@@ -22,6 +24,7 @@ interface BillInfo {
       phone?: string;
       email?: string;
     };
+    // other contract fields can be added as needed
   } | null;
   room: {
     _id: string;
@@ -29,7 +32,7 @@ interface BillInfo {
     type?: string;
   } | null;
 }
-
+// Trang thanh toán công khai cho khách hàng
 const PublicPayment: React.FC = () => {
   const { billId, token } = useParams<{ billId: string; token: string }>();
   const navigate = useNavigate();
@@ -38,7 +41,7 @@ const PublicPayment: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [isSuccessPage, setIsSuccessPage] = useState(false);
-
+// Load thông tin hóa đơn khi component mount
   useEffect(() => {
     // Check if this is success page
     const isSuccess = window.location.pathname.includes("/success");
@@ -56,14 +59,15 @@ const PublicPayment: React.FC = () => {
       setLoading(false);
     }
   }, [billId, token]);
-
+// Xác thực token và tải thông tin hóa đơn
   const verifyTokenAndLoadBill = async () => {
+    // Xác thực token và tải thông tin hóa đơn
     try {
       setLoading(true);
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
       const response = await fetch(`${apiUrl}/api/public/payment/${billId}/${token}`);
       const data = await response.json();
-
+// Nếu không thành công, hiển thị lỗi
       if (!data.success) {
         setError(data.message || "Token không hợp lệ hoặc đã hết hạn");
         return;
@@ -72,13 +76,14 @@ const PublicPayment: React.FC = () => {
       // Luôn hiển thị thông tin bill, dù đã thanh toán hay chưa
       setBillInfo(data.data);
     } catch (error: any) {
+      //  Hiển thị lỗi khi xác thực token
       console.error("Verify token error:", error);
       setError("Lỗi khi xác thực token. Vui lòng kiểm tra lại link.");
     } finally {
       setLoading(false);
     }
   };
-
+// Kiểm tra trạng thái thanh toán
   const checkPaymentStatus = async () => {
     try {
       setLoading(true);
@@ -97,6 +102,7 @@ const PublicPayment: React.FC = () => {
       } else {
         setError(data.message || "Không thể tải thông tin thanh toán");
       }
+      // Luôn hiển thị thông tin bill, dù đã thanh toán hay chưa
     } catch (error: any) {
       console.error("Check payment status error:", error);
       setError("Lỗi khi kiểm tra trạng thái thanh toán");
@@ -104,10 +110,10 @@ const PublicPayment: React.FC = () => {
       setLoading(false);
     }
   };
-
+// Xử lý thanh toán qua các cổng thanh toán
   const handlePayment = async (provider: "vnpay" | "momo" | "zalopay") => {
     if (!billId || !token || !billInfo) return;
-
+// Tạo link thanh toán và chuyển hướng
     try {
       setPaymentLoading(true);
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
@@ -115,7 +121,7 @@ const PublicPayment: React.FC = () => {
       const endpoint = provider === "zalopay" 
         ? `${apiUrl}/api/public/payment/${billId}/${token}/create`
         : `${apiUrl}/api/public/payment/${billId}/${token}/create`;
-
+// Gọi API tạo link thanh toán
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -126,13 +132,13 @@ const PublicPayment: React.FC = () => {
           amount: billInfo.bill.amountDue - billInfo.bill.amountPaid,
         }),
       });
-
+// Nhận phản hồi từ API
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || data.message || "Lỗi tạo link thanh toán");
       }
-
+// Lấy link thanh toán từ phản hồi
       let paymentUrl = null;
       if (provider === "vnpay") {
         paymentUrl = data.url || data.paymentUrl;
@@ -141,13 +147,14 @@ const PublicPayment: React.FC = () => {
       } else if (provider === "zalopay") {
         paymentUrl = data.payUrl || data.zaloData?.order_url || data.order_url;
       }
-
+// Chuyển hướng người dùng đến cổng thanh toán
       if (paymentUrl) {
         // Redirect to payment gateway
         window.location.href = paymentUrl;
       } else {
         message.error("Không tìm thấy link thanh toán");
       }
+      // Handle payment response
     } catch (error: any) {
       console.error("Payment error:", error);
       message.error(error.message || "Lỗi khi tạo link thanh toán");
@@ -155,7 +162,7 @@ const PublicPayment: React.FC = () => {
       setPaymentLoading(false);
     }
   };
-
+// Hiển thị modal chọn phương thức thanh toán
   const showPaymentModal = () => {
     if (!billInfo) return;
 
@@ -244,7 +251,7 @@ const PublicPayment: React.FC = () => {
       </div>
     );
   }
-
+// Nếu không tìm thấy thông tin hóa đơn
   if (!billInfo) {
     return (
       <div style={{ padding: 24, maxWidth: 800, margin: "0 auto" }}>
@@ -264,11 +271,11 @@ const PublicPayment: React.FC = () => {
       </div>
     );
   }
-
+// Hiển thị thông tin hóa đơn và nút thanh toán
   const { bill, contract, room } = billInfo;
   const amountToPay = bill.amountDue - bill.amountPaid;
   const isPaid = bill.status === "PAID";
-
+// Giao diện trang thanh toán công khai
   return (
     <div style={{ padding: 24, maxWidth: 900, margin: "0 auto", minHeight: "100vh" }}>
       <Card>
