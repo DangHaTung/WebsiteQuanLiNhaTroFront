@@ -10,6 +10,7 @@ export interface User {
   passwordHash?: string;
   role: UserRole;
   createdAt?: string;
+  isLocked?: boolean;
 }
 
 export type IUserToken = Omit<User, "passwordHash">;

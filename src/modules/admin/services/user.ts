@@ -17,6 +17,7 @@ export const adminUserService = {
         phone: u.phone,
         role: u.role,
         createdAt: u.createdAt,
+        isLocked: u.isLocked || false,
       }));
 // Include current admin user if not in list
       const adminList = current
@@ -51,6 +52,7 @@ export const adminUserService = {
         phone: t.phone,
         role: "USER",
         createdAt: t.createdAt,
+        isLocked: t.isLocked || false,
       }));
 // Include current admin user if not in list
       const adminList = current
@@ -85,6 +87,7 @@ export const adminUserService = {
       phone: u.phone,
       role: u.role,
       createdAt: u.createdAt,
+      isLocked: u.isLocked || false,
     } as User;
   },
 // Update user details
@@ -100,11 +103,26 @@ export const adminUserService = {
       phone: u.phone,
       role: u.role,
       createdAt: u.createdAt,
+      isLocked: u.isLocked || false,
     } as User;
   },
 //  Delete user by ID
   async remove(id: string): Promise<void> {
     await api.delete(`/users/${id}`);
+  },
+  // Khóa/Mở khóa tài khoản
+  async toggleLock(id: string): Promise<User> {
+    const { data } = await api.put(`/users/${id}/toggle-lock`);
+    const u = data.data || data;
+    return {
+      _id: u._id || u.id,
+      fullName: u.fullName ?? u.username,
+      email: u.email,
+      phone: u.phone,
+      role: u.role,
+      createdAt: u.createdAt,
+      isLocked: u.isLocked || false,
+    } as User;
   },
 // Search tenants by keyword
   async searchTenants(keyword?: string): Promise<User[]> {
@@ -123,6 +141,7 @@ export const adminUserService = {
       phone: u.phone,
       role: u.role,
       createdAt: u.createdAt,
+      isLocked: u.isLocked || false,
     }));
   },
 };
