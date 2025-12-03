@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Avatar, Button, Card, Form, Input, Modal, Table, Tag, Typography, message, Row, Col, Statistic } from "antd";
-import { PlusOutlined, EditOutlined, UserOutlined, TeamOutlined } from "@ant-design/icons";
+import { Avatar, Button, Card, Form, Input, Modal, Table, Tag, Typography, message, Row, Col, Statistic, Popconfirm, Space } from "antd";
+import { PlusOutlined, EditOutlined, UserOutlined, TeamOutlined, LockOutlined, UnlockOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import { motion } from "framer-motion";
 import type { User, UserRole } from "../../../types/user";
@@ -176,18 +176,72 @@ const Users: React.FC = () => {
             },
         },
         {
+            title: "Trạng thái",
+            dataIndex: "isLocked",
+            key: "isLocked",
+            align: "center",
+            render: (isLocked: boolean) => {
+                if (isLocked) {
+                    return (
+                        <Tag color="error" style={{ padding: "4px 12px", borderRadius: 12 }}>
+                            <LockOutlined /> Đã khóa
+                        </Tag>
+                    );
+                }
+                return (
+                    <Tag color="success" style={{ padding: "4px 12px", borderRadius: 12 }}>
+                        <UnlockOutlined /> Hoạt động
+                    </Tag>
+                );
+            },
+        },
+        {
             title: "Thao tác",
             key: "actions",
             align: "center",
-            render: (_: any, record: User) => (
-                <Button
-                    type="primary"
-                    icon={<EditOutlined />}
-                    shape="circle"
-                    onClick={() => openModal(record)}
-                    className="btn-hover"
-                />
-            ),
+            render: (_: any, record: User) => {
+                const handleToggleLock = async () => {
+                    try {
+                        const id = record._id || record.id;
+                        if (!id) return;
+                        const updated = await adminUserService.toggleLock(id);
+                        setUsers((prev) =>
+                            prev.map((u) => ((u._id || u.id) === id ? { ...u, isLocked: updated.isLocked } : u))
+                        );
+                        message.success(updated.isLocked ? "Khóa tài khoản thành công" : "Mở khóa tài khoản thành công");
+                    } catch (error: any) {
+                        message.error(error?.response?.data?.message || "Lỗi khi khóa/mở khóa tài khoản");
+                    }
+                };
+
+                return (
+                    <Space>
+                        <Button
+                            type="primary"
+                            icon={<EditOutlined />}
+                            shape="circle"
+                            onClick={() => openModal(record)}
+                            className="btn-hover"
+                        />
+                        {record.role !== "ADMIN" && (
+                            <Popconfirm
+                                title={record.isLocked ? "Mở khóa tài khoản này?" : "Khóa tài khoản này?"}
+                                onConfirm={handleToggleLock}
+                                okText="Xác nhận"
+                                cancelText="Hủy"
+                            >
+                                <Button
+                                    type={record.isLocked ? "default" : "primary"}
+                                    danger={!record.isLocked}
+                                    icon={record.isLocked ? <UnlockOutlined /> : <LockOutlined />}
+                                    shape="circle"
+                                    className="btn-hover"
+                                />
+                            </Popconfirm>
+                        )}
+                    </Space>
+                );
+            },
         },
     ];
 

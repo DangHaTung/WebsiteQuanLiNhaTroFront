@@ -58,9 +58,16 @@ const Login: React.FC = () => {
         }
       }
     } catch (err: any) {
-      message.error(
-        err?.response?.data?.message || err?.response?.data?.error || "Email hoặc mật khẩu không đúng!"
-      );
+      // Kiểm tra nếu tài khoản bị khóa (status 403)
+      if (err?.response?.status === 403) {
+        message.error(
+          err?.response?.data?.message || "Tài khoản của bạn đã bị khóa, liên hệ quản trị viên để được hỗ trợ"
+        );
+      } else {
+        message.error(
+          err?.response?.data?.message || err?.response?.data?.error || "Email hoặc mật khẩu không đúng!"
+        );
+      }
     } finally {
       setLoading(false);
     }
