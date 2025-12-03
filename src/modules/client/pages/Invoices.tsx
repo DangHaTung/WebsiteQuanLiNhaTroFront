@@ -3,13 +3,67 @@ import { Table, Tag, Card, Button, message, Space, Tabs, Row, Col, Statistic, Mo
 import { FileTextOutlined, CreditCardOutlined, EyeOutlined, CheckCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
+import { jwtDecode } from "jwt-decode";
 import { clientBillService, type Bill } from "../services/bill";
+import type { IUserToken } from "../../../types/user";
 
 const Invoices: React.FC = () => {
   const navigate = useNavigate();
   const [bills, setBills] = useState<Bill[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"unpaid" | "paid">("unpaid");
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Lấy userId từ token
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        const decoded = jwtDecode<IUserToken>(token);
+        setCurrentUserId(decoded.id || null);
+      } catch (error) {
+        console.error("Error decoding token:", error);
+      }
+    }
+  }, []);
+
+  // Helper function để kiểm tra user có phải là co-tenant (không phải main tenant)
+  const isCoTenant = (bill: Bill): boolean => {
+    if (!currentUserId) return false;
+    
+    // Nếu bill có tenantId và khớp với currentUserId, thì là main tenant
+    const billTenantId = typeof bill.tenantId === 'object' && bill.tenantId?._id 
+      ? bill.tenantId._id 
+      : bill.tenantId;
+    if (billTenantId === currentUserId) {
+      return false; // Là main tenant
+    }
+
+    // Kiểm tra contractId (nếu đã được populate)
+    const contract = typeof bill.contractId === 'object' ? bill.contractId : null;
+    if (!contract) return false;
+
+    // Nếu contract.tenantId = currentUserId, thì là main tenant
+    const contractTenantId = typeof contract.tenantId === 'object' && contract.tenantId?._id 
+      ? contract.tenantId._id 
+      : contract.tenantId;
+    if (contractTenantId === currentUserId) {
+      return false; // Là main tenant
+    }
+
+    // Kiểm tra xem currentUserId có trong coTenants không
+    if (contract.coTenants && Array.isArray(contract.coTenants)) {
+      const isInCoTenants = contract.coTenants.some((ct: any) => {
+        const ctUserId = typeof ct.userId === 'object' && ct.userId?._id 
+          ? ct.userId._id 
+          : ct.userId;
+        return ctUserId === currentUserId && !ct.leftAt;
+      });
+      return isInCoTenants; // Nếu có trong coTenants nhưng không phải tenantId, thì là co-tenant
+    }
+
+    return false;
+  };
 
   useEffect(() => {
     loadBills();
@@ -45,7 +99,6 @@ const Invoices: React.FC = () => {
         bill.billType === "MONTHLY" || bill.billType === "CONTRACT" || bill.billType === "RECEIPT"
       );
       setBills(payableBills);
-      
 
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Lỗi khi tải hóa đơn");
@@ -315,26 +368,34 @@ const Invoices: React.FC = () => {
     {
       title: "Hành động",
       key: "actions",
-      render: (_: any, record: Bill) => (
-        <Space>
-          <Button
-            type="link"
-            icon={<EyeOutlined />}
-            onClick={() => navigate(`/invoices/${record._id}`)}
-          >
-            Chi tiết
-          </Button>
-          {record.status !== "PAID" && (
+      render: (_: any, record: Bill) => {
+        const isCoTenantUser = isCoTenant(record);
+        return (
+          <Space>
             <Button
-              type="primary"
-              icon={<CreditCardOutlined />}
-              onClick={() => handlePayment(record)}
+              type="link"
+              icon={<EyeOutlined />}
+              onClick={() => navigate(`/invoices/${record._id}`)}
             >
-              Thanh toán
+              Chi tiết
             </Button>
-          )}
-        </Space>
-      ),
+            {record.status !== "PAID" && !isCoTenantUser && (
+              <Button
+                type="primary"
+                icon={<CreditCardOutlined />}
+                onClick={() => handlePayment(record)}
+              >
+                Thanh toán
+              </Button>
+            )}
+            {record.status !== "PAID" && isCoTenantUser && (
+              <span style={{ color: "#999", fontSize: 12 }}>
+                Chỉ người đại diện mới có thể thanh toán
+              </span>
+            )}
+          </Space>
+        );
+      },
     },
   ];
 
@@ -347,7 +408,7 @@ const Invoices: React.FC = () => {
             Hóa đơn & Phiếu thu
           </h2>
           <p style={{ color: "#666", marginTop: 8, marginBottom: 0 }}>
-            💡 Nếu bạn ở chung phòng với người khác, cả hai đều có thể xem và thanh toán hóa đơn này. Phiếu thu tiền cọc sẽ hiển thị khi admin tạo và gán cho tài khoản của bạn.
+            💡 Nếu bạn ở chung phòng với người khác, cả hai đều có thể xem thông tin hóa đơn. Chỉ người đại diện (người làm hợp đồng) mới có thể thanh toán. Phiếu thu tiền cọc sẽ hiển thị khi admin tạo và gán cho tài khoản của bạn.
           </p>
         </div>
 
