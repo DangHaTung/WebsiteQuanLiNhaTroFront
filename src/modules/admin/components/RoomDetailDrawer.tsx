@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Drawer, Descriptions, Image, Divider, Tag, Typography, Row, Col, Space, message, Spin, Table, Tabs } from "antd";
-import { CheckCircleOutlined, ExclamationCircleOutlined, ToolOutlined, HomeOutlined, FileTextOutlined, PayCircleOutlined, DollarOutlined, InfoCircleOutlined, HistoryOutlined, UserOutlined, IdcardOutlined, MailOutlined, PhoneOutlined } from "@ant-design/icons";
+import { CheckCircleOutlined, ExclamationCircleOutlined, ToolOutlined, HomeOutlined, FileTextOutlined, PayCircleOutlined, DollarOutlined, InfoCircleOutlined, HistoryOutlined, UserOutlined, IdcardOutlined, MailOutlined, PhoneOutlined, TeamOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import type { Room } from "../../../types/room";
 import type { Checkin } from "../../../types/checkin";
@@ -401,6 +401,54 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
                 <Descriptions.Item label="Ghi chú">
                   {tenantSnapshot?.note || "Không có"}
                 </Descriptions.Item>
+              </Descriptions>
+            </>
+          )}
+
+          {/* Thông tin người ở cùng */}
+          {room?.activeContract?.coTenants && room.activeContract.coTenants.length > 0 && (
+            <>
+              <Divider orientation="left" style={{ marginTop: 24 }}>
+                <TeamOutlined /> Người ở cùng
+              </Divider>
+              <Descriptions
+                bordered
+                column={1}
+                size="middle"
+                styles={{
+                  label: { fontWeight: 600, background: "#fafafa", width: "200px" },
+                  content: { background: "#fff" },
+                }}
+              >
+                {room.activeContract.coTenants
+                  .filter((ct: any) => !ct.leftAt)
+                  .map((ct: any, idx: number) => (
+                    <Descriptions.Item key={idx} label={`Người ở cùng ${idx + 1}`}>
+                      <Space direction="vertical" size="small" style={{ width: "100%" }}>
+                        <div>
+                          <UserOutlined /> <Text strong>{ct.fullName || "N/A"}</Text>
+                        </div>
+                        <div>
+                          <PhoneOutlined /> {ct.phone || "N/A"}
+                        </div>
+                        {ct.email && (
+                          <div>
+                            <MailOutlined /> {ct.email}
+                          </div>
+                        )}
+                        {ct.identityNo && (
+                          <div>
+                            <IdcardOutlined /> {ct.identityNo}
+                          </div>
+                        )}
+                        {ct.joinedAt && (
+                          <div style={{ color: "#666", fontSize: 12 }}>
+                            Tham gia: {dayjs(ct.joinedAt).format("DD/MM/YYYY")}
+                          </div>
+                        )}
+                      </Space>
+                    </Descriptions.Item>
+                  ))}
               </Descriptions>
             </>
           )}

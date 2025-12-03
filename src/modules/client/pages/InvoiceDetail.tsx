@@ -3,7 +3,9 @@ import { Alert, Card, Descriptions, Button, message, Space, Tag, Table, Divider,
 import { ArrowLeftOutlined, CreditCardOutlined, DollarOutlined, CheckCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import dayjs from "dayjs";
+import { jwtDecode } from "jwt-decode";
 import { clientBillService, type Bill } from "../services/bill";
+import type { IUserToken } from "../../../types/user";
 
 const { Text } = Typography;
 
@@ -13,6 +15,58 @@ const InvoiceDetail: React.FC = () => {
   const [bill, setBill] = useState<Bill | null>(null);
   const [receiptBill, setReceiptBill] = useState<Bill | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Lấy userId từ token
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      try {
+        const decoded = jwtDecode<IUserToken>(token);
+        setCurrentUserId(decoded.id || null);
+      } catch (error) {
+        console.error("Error decoding token:", error);
+      }
+    }
+  }, []);
+
+  // Helper function để kiểm tra user có phải là co-tenant (không phải main tenant)
+  const isCoTenant = (bill: Bill | null): boolean => {
+    if (!currentUserId || !bill) return false;
+    
+    // Nếu bill có tenantId và khớp với currentUserId, thì là main tenant
+    const billTenantId = typeof bill.tenantId === 'object' && bill.tenantId?._id 
+      ? bill.tenantId._id 
+      : bill.tenantId;
+    if (billTenantId === currentUserId) {
+      return false; // Là main tenant
+    }
+
+    // Kiểm tra contractId (nếu đã được populate)
+    const contract = typeof bill.contractId === 'object' ? bill.contractId : null;
+    if (!contract) return false;
+
+    // Nếu contract.tenantId = currentUserId, thì là main tenant
+    const contractTenantId = typeof contract.tenantId === 'object' && contract.tenantId?._id 
+      ? contract.tenantId._id 
+      : contract.tenantId;
+    if (contractTenantId === currentUserId) {
+      return false; // Là main tenant
+    }
+
+    // Kiểm tra xem currentUserId có trong coTenants không
+    if (contract.coTenants && Array.isArray(contract.coTenants)) {
+      const isInCoTenants = contract.coTenants.some((ct: any) => {
+        const ctUserId = typeof ct.userId === 'object' && ct.userId?._id 
+          ? ct.userId._id 
+          : ct.userId;
+        return ctUserId === currentUserId && !ct.leftAt;
+      });
+      return isInCoTenants; // Nếu có trong coTenants nhưng không phải tenantId, thì là co-tenant
+    }
+
+    return false;
+  };
 
   useEffect(() => {
     if (id) {
@@ -637,7 +691,7 @@ const InvoiceDetail: React.FC = () => {
           </>
         )}
 
-        {bill.status !== "PAID" && (
+        {bill.status !== "PAID" && !isCoTenant(bill) && (
           <div style={{ marginTop: 24, textAlign: "right" }}>
             <Button
               type="primary"
@@ -647,6 +701,15 @@ const InvoiceDetail: React.FC = () => {
             >
               Thanh toán ngay
             </Button>
+          </div>
+        )}
+        {bill.status !== "PAID" && isCoTenant(bill) && (
+          <div style={{ marginTop: 24, textAlign: "center" }}>
+            <Alert
+              message="Chỉ người đại diện (người làm hợp đồng) mới có thể thanh toán hóa đơn này"
+              type="info"
+              showIcon
+            />
           </div>
         )}
       </Card>
