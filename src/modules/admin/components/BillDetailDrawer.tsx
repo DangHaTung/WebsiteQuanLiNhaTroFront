@@ -86,6 +86,16 @@ const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
       label: "Đã hủy",
       icon: <ExclamationCircleOutlined />,
     },
+    DRAFT: {
+      color: "#d9d9d9",
+      label: "Bản nháp",
+      icon: <ClockCircleOutlined />,
+    },
+    PENDING_CASH_CONFIRM: {
+      color: "#faad14",
+      label: "Chờ xác nhận tiền mặt",
+      icon: <ClockCircleOutlined />,
+    },
   };
   // Fetch bill details when billId or open state changes
   useEffect(() => {
@@ -130,8 +140,8 @@ const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
   };
   // Get related contract, tenant, and room data
   const contract = bill ? getContract(bill.contractId) : null;
-  const tenant = contract ? getTenant(contract.tenantId) : null;
-  const room = contract ? getRoom(contract.roomId) : null;
+  const _tenant = contract?.tenantId ? getTenant(contract.tenantId as any) : null;
+  const room = contract?.roomId ? getRoom(contract.roomId) : null;
   // Render the drawer with bill details
   return (
     <Drawer
@@ -225,7 +235,7 @@ const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
           </Descriptions>
 
           {/* Thông tin khách thuê (từ tenantSnapshot khi tạo) */}
-          {contract && contract.tenantSnapshot && (
+          {contract && (contract as any).tenantSnapshot && (
             <>
               <Divider orientation="left">Thông tin khách thuê</Divider>
               <Descriptions
@@ -237,29 +247,29 @@ const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
                   content: { background: "#fff" },
                 }}
               >
-                {contract.tenantSnapshot.fullName && (
+                {(contract as any).tenantSnapshot.fullName && (
                   <Descriptions.Item label="Họ tên">
-                    <Text strong>{contract.tenantSnapshot.fullName}</Text>
+                    <Text strong>{(contract as any).tenantSnapshot.fullName}</Text>
                   </Descriptions.Item>
                 )}
-                {contract.tenantSnapshot.phone && (
+                {(contract as any).tenantSnapshot.phone && (
                   <Descriptions.Item label="Số điện thoại">
-                    {contract.tenantSnapshot.phone}
+                    {(contract as any).tenantSnapshot.phone}
                   </Descriptions.Item>
                 )}
-                {contract.tenantSnapshot.identityNo && (
+                {(contract as any).tenantSnapshot.identityNo && (
                   <Descriptions.Item label="CMND/CCCD">
-                    {contract.tenantSnapshot.identityNo}
+                    {(contract as any).tenantSnapshot.identityNo}
                   </Descriptions.Item>
                 )}
-                {contract.tenantSnapshot.address && (
+                {(contract as any).tenantSnapshot.address && (
                   <Descriptions.Item label="Địa chỉ">
-                    {contract.tenantSnapshot.address}
+                    {(contract as any).tenantSnapshot.address}
                   </Descriptions.Item>
                 )}
-                {contract.tenantSnapshot.note && (
+                {(contract as any).tenantSnapshot.note && (
                   <Descriptions.Item label="Ghi chú khách thuê">
-                    {contract.tenantSnapshot.note}
+                    {(contract as any).tenantSnapshot.note}
                   </Descriptions.Item>
                 )}
                 {room && (

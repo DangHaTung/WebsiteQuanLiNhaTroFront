@@ -137,3 +137,24 @@
   max-width: 400px;
   width: 100%;
 }
+
+
+/* Badge trong menu sidebar */
+.dynamic-menu .ant-menu-item .ant-badge {
+  margin-left: 8px;
+}
+
+.dynamic-menu .ant-menu-item .ant-badge .ant-badge-count {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+/* Đảm bảo menu item không bị overflow và badge nằm trong */
+.dynamic-menu .ant-menu-item {
+  overflow: hidden !important;
+  padding-right: 16px !important;
+}
+
+.dynamic-menu .ant-menu-title-content {
+  overflow: hidden !important;
+  flex: 1;
+}
