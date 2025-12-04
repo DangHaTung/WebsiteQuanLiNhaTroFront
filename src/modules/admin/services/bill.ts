@@ -86,6 +86,11 @@ export const adminBillService = {
     return res.data.data;
   },
 
+  async rejectPayment(id: string, rejectionReason: string): Promise<Bill> {
+    const res = await api.post<SingleBillResponse>(`/bills/${id}/reject-payment`, { rejectionReason });
+    return res.data.data;
+  },
+
   async getByContractId(contractId: string): Promise<Bill[]> {
     const res = await api.get<BillResponse>(`/bills?contractId=${contractId}`);
     return res.data.data;

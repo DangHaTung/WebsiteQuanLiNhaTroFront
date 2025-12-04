@@ -224,7 +224,7 @@ const BillsAD: React.FC = () => {
         { text: "Đã thanh toán", value: "PAID" },
         { text: "Chưa thanh toán", value: "UNPAID" },
         { text: "Thanh toán một phần", value: "PARTIALLY_PAID" },
-        { text: "Chờ xác nhận tiền mặt", value: "PENDING_CASH_CONFIRM" },
+        { text: "Chờ xác nhận", value: "PENDING_CASH_CONFIRM" },
       ],
       onFilter: (val, record) => record.status === val,
       render: (s: BillStatus) => {
@@ -236,7 +236,7 @@ const BillsAD: React.FC = () => {
           VOID: { color: "default", text: "Đã hủy" },
           PENDING_CASH_CONFIRM: {
             color: "gold",
-            text: "Chờ xác nhận tiền mặt",
+            text: "Chờ xác nhận",
           },
         };
         const m = map[s] || { color: "default", text: s || "Trạng thái" };

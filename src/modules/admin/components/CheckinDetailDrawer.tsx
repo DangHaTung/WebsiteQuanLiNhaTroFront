@@ -34,7 +34,7 @@ const CheckinDetailDrawer: React.FC<CheckinDetailDrawerProps> = ({
       UNPAID: { color: "red", text: "Chờ thanh toán" },
       PARTIALLY_PAID: { color: "orange", text: "Một phần" },
       VOID: { color: "default", text: "Đã hủy" },
-      PENDING_CASH_CONFIRM: { color: "gold", text: "Chờ xác nhận tiền mặt" },
+      PENDING_CASH_CONFIRM: { color: "gold", text: "Chờ xác nhận" },
     };
     const m = map[status] || { color: "default", text: status || "N/A" };
     return <Tag color={m.color}>{m.text}</Tag>;

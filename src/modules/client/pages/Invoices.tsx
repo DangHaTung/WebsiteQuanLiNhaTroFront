@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Table, Tag, Card, Button, message, Space, Tabs, Row, Col, Statistic, Modal } from "antd";
-import { FileTextOutlined, CreditCardOutlined, EyeOutlined, CheckCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
+import { Table, Tag, Card, Button, message, Space, Tabs, Row, Col, Statistic, Modal, Upload, Alert, Form } from "antd";
+import { FileTextOutlined, CreditCardOutlined, EyeOutlined, CheckCircleOutlined, ClockCircleOutlined, UploadOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import { jwtDecode } from "jwt-decode";
 import { clientBillService, type Bill } from "../services/bill";
 import type { IUserToken } from "../../../types/user";
+import type { UploadFile } from "antd/es/upload/interface";
 
 const Invoices: React.FC = () => {
   const navigate = useNavigate();
@@ -13,6 +14,11 @@ const Invoices: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"unpaid" | "paid">("unpaid");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [cashPaymentModalVisible, setCashPaymentModalVisible] = useState(false);
+  const [currentBill, setCurrentBill] = useState<Bill | null>(null);
+  const [uploadFileList, setUploadFileList] = useState<UploadFile[]>([]);
+  const [form] = Form.useForm();
+  const [submittingCashPayment, setSubmittingCashPayment] = useState(false);
 
   // Lấy userId từ token
   useEffect(() => {
@@ -114,7 +120,11 @@ const Invoices: React.FC = () => {
     }
     
     // Tính số tiền còn lại phải thanh toán
-    const remainingAmount = bill.amountDue - (bill.amountPaid || 0);
+    // Với CONTRACT bill: amountDue đã là tổng tiền cần thanh toán (đã trừ tiền cọc), nên không trừ amountPaid
+    // Với các bill khác: trừ đi amountPaid
+    const remainingAmount = bill.billType === "CONTRACT" 
+      ? bill.amountDue 
+      : bill.amountDue - (bill.amountPaid || 0);
     
     Modal.confirm({
       title: "Chọn phương thức thanh toán",
@@ -124,16 +134,23 @@ const Invoices: React.FC = () => {
         </div>
       ),
       okText: "Thanh toán Online",
-      cancelText: "Thanh toán Tiền mặt",
+      cancelText: "Thanh toán",
       onOk: () => handleOnlinePayment(bill),
-      onCancel: () => handleCashPayment(bill),
+      onCancel: () => {
+        setCurrentBill(bill);
+        setCashPaymentModalVisible(true);
+      },
       width: 500,
     });
   };
 
   const handleOnlinePayment = async (bill: Bill) => {
     // Tính số tiền còn lại phải thanh toán (dùng chung cho cả modal và payment)
-    const remainingAmount = bill.amountDue - (bill.amountPaid || 0);
+    // Với CONTRACT bill: amountDue đã là tổng tiền cần thanh toán (đã trừ tiền cọc), nên không trừ amountPaid
+    // Với các bill khác: trừ đi amountPaid
+    const remainingAmount = bill.billType === "CONTRACT" 
+      ? bill.amountDue 
+      : bill.amountDue - (bill.amountPaid || 0);
 
     const createPayment = async (provider: "vnpay" | "momo" | "zalopay") => {
       try {
@@ -234,21 +251,61 @@ const Invoices: React.FC = () => {
     });
   };
 
-  const handleCashPayment = async (bill: Bill) => {
+  // Thông tin tài khoản ngân hàng
+  const bankInfo = {
+    accountNumber: "1903 7801 6150 17",
+    accountName: "HOANG VAN QUYNH",
+    bankName: "TECHCOMBANK",
+    bankBin: "970407"
+  };
+
+  // Tạo QR code URL từ VietQR API
+  const getQRCodeUrl = (amount: number) => {
+    const description = `Thanh toan hoa don ${currentBill?._id?.slice(-6) || ""}`;
+    return `https://img.vietqr.io/image/${bankInfo.bankBin}-${bankInfo.accountNumber.replace(/\s/g, "")}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(description)}&accountName=${encodeURIComponent(bankInfo.accountName)}`;
+  };
+
+  // Helper function để tính số tiền còn lại phải thanh toán (giống InvoiceDetail.tsx)
+  const getRemainingAmount = (bill: Bill | null): number => {
+    if (!bill) return 0;
+    // Với CONTRACT bill: amountDue đã là tổng tiền cần thanh toán (đã trừ tiền cọc), nên không trừ amountPaid
+    // Với các bill khác: trừ đi amountPaid
+    return bill.billType === "CONTRACT" 
+      ? bill.amountDue 
+      : bill.amountDue - (bill.amountPaid || 0);
+  };
+
+  const handleCashPayment = async () => {
+    if (!currentBill) return;
+
     try {
+      // Validate upload file
+      if (uploadFileList.length === 0) {
+        message.error("Vui lòng upload ảnh bill chuyển khoản");
+        return;
+      }
+
+      setSubmittingCashPayment(true);
+
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
       const token = localStorage.getItem("token");
       
-      // Tính số tiền còn lại phải thanh toán (amountDue - amountPaid)
-      const remainingAmount = bill.amountDue - (bill.amountPaid || 0);
+      // Tính số tiền còn lại phải thanh toán (dùng helper function)
+      const remainingAmount = getRemainingAmount(currentBill);
       
-      const response = await fetch(`${apiUrl}/api/bills/${bill._id}/pay-cash`, {
+      // Tạo FormData để upload file
+      const formData = new FormData();
+      formData.append("amount", remainingAmount.toString());
+      if (uploadFileList[0].originFileObj) {
+        formData.append("receiptImage", uploadFileList[0].originFileObj);
+      }
+      
+      const response = await fetch(`${apiUrl}/api/bills/${currentBill._id}/pay-cash`, {
         method: "POST",
         headers: { 
-          "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`,
         },
-        body: JSON.stringify({ amount: remainingAmount }),
+        body: formData,
       });
       
       const data = await response.json();
@@ -260,13 +317,18 @@ const Invoices: React.FC = () => {
       }
       
       if (data.success) {
-        message.success("Đã gửi yêu cầu thanh toán tiền mặt. Vui lòng chờ admin xác nhận.");
+        message.success("Đã gửi yêu cầu thanh toán. Vui lòng chờ admin xác nhận.");
+        setCashPaymentModalVisible(false);
+        setUploadFileList([]);
+        form.resetFields();
         loadBills();
       } else {
         message.error(data.message || "Lỗi khi thanh toán");
       }
     } catch (error) {
-      message.error("Lỗi khi thanh toán tiền mặt");
+      message.error("Lỗi khi thanh toán");
+    } finally {
+      setSubmittingCashPayment(false);
     }
   };
 
@@ -561,6 +623,125 @@ const Invoices: React.FC = () => {
             },
           ]}
         />
+
+        {/* Modal thanh toán tiền mặt */}
+        <Modal
+          title="Thanh toán"
+          open={cashPaymentModalVisible}
+          onCancel={() => {
+            setCashPaymentModalVisible(false);
+            setUploadFileList([]);
+            form.resetFields();
+          }}
+          footer={null}
+          width={900}
+        >
+          {currentBill && (
+            <div>
+              <Alert
+                message="Lưu ý quan trọng"
+                description="Vui lòng chuyển đúng số tiền. Nếu chuyển sai số tiền, vui lòng liên hệ với admin để được hỗ trợ."
+                type="warning"
+                showIcon
+                style={{ marginBottom: 24 }}
+              />
+              
+              <Row gutter={24}>
+                {/* Bên trái: Thông tin STK */}
+                <Col xs={24} md={12}>
+                  <Card title="Thông tin chuyển khoản" style={{ marginBottom: 24 }}>
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ color: "#666", fontSize: 14, marginBottom: 8 }}>Ngân hàng:</div>
+                      <div style={{ fontSize: 16, fontWeight: "bold" }}>🏦 {bankInfo.bankName}</div>
+                    </div>
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ color: "#666", fontSize: 14, marginBottom: 8 }}>Số tài khoản:</div>
+                      <div style={{ fontSize: 18, fontWeight: "bold", color: "#1890ff" }}>
+                        {bankInfo.accountNumber}
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ color: "#666", fontSize: 14, marginBottom: 8 }}>Tên chủ tài khoản:</div>
+                      <div style={{ fontSize: 16, fontWeight: "bold" }}>{bankInfo.accountName}</div>
+                    </div>
+                    <div>
+                      <div style={{ color: "#666", fontSize: 14, marginBottom: 8 }}>Số tiền:</div>
+                      <div style={{ fontSize: 20, fontWeight: "bold", color: "#52c41a" }}>
+                        {getRemainingAmount(currentBill).toLocaleString("vi-VN")} ₫
+                      </div>
+                    </div>
+                  </Card>
+                </Col>
+
+                {/* Bên phải: QR Code */}
+                <Col xs={24} md={12}>
+                  <Card title="Quét mã QR để chuyển khoản" style={{ marginBottom: 24 }}>
+                    <div style={{ textAlign: "center" }}>
+                      <img
+                        src={getQRCodeUrl(getRemainingAmount(currentBill))}
+                        alt="QR Code"
+                        style={{
+                          maxWidth: "100%",
+                          height: "auto",
+                          borderRadius: 8,
+                          border: "2px solid #d9d9d9",
+                        }}
+                      />
+                    </div>
+                  </Card>
+                </Col>
+              </Row>
+
+              {/* Upload bill chuyển khoản */}
+              <Form form={form} layout="vertical">
+                <Form.Item
+                  label="Upload ảnh bill chuyển khoản"
+                  required
+                  rules={[{ required: true, message: "Vui lòng upload ảnh bill chuyển khoản" }]}
+                >
+                  <Upload
+                    listType="picture-card"
+                    fileList={uploadFileList}
+                    onChange={({ fileList }) => setUploadFileList(fileList)}
+                    beforeUpload={() => false}
+                    accept="image/*"
+                    maxCount={1}
+                  >
+                    {uploadFileList.length < 1 && (
+                      <div>
+                        <UploadOutlined />
+                        <div style={{ marginTop: 8 }}>Upload</div>
+                      </div>
+                    )}
+                  </Upload>
+                </Form.Item>
+              </Form>
+
+              <div style={{ textAlign: "right", marginTop: 24 }}>
+                <Space>
+                  <Button 
+                    onClick={() => {
+                      setCashPaymentModalVisible(false);
+                      setUploadFileList([]);
+                      form.resetFields();
+                    }}
+                    disabled={submittingCashPayment}
+                  >
+                    Hủy
+                  </Button>
+                  <Button 
+                    type="primary" 
+                    onClick={handleCashPayment}
+                    loading={submittingCashPayment}
+                    disabled={submittingCashPayment}
+                  >
+                    {submittingCashPayment ? "Đang xử lý..." : "Xác nhận đã chuyển khoản"}
+                  </Button>
+                </Space>
+              </div>
+            </div>
+          )}
+        </Modal>
       </Card>
     </div>
   );

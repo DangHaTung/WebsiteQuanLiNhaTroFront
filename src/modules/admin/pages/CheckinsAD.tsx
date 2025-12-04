@@ -15,7 +15,11 @@ import {
   Space,
   Tooltip,
   Popconfirm,
+  Alert,
+  Image,
 } from "antd";
+
+const { TextArea } = Input;
 import {
   PlusOutlined,
   UploadOutlined,
@@ -73,6 +77,16 @@ const CheckinsAD: React.FC = () => {
   const [extendModalVisible, setExtendModalVisible] = useState(false);
   const [extendingCheckin, setExtendingCheckin] = useState<Checkin | null>(null);
   const [extendForm] = Form.useForm<{ additionalDeposit: number }>();
+
+  // Confirm Payment Modal States
+  const [confirmPaymentModalVisible, setConfirmPaymentModalVisible] = useState(false);
+  const [confirmingBillId, setConfirmingBillId] = useState<string | null>(null);
+  const [confirmingBillImage, setConfirmingBillImage] = useState<string | null>(null);
+  
+  // Reject Payment Modal States
+  const [rejectPaymentModalVisible, setRejectPaymentModalVisible] = useState(false);
+  const [rejectingBillId, setRejectingBillId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState<string>("");
 
   // CCCD Upload Modal States
   const [cccdUploadModalVisible, setCccdUploadModalVisible] = useState(false);
@@ -389,6 +403,12 @@ const CheckinsAD: React.FC = () => {
 
   // Vehicle management functions
   const addVehicle = () => {
+    // Validation: chỉ được thêm tối đa 1 xe (tính theo đầu người)
+    if (vehicles.length >= 1) {
+      message.error('Chỉ được thêm tối đa 1 xe (tính theo đầu người)');
+      return;
+    }
+    
     if (['motorbike', 'electric_bike'].includes(newVehicleType) && !newVehiclePlate.trim()) {
       message.error('Xe máy và xe điện phải có biển số');
       return;
@@ -526,14 +546,74 @@ const CheckinsAD: React.FC = () => {
     return <Tag color={m.color} icon={m.icon}>{m.text}</Tag>;
   };
 
-  const handleConfirmCashPayment = async (receiptBillId: string) => {
+  const handleOpenConfirmModal = async (receiptBillId: string, receiptBill: any) => {
+    // Nếu receiptBill chưa có metadata, load lại từ API
+    if (!receiptBill?.metadata) {
+      try {
+        const freshBill = await adminBillService.getById(receiptBillId);
+        receiptBill = freshBill;
+      } catch (error) {
+        console.error("Error loading bill:", error);
+      }
+    }
+    
+    // Lấy ảnh từ metadata
+    const receiptImage = receiptBill?.metadata?.cashPaymentRequest?.receiptImage;
+    const imageUrl = receiptImage?.secure_url || receiptImage?.url || null;
+    
+    console.log("🔍 Debug receiptBill metadata:", {
+      receiptBillId,
+      hasMetadata: !!receiptBill?.metadata,
+      metadata: receiptBill?.metadata,
+      receiptImage,
+      imageUrl
+    });
+    
+    setConfirmingBillId(receiptBillId);
+    setConfirmingBillImage(imageUrl);
+    setConfirmPaymentModalVisible(true);
+  };
+
+  const handleConfirmCashPayment = async () => {
+    if (!confirmingBillId) return;
+    
     try {
-      await adminBillService.confirmPayment(receiptBillId);
-      message.success("Xác nhận thanh toán tiền mặt thành công!");
+      await adminBillService.confirmPayment(confirmingBillId);
+      message.success("Xác nhận thanh toán thành công!");
       // Reload để cập nhật receiptPaidAt và receiptBill status
       await loadCheckins();
+      setConfirmPaymentModalVisible(false);
+      setConfirmingBillId(null);
+      setConfirmingBillImage(null);
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Lỗi khi xác nhận thanh toán");
+    }
+  };
+
+  const handleOpenRejectModal = () => {
+    // Chuyển từ modal xác nhận sang modal từ chối
+    setRejectingBillId(confirmingBillId);
+    setRejectionReason("");
+    setConfirmPaymentModalVisible(false);
+    setRejectPaymentModalVisible(true);
+  };
+
+  const handleRejectCashPayment = async () => {
+    if (!rejectingBillId || !rejectionReason.trim()) {
+      message.error("Vui lòng nhập lý do từ chối");
+      return;
+    }
+    
+    try {
+      await adminBillService.rejectPayment(rejectingBillId, rejectionReason);
+      message.success("Đã từ chối thanh toán!");
+      // Reload để cập nhật bill status
+      await loadCheckins();
+      setRejectPaymentModalVisible(false);
+      setRejectingBillId(null);
+      setRejectionReason("");
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || "Lỗi khi từ chối thanh toán");
     }
   };
 
@@ -693,7 +773,7 @@ const CheckinsAD: React.FC = () => {
             UNPAID: { color: "red", text: "Chờ thanh toán" },
             PARTIALLY_PAID: { color: "orange", text: "Một phần" },
             VOID: { color: "default", text: "Đã hủy" },
-            PENDING_CASH_CONFIRM: { color: "gold", text: "Chờ xác nhận tiền mặt" },
+            PENDING_CASH_CONFIRM: { color: "gold", text: "Chờ xác nhận" },
           };
           const m = map[billStatus] || { color: "default", text: billStatus || "Trạng thái" };
           return <Tag color={m.color}>{m.text}</Tag>;
@@ -853,19 +933,13 @@ const CheckinsAD: React.FC = () => {
           <Space size="small" wrap={false}>
             {(isPendingCash || isUnpaid) && receiptBillId && (
               <>
-                <Tooltip title="Xác nhận đã nhận tiền mặt">
-                  <Popconfirm
-                    title="Xác nhận đã nhận tiền mặt?"
-                    okText="Xác nhận"
-                    cancelText="Hủy"
-                    onConfirm={() => handleConfirmCashPayment(receiptBillId)}
-                  >
-                    <Button
-                      size="small"
-                      type="primary"
-                      icon={<DollarOutlined />}
-                    />
-                  </Popconfirm>
+                <Tooltip title="Xác nhận đã nhận">
+                  <Button
+                    size="small"
+                    type="primary"
+                    icon={<DollarOutlined />}
+                    onClick={() => handleOpenConfirmModal(receiptBillId, receiptBill)}
+                  />
                 </Tooltip>
                 <Tooltip title="Gửi link thanh toán qua email">
                   <Button
@@ -1019,6 +1093,7 @@ const CheckinsAD: React.FC = () => {
               <Form.Item
                 label="Tiền cọc giữ phòng(VNĐ)"
                 name="deposit"
+                dependencies={["roomId"]}
                 rules={[
                   { required: true, message: "Nhập tiền cọc!" },
                   {
@@ -1033,6 +1108,21 @@ const CheckinsAD: React.FC = () => {
                       if (depositNum < 500000) {
                         return Promise.reject(new Error("Cọc giữ phòng tối thiểu là 500,000 VNĐ"));
                       }
+                      
+                      // Kiểm tra tiền cọc không vượt quá tiền phòng 1 tháng
+                      const roomId = form.getFieldValue("roomId");
+                      if (roomId) {
+                        const selectedRoom = rooms.find((r) => r._id === roomId);
+                        if (selectedRoom && selectedRoom.pricePerMonth) {
+                          const monthlyRent = Number(selectedRoom.pricePerMonth);
+                          if (depositNum > monthlyRent) {
+                            return Promise.reject(
+                              new Error(`Tiền cọc không được vượt quá tiền phòng 1 tháng (${monthlyRent.toLocaleString('vi-VN')} VNĐ)`)
+                            );
+                          }
+                        }
+                      }
+                      
                       return Promise.resolve();
                     },
                   },
@@ -1047,7 +1137,7 @@ const CheckinsAD: React.FC = () => {
                     const parsed = value.replace(/\$\s?|(,*)/g, "");
                     return (parsed === "" ? 0 : Number(parsed) || 0) as any;
                   }}
-                  placeholder="Nhập tiền cọc (tối thiểu 500,000 VNĐ)"
+                  placeholder="Nhập tiền cọc (tối thiểu 500,000 VNĐ, tối đa bằng tiền phòng 1 tháng)"
                 />
               </Form.Item>
             </Col>
@@ -1130,7 +1220,13 @@ const CheckinsAD: React.FC = () => {
                 />
               </Col>
               <Col xs={6}>
-                <Button type="primary" icon={<PlusOutlined />} onClick={addVehicle} block>
+                <Button 
+                  type="primary" 
+                  icon={<PlusOutlined />} 
+                  onClick={addVehicle} 
+                  block
+                  disabled={vehicles.length >= 1}
+                >
                   Thêm
                 </Button>
               </Col>
@@ -1428,6 +1524,109 @@ const CheckinsAD: React.FC = () => {
         rooms={rooms}
         users={users}
       />
+
+      {/* Modal xác nhận thanh toán với preview ảnh */}
+      <Modal
+        title="Xác nhận đã nhận thanh toán"
+        open={confirmPaymentModalVisible}
+        onOk={handleConfirmCashPayment}
+        onCancel={() => {
+          setConfirmPaymentModalVisible(false);
+          setConfirmingBillId(null);
+          setConfirmingBillImage(null);
+        }}
+        footer={[
+          <Button
+            key="reject"
+            danger
+            onClick={handleOpenRejectModal}
+          >
+            Từ chối
+          </Button>,
+          <Button
+            key="cancel"
+            onClick={() => {
+              setConfirmPaymentModalVisible(false);
+              setConfirmingBillId(null);
+              setConfirmingBillImage(null);
+            }}
+          >
+            Hủy
+          </Button>,
+          <Button
+            key="confirm"
+            type="primary"
+            onClick={handleConfirmCashPayment}
+          >
+            Xác nhận
+          </Button>,
+        ]}
+        width={600}
+      >
+        {confirmingBillImage ? (
+          <div>
+            <Alert
+              message="Ảnh bill chuyển khoản"
+              description="Vui lòng kiểm tra ảnh bill trước khi xác nhận"
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+            <div style={{ textAlign: "center" }}>
+              <Image
+                src={confirmingBillImage}
+                alt="Bill chuyển khoản"
+                style={{ maxWidth: "100%", maxHeight: "500px" }}
+                preview={{
+                  mask: "Xem ảnh lớn",
+                }}
+              />
+            </div>
+          </div>
+        ) : (
+          <Alert
+            message="Chưa có ảnh bill chuyển khoản"
+            description="Khách hàng chưa upload ảnh bill. Bạn vẫn có thể xác nhận nếu đã kiểm tra."
+            type="warning"
+            showIcon
+          />
+        )}
+      </Modal>
+
+      {/* Modal từ chối thanh toán */}
+      <Modal
+        title="Từ chối thanh toán"
+        open={rejectPaymentModalVisible}
+        onOk={handleRejectCashPayment}
+        onCancel={() => {
+          setRejectPaymentModalVisible(false);
+          setRejectingBillId(null);
+          setRejectionReason("");
+        }}
+        okText="Xác nhận từ chối"
+        cancelText="Hủy"
+        okButtonProps={{ danger: true }}
+        width={500}
+      >
+        <Alert
+          message="Lưu ý"
+          description="Khi từ chối, bill sẽ chuyển về trạng thái 'Chờ thanh toán' và khách hàng có thể thanh toán lại."
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+        <div style={{ marginBottom: 8 }}>
+          <strong>Lý do từ chối <span style={{ color: "red" }}>*</span></strong>
+        </div>
+        <TextArea
+          rows={4}
+          placeholder="Nhập lý do từ chối thanh toán (ví dụ: Ảnh bill không rõ, Số tiền không khớp, Thông tin không đúng...)"
+          value={rejectionReason}
+          onChange={(e) => setRejectionReason(e.target.value)}
+          maxLength={500}
+          showCount
+        />
+      </Modal>
     </div>
   );
 };
