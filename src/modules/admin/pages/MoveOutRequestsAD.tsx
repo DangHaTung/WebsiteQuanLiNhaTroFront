@@ -82,9 +82,12 @@ const MoveOutRequestsAD: React.FC = () => {
   const [refundForm] = Form.useForm();
   const [calculatedServiceFee, setCalculatedServiceFee] = useState<FeeCalculation | null>(null);
   const [roomOccupantCount, setRoomOccupantCount] = useState<number>(1);
-  const [totalDepositPaid, setTotalDepositPaid] = useState<number>(0); // Tổng tiền cọc đã thanh toán từ RECEIPT + CONTRACT bills
+  const [totalDepositPaid, setTotalDepositPaid] = useState<number>(0); // Tiền cọc = 1 tháng tiền phòng
+  const [previousElectricityReading, setPreviousElectricityReading] = useState<number | null>(null); // Số điện cũ từ check-in + tổng số điện đã dùng
+  const [vehiclesFromCheckin, setVehiclesFromCheckin] = useState<any[]>([]); // Vehicles từ check-in
   const [detailDrawerVisible, setDetailDrawerVisible] = useState(false);
   const [detailRequest, setDetailRequest] = useState<MoveOutRequest | null>(null);
+  const [detailTotalDepositPaid, setDetailTotalDepositPaid] = useState<number>(0); // Tiền cọc tính lại cho detail view
   
   // Theo dõi giá trị damageAmount từ form để tự động cập nhật hiển thị
   const damageAmount = Form.useWatch("damageAmount", refundForm) || 0;
@@ -144,6 +147,105 @@ const MoveOutRequestsAD: React.FC = () => {
   };
 
   /**
+   * Tính tổng tiền cọc từ RECEIPT + CONTRACT bills (giống logic trong handleOpenRefundModal)
+   * @param contractId - ID của contract
+   * @returns Tổng tiền cọc (RECEIPT + CONTRACT deposit)
+   */
+  const calculateTotalDepositPaid = async (contractId: string): Promise<number> => {
+    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+    const token = localStorage.getItem("admin_token");
+    let totalDeposit = 0;
+    
+    // 1. Lấy RECEIPT bill (Cọc giữ phòng)
+    const receiptBillsResponse = await fetch(`${apiUrl}/api/bills?contractId=${contractId}&billType=RECEIPT&status=PAID&limit=10`, {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+    });
+    
+    if (receiptBillsResponse.ok) {
+      const receiptBillsData = await receiptBillsResponse.json();
+      const receiptBills = receiptBillsData.data || [];
+      if (receiptBills.length > 0) {
+        const receiptPaid = dec(receiptBills[0].amountPaid) || 0;
+        totalDeposit += receiptPaid;
+        console.log(`[MoveOutRequestsAD] calculateTotalDepositPaid - Found RECEIPT bill: amountPaid=${receiptPaid}`);
+      }
+    }
+    
+    // 2. Lấy CONTRACT bill (Cọc còn lại - phần "Tiền cọc (1 tháng tiền phòng)")
+    const finalContractsResponse = await fetch(`${apiUrl}/api/final-contracts?originContractId=${contractId}&limit=10`, {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+      },
+    });
+    
+    if (finalContractsResponse.ok) {
+      const finalContractsData = await finalContractsResponse.json();
+      const finalContracts = finalContractsData.data || [];
+      
+      for (const fc of finalContracts) {
+        const finalContractId = typeof fc._id === 'string' ? fc._id : fc._id;
+        const contractBillsResponse = await fetch(`${apiUrl}/api/bills?finalContractId=${finalContractId}&billType=CONTRACT&status=PAID&limit=10`, {
+          headers: {
+            "Authorization": `Bearer ${token}`,
+          },
+        });
+        
+        if (contractBillsResponse.ok) {
+          const contractBillsData = await contractBillsResponse.json();
+          const contractBills = contractBillsData.data || [];
+          if (contractBills.length > 0) {
+            const contractBill = contractBills[0];
+            if (contractBill.lineItems && Array.isArray(contractBill.lineItems)) {
+              const depositLineItem = contractBill.lineItems.find((item: any) => 
+                item.item && (
+                  item.item.toLowerCase().includes('cọc') || 
+                  item.item.toLowerCase().includes('deposit')
+                )
+              );
+              
+              if (depositLineItem) {
+                const contractDeposit = dec(depositLineItem.lineTotal) || 0;
+                totalDeposit += contractDeposit;
+                console.log(`[MoveOutRequestsAD] calculateTotalDepositPaid - Found CONTRACT bill deposit: ${contractDeposit}`);
+                break;
+              } else if (contractBill.lineItems.length >= 2) {
+                const contractDeposit = dec(contractBill.lineItems[1].lineTotal) || 0;
+                totalDeposit += contractDeposit;
+                console.log(`[MoveOutRequestsAD] calculateTotalDepositPaid - Found CONTRACT bill deposit (fallback): ${contractDeposit}`);
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Fallback: nếu không tìm thấy bills, lấy từ contract
+    if (totalDeposit === 0) {
+      try {
+        const contract = await adminContractService.getById(contractId);
+        if (contract.roomId && typeof contract.roomId === 'object') {
+          totalDeposit = dec(contract.roomId.pricePerMonth) || dec(contract.monthlyRent) || 0;
+        } else {
+          totalDeposit = dec(contract.monthlyRent) || 0;
+        }
+        
+        if (totalDeposit === 0) {
+          totalDeposit = dec(contract.deposit) || 0;
+        }
+        console.log(`[MoveOutRequestsAD] calculateTotalDepositPaid - Using monthlyRent/deposit as fallback: ${totalDeposit}`);
+      } catch (error) {
+        console.error('[MoveOutRequestsAD] calculateTotalDepositPaid - Error fetching contract:', error);
+      }
+    }
+    
+    console.log(`[MoveOutRequestsAD] calculateTotalDepositPaid - Total deposit: ${totalDeposit}`);
+    return totalDeposit;
+  };
+
+  /**
    * Mở modal xử lý hoàn tiền
    * @param request - Yêu cầu chuyển đi cần xử lý hoàn tiền
    */
@@ -154,77 +256,111 @@ const MoveOutRequestsAD: React.FC = () => {
     setCalculatedServiceFee(null);
     setTotalDepositPaid(0);
     
-    // Load room để lấy số người ở (giống DraftBills) và load tổng tiền cọc
+    // Load room để lấy số người ở (giống DraftBills), tiền cọc (1 tháng tiền phòng), và số điện cũ
     try {
       const contractId = request.contractId._id;
       const contract = await adminContractService.getById(contractId);
       const roomId = typeof contract.roomId === 'object' ? contract.roomId._id : contract.roomId;
       
-      // Load tổng tiền cọc từ 2 bills: RECEIPT + CONTRACT
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
       const token = localStorage.getItem("admin_token");
       
-      let totalDeposit = 0;
+      // Tính tiền cọc = Cọc giữ phòng (RECEIPT) + Cọc còn lại (CONTRACT)
+      const totalDeposit = await calculateTotalDepositPaid(contractId);
+      setTotalDepositPaid(totalDeposit);
       
-      // 1. Lấy RECEIPT bill (Cọc giữ phòng)
-      const receiptBillsResponse = await fetch(`${apiUrl}/api/bills?contractId=${contractId}&billType=RECEIPT&status=PAID&limit=10`, {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
+      // Lấy số điện cũ theo logic giống DraftBills:
+      // 1. Lấy số điện chốt từ check-in (initialElectricReading)
+      // 2. Lấy tổng số điện đã dùng từ các hóa đơn MONTHLY đã thanh toán
+      // 3. Số điện "Trước" = initialElectricReading + totalElectricityUsed
+      let previousReading: number | null = null;
+      let vehicles: any[] = [];
+      
+      // 1. Lấy số điện chốt và vehicles từ check-in
+      const checkinResponse = await fetch(`${apiUrl}/api/checkins?contractId=${contractId}&limit=1`, {
+        headers: { "Authorization": `Bearer ${token}` },
       });
       
-      if (receiptBillsResponse.ok) {
-        const receiptBillsData = await receiptBillsResponse.json();
-        const receiptBills = receiptBillsData.data || [];
-        if (receiptBills.length > 0) {
-          const receiptPaid = dec(receiptBills[0].amountPaid) || 0;
-          totalDeposit += receiptPaid;
-          console.log(`[MoveOutRequestsAD] Found RECEIPT bill: amountPaid=${receiptPaid}`);
+      let initialElectricReading = 0;
+      if (checkinResponse.ok) {
+        const checkinData = await checkinResponse.json();
+        const checkins = checkinData.data || [];
+        if (checkins.length > 0) {
+          const checkin = checkins[0];
+          if (checkin.initialElectricReading !== undefined && checkin.initialElectricReading !== null) {
+            const initialReading = Number(checkin.initialElectricReading);
+            if (!isNaN(initialReading) && initialReading >= 0) {
+              initialElectricReading = initialReading;
+            }
+          }
+          // Lấy vehicles từ checkin
+          if (checkin.vehicles && Array.isArray(checkin.vehicles)) {
+            vehicles = checkin.vehicles;
+            console.log(`[MoveOutRequestsAD] Found ${vehicles.length} vehicles from checkin`);
+          }
         }
       }
       
-      // 2. Lấy CONTRACT bill (Cọc 1 tháng tiền phòng) - có thể qua finalContractId
-      // Tìm FinalContract
-      const finalContractsResponse = await fetch(`${apiUrl}/api/final-contracts?originContractId=${contractId}&limit=10`, {
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
+      // 2. Lấy tổng số điện đã dùng từ các hóa đơn MONTHLY đã thanh toán (PAID hoặc UNPAID - đã phát hành, không tính DRAFT)
+      const billsResponse = await fetch(`${apiUrl}/api/bills?contractId=${contractId}&billType=MONTHLY&limit=100&sort=-billingDate`, {
+        headers: { "Authorization": `Bearer ${token}` },
       });
       
-      if (finalContractsResponse.ok) {
-        const finalContractsData = await finalContractsResponse.json();
-        const finalContracts = finalContractsData.data || [];
+      let totalElectricityUsed = 0;
+      if (billsResponse.ok) {
+        const billsData = await billsResponse.json();
+        const previousBills = billsData.data || [];
+        console.log(`[MoveOutRequestsAD] Contract ${contractId}: Found ${previousBills.length} MONTHLY bills`);
         
-        // Tìm FinalContract SIGNED hoặc có bill CONTRACT đã thanh toán
-        for (const fc of finalContracts) {
-          const finalContractId = typeof fc._id === 'string' ? fc._id : fc._id;
-          const contractBillsResponse = await fetch(`${apiUrl}/api/bills?finalContractId=${finalContractId}&billType=CONTRACT&status=PAID&limit=10`, {
-            headers: {
-              "Authorization": `Bearer ${token}`,
-            },
-          });
+        for (const prevBill of previousBills) {
+          // Bỏ qua DRAFT bills
+          if (prevBill.status === "DRAFT") {
+            console.log(`[MoveOutRequestsAD] Skipping DRAFT bill ${prevBill._id}`);
+            continue;
+          }
           
-          if (contractBillsResponse.ok) {
-            const contractBillsData = await contractBillsResponse.json();
-            const contractBills = contractBillsData.data || [];
-            if (contractBills.length > 0) {
-              const contractPaid = dec(contractBills[0].amountPaid) || 0;
-              totalDeposit += contractPaid;
-              console.log(`[MoveOutRequestsAD] Found CONTRACT bill: amountPaid=${contractPaid}`);
-              break; // Chỉ lấy bill đầu tiên
+          console.log(`[MoveOutRequestsAD] Processing bill ${prevBill._id}, status=${prevBill.status}, lineItems=${prevBill.lineItems?.length || 0}`);
+          
+          if (prevBill.lineItems && Array.isArray(prevBill.lineItems)) {
+            for (const item of prevBill.lineItems) {
+              // Tìm item tiền điện
+              if (item.item && item.item.includes("Tiền điện")) {
+                console.log(`[MoveOutRequestsAD] Found electricity item:`, item);
+                
+                // Cách 1: Parse từ tên item "Tiền điện (200 kWh)"
+                const match = item.item.match(/\((\d+(?:\.\d+)?)\s*kWh\)/i);
+                if (match && match[1]) {
+                  const kwh = Number(match[1]);
+                  if (!isNaN(kwh) && kwh > 0) {
+                    totalElectricityUsed += kwh;
+                    console.log(`[MoveOutRequestsAD] Parsed ${kwh} kWh from item name`);
+                  }
+                } 
+                // Cách 2: Lấy từ quantity
+                else if (item.quantity && Number(item.quantity) > 0) {
+                  const kwh = Number(item.quantity);
+                  if (!isNaN(kwh) && kwh > 0) {
+                    totalElectricityUsed += kwh;
+                    console.log(`[MoveOutRequestsAD] Got ${kwh} kWh from quantity`);
+                  }
+                }
+              }
             }
           }
         }
       }
       
-      // Fallback: nếu không tìm thấy, dùng contract.deposit
-      if (totalDeposit === 0) {
-        totalDeposit = dec(contract.deposit) || 0;
-        console.log(`[MoveOutRequestsAD] No paid bills found, using contract.deposit=${totalDeposit}`);
-      }
+      // Số điện "Trước" = số điện chốt + tổng số điện đã dùng
+      previousReading = initialElectricReading + totalElectricityUsed;
+      console.log(`[MoveOutRequestsAD] Contract ${contractId}: initial=${initialElectricReading}, used=${totalElectricityUsed}, previous=${previousReading}, vehicles=${vehicles.length}`);
       
-      setTotalDepositPaid(totalDeposit);
-      console.log(`[MoveOutRequestsAD] Total deposit paid: ${totalDeposit}`);
+      setPreviousElectricityReading(previousReading);
+      setVehiclesFromCheckin(vehicles);
+      
+      // Lưu vehicles vào form để hiển thị
+      if (vehicles.length > 0) {
+        refundForm.setFieldsValue({ vehicles: vehicles });
+      }
       
       if (roomId) {
         // Load tất cả rooms với pagination để lấy occupantCount (giống DraftBills)
@@ -270,9 +406,9 @@ const MoveOutRequestsAD: React.FC = () => {
           setRoomOccupantCount(1);
         }
         
-        // Tự động tính toán với giá trị mặc định (điện = 0, xe = 0) để bảng tính luôn hiện ra
+        // Tự động tính toán với giá trị mặc định (điện = 0) để bảng tính luôn hiện ra
         setTimeout(() => {
-          calculateServiceFee({ electricityKwh: 0, vehicleCount: 0 });
+          calculateServiceFee({ electricityKwh: 0 });
         }, 100);
       }
     } catch (error: any) {
@@ -283,7 +419,7 @@ const MoveOutRequestsAD: React.FC = () => {
 
   /**
    * Tính toán phí dịch vụ dựa trên số điện và số xe
-   * @param values - Đối tượng chứa số điện (kWh) và số xe
+   * @param values - Đối tượng chứa số điện mới (kWh) và số xe
    */
   const calculateServiceFee = async (values: {
     electricityKwh: number;
@@ -301,13 +437,23 @@ const MoveOutRequestsAD: React.FC = () => {
         return;
       }
 
+      // Tính số điện tiêu thụ = số điện mới - số điện cũ
+      const currentReading = Number(values.electricityKwh) || 0;
+      const prevReading = previousElectricityReading || 0;
+      const consumption = Math.max(0, currentReading - prevReading);
+
+      console.log(`[MoveOutRequestsAD] Electricity calculation: current=${currentReading}, previous=${prevReading}, consumption=${consumption}`);
+
       // Sử dụng roomFeeService để tính toán giống DraftBills
       // Số người tự động lấy từ roomOccupantCount (đã load khi mở modal)
+      // Sử dụng vehicles từ check-in thay vì vehicleCount
+      const vehicles = vehiclesFromCheckin || [];
       const result = await roomFeeService.calculateFees(
         roomId,
-        values.electricityKwh || 0,
+        consumption, // Sử dụng số điện tiêu thụ (consumption) thay vì số điện mới
         roomOccupantCount, // Tự động lấy từ room
-        values.vehicleCount || 0
+        0, // vehicleCount = 0 (deprecated, dùng vehicles thay thế)
+        vehicles // Sử dụng vehicles từ check-in
       );
 
       setCalculatedServiceFee(result);
@@ -324,23 +470,47 @@ const MoveOutRequestsAD: React.FC = () => {
     if (!selectedRequest) return;
 
     try {
+      // Kiểm tra xem contract đã được hoàn cọc chưa
       const contractId = selectedRequest.contractId._id;
+      const contract = await adminContractService.getById(contractId);
+      
+      if (contract.depositRefunded) {
+        // Nếu contract đã hoàn cọc rồi, không làm gì cả
+        message.warning("Hợp đồng này đã được hoàn cọc trước đó.");
+        setRefundModalVisible(false);
+        refundForm.resetFields();
+        setCalculatedServiceFee(null);
+        setRoomOccupantCount(1);
+        setPreviousElectricityReading(null);
+        setVehiclesFromCheckin([]);
+        loadRequests();
+        return;
+      }
+      
+      // Tính số điện tiêu thụ = số điện mới - số điện cũ
+      const currentReading = Number(values.electricityKwh) || 0;
+      const prevReading = previousElectricityReading || 0;
+      const consumption = Math.max(0, currentReading - prevReading);
+      
+      console.log(`[MoveOutRequestsAD] Refund: current=${currentReading}, previous=${prevReading}, consumption=${consumption}`);
+      
+      // Sử dụng vehicles từ check-in thay vì vehicleCount
+      const vehicles = vehiclesFromCheckin || [];
+      // Gọi API hoàn cọc (backend sẽ tự động set status = WAITING_CONFIRMATION)
       await adminContractService.refundDeposit(contractId, {
-        electricityKwh: values.electricityKwh || 0,
+        electricityKwh: consumption, // Gửi số điện tiêu thụ (consumption) thay vì số điện mới
         waterM3: 0, // Không cần nhập nước, tính tự động
         occupantCount: roomOccupantCount, // Tự động lấy từ room
-        vehicleCount: values.vehicleCount || 0,
+        vehicleCount: vehicles.length, // Dùng số lượng vehicles từ check-in
+        vehicles: vehicles, // Gửi vehicles chi tiết
         damageAmount: values.damageAmount || 0,
         damageNote: values.damageNote,
         method: values.method || "BANK",
-        transactionId: values.transactionId,
         note: values.note,
       });
 
-      if (selectedRequest?._id) {
-        await adminMoveOutRequestService.complete(selectedRequest._id);
-      }
-      message.success("Hoàn cọc thành công");
+      // KHÔNG gọi complete nữa vì backend đã set status = WAITING_CONFIRMATION
+      message.success("Hoàn cọc thành công. Đang chờ khách hàng xác nhận nhận được tiền.");
       setRefundModalVisible(false);
       refundForm.resetFields();
       setCalculatedServiceFee(null);
@@ -353,7 +523,7 @@ const MoveOutRequestsAD: React.FC = () => {
 
   /**
    * Tạo tag hiển thị trạng thái yêu cầu với màu sắc tương ứng
-   * @param status - Trạng thái của yêu cầu (PENDING, APPROVED, REJECTED, COMPLETED)
+   * @param status - Trạng thái của yêu cầu (PENDING, APPROVED, REJECTED, WAITING_CONFIRMATION, COMPLETED)
    * @returns ReactNode - Thẻ Tag với màu sắc và văn bản phù hợp
    */
   const getStatusTag = (status: string) => {
@@ -361,6 +531,7 @@ const MoveOutRequestsAD: React.FC = () => {
       PENDING: { color: "processing", text: "Chờ xử lý" },
       APPROVED: { color: "success", text: "Đã duyệt" },
       REJECTED: { color: "error", text: "Từ chối" },
+      WAITING_CONFIRMATION: { color: "purple", text: "Chờ khách xác nhận" },
       COMPLETED: { color: "default", text: "Đã hoàn tất" },
     };
     const s = map[status] || { color: "default", text: status };
@@ -371,11 +542,18 @@ const MoveOutRequestsAD: React.FC = () => {
    * Mở drawer xem chi tiết yêu cầu
    * @param request - Yêu cầu cần xem chi tiết
    */
-  const handleViewDetail = (request: MoveOutRequest) => {
+  const handleViewDetail = async (request: MoveOutRequest) => {
     console.log('[MoveOutRequestsAD] Opening detail for request:', request._id);
     console.log('[MoveOutRequestsAD] refundQrCode:', request.refundQrCode);
     setDetailRequest(request);
     setDetailDrawerVisible(true);
+    
+    // Tính lại totalDepositPaid từ RECEIPT + CONTRACT bills (giống form tính toán)
+    if (request.contractId && request.contractId._id) {
+      const contractId = typeof request.contractId._id === 'string' ? request.contractId._id : request.contractId._id;
+      const totalDeposit = await calculateTotalDepositPaid(contractId);
+      setDetailTotalDepositPaid(totalDeposit);
+    }
   };
 
   // Cấu hình các cột cho bảng hiển thị danh sách yêu cầu
@@ -554,6 +732,8 @@ const MoveOutRequestsAD: React.FC = () => {
           refundForm.resetFields();
           setCalculatedServiceFee(null);
           setRoomOccupantCount(1);
+          setPreviousElectricityReading(null);
+          setVehiclesFromCheckin([]);
         }}
         onOk={() => refundForm.submit()}
         width={800}
@@ -564,9 +744,8 @@ const MoveOutRequestsAD: React.FC = () => {
             layout="vertical"
             onFinish={handleRefund}
             onValuesChange={(changedValues, allValues) => {
-              // Tự động tính toán khi thay đổi số điện hoặc số xe
-              if (changedValues.electricityKwh !== undefined || 
-                  changedValues.vehicleCount !== undefined) {
+              // Tự động tính toán khi thay đổi số điện
+              if (changedValues.electricityKwh !== undefined) {
                 calculateServiceFee(allValues);
               }
             }}
@@ -585,34 +764,35 @@ const MoveOutRequestsAD: React.FC = () => {
               </Descriptions.Item>
             </Descriptions>
 
-            <Row gutter={16}>
-              <Col span={12}>
-                <Form.Item
-                  label="Số điện (kWh)"
-                  name="electricityKwh"
-                  initialValue={0}
-                >
-                  <InputNumber 
-                    min={0} 
-                    style={{ width: "100%" }} 
-                    placeholder="Nhập số điện"
-                  />
-                </Form.Item>
-              </Col>
-              <Col span={12}>
-                <Form.Item
-                  label="Số xe"
-                  name="vehicleCount"
-                  initialValue={0}
-                >
-                  <InputNumber 
-                    min={0} 
-                    style={{ width: "100%" }} 
-                    placeholder="Nhập số xe"
-                  />
-                </Form.Item>
-              </Col>
-            </Row>
+            <Form.Item
+              label="Số điện (kWh)"
+              name="electricityKwh"
+              initialValue={0}
+              extra={previousElectricityReading !== null ? `Số điện cũ: ${previousElectricityReading.toLocaleString("vi-VN")} kWh` : "Chưa có số điện cũ"}
+            >
+              <InputNumber 
+                min={previousElectricityReading || 0} 
+                style={{ width: "100%" }} 
+                placeholder="Nhập số điện mới"
+              />
+            </Form.Item>
+            
+            {vehiclesFromCheckin.length > 0 && (
+              <Form.Item label="Thông tin xe (tự động lấy từ check-in)">
+                <div style={{ padding: 12, background: "#f5f5f5", borderRadius: 6 }}>
+                  {vehiclesFromCheckin.map((vehicle, index) => (
+                    <div key={index} style={{ marginBottom: 8 }}>
+                      <Tag color="blue">
+                        {vehicle.type === 'motorbike' ? '🏍️ Xe máy' : 
+                         vehicle.type === 'electric_bike' ? '⚡ Xe điện' : 
+                         '🚲 Xe đạp'}
+                        {vehicle.licensePlate && ` - ${vehicle.licensePlate}`}
+                      </Tag>
+                    </div>
+                  ))}
+                </div>
+              </Form.Item>
+            )}
 
             <Form.Item label="Số người ở">
               <InputNumber 
@@ -705,13 +885,6 @@ const MoveOutRequestsAD: React.FC = () => {
             </Form.Item>
 
             <Form.Item
-              label="Mã giao dịch"
-              name="transactionId"
-            >
-              <Input />
-            </Form.Item>
-
-            <Form.Item
               label="Ghi chú"
               name="note"
             >
@@ -721,7 +894,7 @@ const MoveOutRequestsAD: React.FC = () => {
             {(calculatedServiceFee || damageAmount) && selectedRequest && (
               <Card size="small" style={{ marginTop: 16, background: "#e6f7ff" }}>
                 <Descriptions title="Tính toán hoàn cọc" bordered column={1} size="small">
-                  <Descriptions.Item label="Tiền cọc ban đầu (Cọc giữ phòng + Cọc 1 tháng tiền phòng)">
+                  <Descriptions.Item label="Tiền cọc ban đầu (1 tháng tiền phòng)">
                     <strong style={{ color: "#1890ff", fontSize: 16 }}>
                       {(totalDepositPaid || dec(selectedRequest.contractId.deposit) || 0).toLocaleString("vi-VN")} ₫
                     </strong>
@@ -741,15 +914,30 @@ const MoveOutRequestsAD: React.FC = () => {
                   </Descriptions.Item>
                   <Divider style={{ margin: "8px 0" }} />
                   <Descriptions.Item label="Số tiền hoàn lại">
-                    <strong style={{ color: "#52c41a", fontSize: 18 }}>
-                      {(
-                        (totalDepositPaid || dec(selectedRequest.contractId.deposit) || 0) -
-                        (calculatedServiceFee?.breakdown
-                          ?.filter((item) => item.type !== "rent")
-                          .reduce((sum, item) => sum + (item.total || 0), 0) || 0) -
-                        Number(damageAmount || 0)
-                      ).toLocaleString("vi-VN")} ₫
-                    </strong>
+                    {(() => {
+                      const deposit = (totalDepositPaid || dec(selectedRequest.contractId.deposit) || 0);
+                      const serviceFee = (calculatedServiceFee?.breakdown
+                        ?.filter((item) => item.type !== "rent")
+                        .reduce((sum, item) => sum + (item.total || 0), 0) || 0);
+                      const damage = Number(damageAmount || 0);
+                      const calculatedRefund = deposit - serviceFee - damage;
+                      
+                      return (
+                        <>
+                          <strong style={{ 
+                            color: calculatedRefund >= 0 ? "#52c41a" : "#ff4d4f", 
+                            fontSize: 18 
+                          }}>
+                            {calculatedRefund >= 0 ? '+' : ''}{calculatedRefund.toLocaleString("vi-VN")} ₫
+                          </strong>
+                          {calculatedRefund < 0 && (
+                            <div style={{ fontSize: 12, color: "#ff4d4f", marginTop: 4 }}>
+                              (Khách hàng cần thanh toán thêm: {Math.abs(calculatedRefund).toLocaleString("vi-VN")} ₫)
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </Descriptions.Item>
                 </Descriptions>
               </Card>
@@ -924,23 +1112,24 @@ const MoveOutRequestsAD: React.FC = () => {
               )
             )}
 
-            {/* Thông tin hoàn cọc (nếu đã hoàn tất) */}
-            {detailRequest.status === "COMPLETED" && detailRequest.contractId.depositRefund && (
+            {/* Thông tin hoàn cọc (nếu đã hoàn tất hoặc chờ xác nhận) */}
+            {(detailRequest.status === "COMPLETED" || detailRequest.status === "WAITING_CONFIRMATION") && detailRequest.contractId.depositRefund && (
               <Card title="Thông tin hoàn cọc" size="small">
                 <Descriptions column={1} size="small" bordered>
                   {(() => {
-                    const deposit = dec(detailRequest.contractId.deposit);
+                    // Sử dụng detailTotalDepositPaid (tính từ RECEIPT + CONTRACT bills) thay vì initialDeposit đã lưu
+                    const initialDeposit = detailTotalDepositPaid > 0 ? detailTotalDepositPaid : (dec(detailRequest.contractId.depositRefund.initialDeposit) || dec(detailRequest.contractId.deposit) || 0);
                     const serviceFee = dec(detailRequest.contractId.depositRefund.finalMonthServiceFee || 0);
                     const damage = dec(detailRequest.contractId.depositRefund.damageAmount || 0);
-                    // Tính lại số tiền hoàn lại để đảm bảo đúng (tiền cọc - dịch vụ - thiệt hại)
-                    const calculatedRefund = deposit - serviceFee - damage;
+                    // Tính lại số tiền hoàn lại (giống form tính toán)
+                    const calculatedRefund = initialDeposit - serviceFee - damage;
                     const savedRefund = dec(detailRequest.contractId.depositRefund.amount);
                     
                     return (
                       <>
-                        <Descriptions.Item label="Tiền cọc ban đầu">
+                        <Descriptions.Item label="Tiền cọc ban đầu (1 tháng tiền phòng)">
                           <strong style={{ color: "#1890ff", fontSize: 16 }}>
-                            {deposit.toLocaleString("vi-VN")} ₫
+                            {initialDeposit.toLocaleString("vi-VN")} ₫
                           </strong>
                         </Descriptions.Item>
                         <Descriptions.Item label="Dịch vụ tháng cuối (không bao gồm tiền phòng)">
@@ -960,10 +1149,18 @@ const MoveOutRequestsAD: React.FC = () => {
                         </Descriptions.Item>
                         <Divider style={{ margin: "8px 0" }} />
                         <Descriptions.Item label="Số tiền hoàn lại">
-                          <strong style={{ color: "#52c41a", fontSize: 18 }}>
-                            {calculatedRefund.toLocaleString("vi-VN")} ₫
+                          <strong style={{ 
+                            color: calculatedRefund >= 0 ? "#52c41a" : "#ff4d4f", 
+                            fontSize: 18 
+                          }}>
+                            {calculatedRefund >= 0 ? '+' : ''}{calculatedRefund.toLocaleString("vi-VN")} ₫
                           </strong>
-                          {Math.abs(calculatedRefund - savedRefund) > 1 && (
+                          {calculatedRefund < 0 && (
+                            <div style={{ fontSize: 12, color: "#ff4d4f", marginTop: 4 }}>
+                              (Khách hàng cần thanh toán thêm: {Math.abs(calculatedRefund).toLocaleString("vi-VN")} ₫)
+                            </div>
+                          )}
+                          {calculatedRefund >= 0 && Math.abs(calculatedRefund - savedRefund) > 1 && (
                             <div style={{ fontSize: 12, color: "#ff4d4f", marginTop: 4 }}>
                               (Đã sửa: {savedRefund.toLocaleString("vi-VN")} ₫ → {calculatedRefund.toLocaleString("vi-VN")} ₫)
                             </div>

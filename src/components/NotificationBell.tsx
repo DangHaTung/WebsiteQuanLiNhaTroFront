@@ -239,7 +239,7 @@ const NotificationBell: React.FC = () => {
     <Dropdown
       open={dropdownOpen}
       onOpenChange={setDropdownOpen}
-      dropdownRender={() => dropdownContent}
+      popupRender={() => dropdownContent}
       trigger={['click']}
       placement="bottomRight"
     >

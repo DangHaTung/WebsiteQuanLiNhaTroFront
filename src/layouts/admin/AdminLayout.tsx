@@ -80,11 +80,12 @@ const AdminLayout: React.FC = () => {
           pendingMoveOut: 0,
         };
 
-        // Bills
+        // Bills - Chỉ đếm hóa đơn hàng tháng (MONTHLY)
         if (billsRes.status === "fulfilled" && billsRes.value.data?.data) {
           const bills = billsRes.value.data.data;
           counts.unpaidBills = bills.filter((b: any) => 
-            b.status === "UNPAID" || b.status === "PENDING_CASH_CONFIRM"
+            b.billType === "MONTHLY" && 
+            (b.status === "UNPAID" || b.status === "PENDING_CASH_CONFIRM" || b.status === "PARTIALLY_PAID")
           ).length;
         }
 
