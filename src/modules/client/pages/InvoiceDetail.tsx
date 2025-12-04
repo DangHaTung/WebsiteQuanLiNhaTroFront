@@ -141,17 +141,29 @@ const InvoiceDetail: React.FC = () => {
     }
   };
 
+  // Helper function để tính số tiền còn lại phải thanh toán
+  const getRemainingAmount = (bill: Bill | null): number => {
+    if (!bill) return 0;
+    // Với CONTRACT bill: amountDue đã là tổng tiền cần thanh toán (đã trừ tiền cọc), nên không trừ amountPaid
+    // Với các bill khác: trừ đi amountPaid
+    return bill.billType === "CONTRACT" 
+      ? bill.amountDue 
+      : bill.amountDue - (bill.amountPaid || 0);
+  };
+
   const handlePayment = () => {
     if (!bill || bill.status === "PAID") {
       message.info("Hóa đơn này đã được thanh toán");
       return;
     }
     
+    const remainingAmount = getRemainingAmount(bill);
+    
     Modal.confirm({
       title: "Chọn phương thức thanh toán",
       content: (
         <div style={{ marginTop: 16 }}>
-          <p>Số tiền: <strong style={{ color: "#1890ff", fontSize: 18 }}>{bill.amountDue.toLocaleString("vi-VN")} đ</strong></p>
+          <p>Số tiền: <strong style={{ color: "#1890ff", fontSize: 18 }}>{remainingAmount.toLocaleString("vi-VN")} đ</strong></p>
         </div>
       ),
       okText: "Thanh toán Online",
@@ -178,42 +190,9 @@ const InvoiceDetail: React.FC = () => {
     };
 
     // Tính số tiền cần thanh toán (số tiền còn lại)
-    let paymentAmount = 0;
-    if (bill.billType === "CONTRACT" && bill.lineItems && bill.lineItems.length > 0) {
-      // Với CONTRACT bill: tính tổng từ lineItems
-      // Nếu status = UNPAID, số tiền cần thanh toán = tổng từ lineItems (KHÔNG trừ amountPaid)
-      // Vì amountPaid có thể là số tiền từ RECEIPT bill, không phải số tiền đã thanh toán cho CONTRACT bill
-      let totalFromLineItems = 0;
-      bill.lineItems.forEach((item: any) => {
-        const itemTotal = convertToNumber(item.lineTotal);
-        totalFromLineItems += itemTotal;
-        console.log(`📋 CONTRACT lineItem (Frontend): ${item.item} = ${itemTotal}`);
-      });
-      
-      // Chỉ trừ amountPaid nếu status là PARTIALLY_PAID (đã thanh toán một phần CONTRACT bill)
-      // Với UNPAID hoặc PENDING_CASH_CONFIRM: số tiền cần thanh toán = tổng từ lineItems (KHÔNG trừ amountPaid)
-      if (bill.status === "PARTIALLY_PAID") {
-        const amountPaid = convertToNumber(bill.amountPaid || 0);
-        paymentAmount = totalFromLineItems - amountPaid;
-      } else {
-        // Với UNPAID hoặc PENDING_CASH_CONFIRM: số tiền cần thanh toán = tổng từ lineItems
-        paymentAmount = totalFromLineItems;
-      }
-      
-      console.log("📊 Payment calculation (Frontend):", {
-        totalFromLineItems,
-        amountPaid: convertToNumber(bill.amountPaid || 0),
-        paymentAmount,
-        billAmountDue: convertToNumber(bill.amountDue),
-        status: bill.status
-      });
-      
-      // Đảm bảo paymentAmount >= 0
-      if (paymentAmount < 0) paymentAmount = 0;
-    } else {
-      // Với các bill khác: dùng amountDue - amountPaid
-      paymentAmount = convertToNumber(bill.amountDue) - convertToNumber(bill.amountPaid || 0);
-    }
+    // Với CONTRACT bill: amountDue đã là tổng tiền cần thanh toán (đã trừ tiền cọc), nên không trừ amountPaid
+    // Với các bill khác: trừ đi amountPaid
+    const paymentAmount = getRemainingAmount(bill);
 
     const createPayment = async (provider: "vnpay" | "momo" | "zalopay") => {
       try {
@@ -346,7 +325,7 @@ const InvoiceDetail: React.FC = () => {
       const token = localStorage.getItem("token");
       
       // Tính số tiền còn lại phải thanh toán
-      const remainingAmount = bill.amountDue - (bill.amountPaid || 0);
+      const remainingAmount = getRemainingAmount(bill);
       
       // Tạo FormData để upload file
       const formData = new FormData();
@@ -833,7 +812,7 @@ const InvoiceDetail: React.FC = () => {
                         </Table.Summary.Cell>
                         <Table.Summary.Cell index={1} align="right">
                           <strong style={{ fontSize: 20, color: "#ff4d4f" }}>
-                            {(bill.amountDue - bill.amountPaid).toLocaleString("vi-VN")} ₫
+                            {getRemainingAmount(bill).toLocaleString("vi-VN")} ₫
                           </strong>
                         </Table.Summary.Cell>
                       </Table.Summary.Row>
@@ -922,7 +901,7 @@ const InvoiceDetail: React.FC = () => {
                     <div>
                       <div style={{ color: "#666", fontSize: 14, marginBottom: 8 }}>Số tiền:</div>
                       <div style={{ fontSize: 20, fontWeight: "bold", color: "#52c41a" }}>
-                        {(bill.amountDue - (bill.amountPaid || 0)).toLocaleString("vi-VN")} ₫
+                        {getRemainingAmount(bill).toLocaleString("vi-VN")} ₫
                       </div>
                     </div>
                   </Card>
@@ -933,7 +912,7 @@ const InvoiceDetail: React.FC = () => {
                   <Card title="Quét mã QR để chuyển khoản" style={{ marginBottom: 24 }}>
                     <div style={{ textAlign: "center" }}>
                       <img
-                        src={getQRCodeUrl(bill.amountDue - (bill.amountPaid || 0))}
+                        src={getQRCodeUrl(getRemainingAmount(bill))}
                         alt="QR Code"
                         style={{
                           maxWidth: "100%",

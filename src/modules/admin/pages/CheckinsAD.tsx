@@ -18,6 +18,8 @@ import {
   Alert,
   Image,
 } from "antd";
+
+const { TextArea } = Input;
 import {
   PlusOutlined,
   UploadOutlined,
@@ -80,6 +82,11 @@ const CheckinsAD: React.FC = () => {
   const [confirmPaymentModalVisible, setConfirmPaymentModalVisible] = useState(false);
   const [confirmingBillId, setConfirmingBillId] = useState<string | null>(null);
   const [confirmingBillImage, setConfirmingBillImage] = useState<string | null>(null);
+  
+  // Reject Payment Modal States
+  const [rejectPaymentModalVisible, setRejectPaymentModalVisible] = useState(false);
+  const [rejectingBillId, setRejectingBillId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState<string>("");
 
   // CCCD Upload Modal States
   const [cccdUploadModalVisible, setCccdUploadModalVisible] = useState(false);
@@ -577,6 +584,33 @@ const CheckinsAD: React.FC = () => {
     }
   };
 
+  const handleOpenRejectModal = () => {
+    // Chuyển từ modal xác nhận sang modal từ chối
+    setRejectingBillId(confirmingBillId);
+    setRejectionReason("");
+    setConfirmPaymentModalVisible(false);
+    setRejectPaymentModalVisible(true);
+  };
+
+  const handleRejectCashPayment = async () => {
+    if (!rejectingBillId || !rejectionReason.trim()) {
+      message.error("Vui lòng nhập lý do từ chối");
+      return;
+    }
+    
+    try {
+      await adminBillService.rejectPayment(rejectingBillId, rejectionReason);
+      message.success("Đã từ chối thanh toán!");
+      // Reload để cập nhật bill status
+      await loadCheckins();
+      setRejectPaymentModalVisible(false);
+      setRejectingBillId(null);
+      setRejectionReason("");
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || "Lỗi khi từ chối thanh toán");
+    }
+  };
+
   const handleSendPaymentLink = async (billId: string) => {
     try {
       const result = await adminBillService.generatePaymentLink(billId);
@@ -1053,6 +1087,7 @@ const CheckinsAD: React.FC = () => {
               <Form.Item
                 label="Tiền cọc giữ phòng(VNĐ)"
                 name="deposit"
+                dependencies={["roomId"]}
                 rules={[
                   { required: true, message: "Nhập tiền cọc!" },
                   {
@@ -1067,6 +1102,21 @@ const CheckinsAD: React.FC = () => {
                       if (depositNum < 500000) {
                         return Promise.reject(new Error("Cọc giữ phòng tối thiểu là 500,000 VNĐ"));
                       }
+                      
+                      // Kiểm tra tiền cọc không vượt quá tiền phòng 1 tháng
+                      const roomId = form.getFieldValue("roomId");
+                      if (roomId) {
+                        const selectedRoom = rooms.find((r) => r._id === roomId);
+                        if (selectedRoom && selectedRoom.pricePerMonth) {
+                          const monthlyRent = Number(selectedRoom.pricePerMonth);
+                          if (depositNum > monthlyRent) {
+                            return Promise.reject(
+                              new Error(`Tiền cọc không được vượt quá tiền phòng 1 tháng (${monthlyRent.toLocaleString('vi-VN')} VNĐ)`)
+                            );
+                          }
+                        }
+                      }
+                      
                       return Promise.resolve();
                     },
                   },
@@ -1081,7 +1131,7 @@ const CheckinsAD: React.FC = () => {
                     const parsed = value.replace(/\$\s?|(,*)/g, "");
                     return (parsed === "" ? 0 : Number(parsed) || 0) as any;
                   }}
-                  placeholder="Nhập tiền cọc (tối thiểu 500,000 VNĐ)"
+                  placeholder="Nhập tiền cọc (tối thiểu 500,000 VNĐ, tối đa bằng tiền phòng 1 tháng)"
                 />
               </Form.Item>
             </Col>
@@ -1473,8 +1523,32 @@ const CheckinsAD: React.FC = () => {
           setConfirmingBillId(null);
           setConfirmingBillImage(null);
         }}
-        okText="Xác nhận"
-        cancelText="Hủy"
+        footer={[
+          <Button
+            key="reject"
+            danger
+            onClick={handleOpenRejectModal}
+          >
+            Từ chối
+          </Button>,
+          <Button
+            key="cancel"
+            onClick={() => {
+              setConfirmPaymentModalVisible(false);
+              setConfirmingBillId(null);
+              setConfirmingBillImage(null);
+            }}
+          >
+            Hủy
+          </Button>,
+          <Button
+            key="confirm"
+            type="primary"
+            onClick={handleConfirmCashPayment}
+          >
+            Xác nhận
+          </Button>,
+        ]}
         width={600}
       >
         {confirmingBillImage ? (
@@ -1505,6 +1579,41 @@ const CheckinsAD: React.FC = () => {
             showIcon
           />
         )}
+      </Modal>
+
+      {/* Modal từ chối thanh toán */}
+      <Modal
+        title="Từ chối thanh toán"
+        open={rejectPaymentModalVisible}
+        onOk={handleRejectCashPayment}
+        onCancel={() => {
+          setRejectPaymentModalVisible(false);
+          setRejectingBillId(null);
+          setRejectionReason("");
+        }}
+        okText="Xác nhận từ chối"
+        cancelText="Hủy"
+        okButtonProps={{ danger: true }}
+        width={500}
+      >
+        <Alert
+          message="Lưu ý"
+          description="Khi từ chối, bill sẽ chuyển về trạng thái 'Chờ thanh toán' và khách hàng có thể thanh toán lại."
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+        <div style={{ marginBottom: 8 }}>
+          <strong>Lý do từ chối <span style={{ color: "red" }}>*</span></strong>
+        </div>
+        <TextArea
+          rows={4}
+          placeholder="Nhập lý do từ chối thanh toán (ví dụ: Ảnh bill không rõ, Số tiền không khớp, Thông tin không đúng...)"
+          value={rejectionReason}
+          onChange={(e) => setRejectionReason(e.target.value)}
+          maxLength={500}
+          showCount
+        />
       </Modal>
     </div>
   );

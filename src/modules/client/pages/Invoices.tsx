@@ -18,6 +18,7 @@ const Invoices: React.FC = () => {
   const [currentBill, setCurrentBill] = useState<Bill | null>(null);
   const [uploadFileList, setUploadFileList] = useState<UploadFile[]>([]);
   const [form] = Form.useForm();
+  const [submittingCashPayment, setSubmittingCashPayment] = useState(false);
 
   // Lấy userId từ token
   useEffect(() => {
@@ -119,7 +120,11 @@ const Invoices: React.FC = () => {
     }
     
     // Tính số tiền còn lại phải thanh toán
-    const remainingAmount = bill.amountDue - (bill.amountPaid || 0);
+    // Với CONTRACT bill: amountDue đã là tổng tiền cần thanh toán (đã trừ tiền cọc), nên không trừ amountPaid
+    // Với các bill khác: trừ đi amountPaid
+    const remainingAmount = bill.billType === "CONTRACT" 
+      ? bill.amountDue 
+      : bill.amountDue - (bill.amountPaid || 0);
     
     Modal.confirm({
       title: "Chọn phương thức thanh toán",
@@ -141,7 +146,11 @@ const Invoices: React.FC = () => {
 
   const handleOnlinePayment = async (bill: Bill) => {
     // Tính số tiền còn lại phải thanh toán (dùng chung cho cả modal và payment)
-    const remainingAmount = bill.amountDue - (bill.amountPaid || 0);
+    // Với CONTRACT bill: amountDue đã là tổng tiền cần thanh toán (đã trừ tiền cọc), nên không trừ amountPaid
+    // Với các bill khác: trừ đi amountPaid
+    const remainingAmount = bill.billType === "CONTRACT" 
+      ? bill.amountDue 
+      : bill.amountDue - (bill.amountPaid || 0);
 
     const createPayment = async (provider: "vnpay" | "momo" | "zalopay") => {
       try {
@@ -256,6 +265,16 @@ const Invoices: React.FC = () => {
     return `https://img.vietqr.io/image/${bankInfo.bankBin}-${bankInfo.accountNumber.replace(/\s/g, "")}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(description)}&accountName=${encodeURIComponent(bankInfo.accountName)}`;
   };
 
+  // Helper function để tính số tiền còn lại phải thanh toán (giống InvoiceDetail.tsx)
+  const getRemainingAmount = (bill: Bill | null): number => {
+    if (!bill) return 0;
+    // Với CONTRACT bill: amountDue đã là tổng tiền cần thanh toán (đã trừ tiền cọc), nên không trừ amountPaid
+    // Với các bill khác: trừ đi amountPaid
+    return bill.billType === "CONTRACT" 
+      ? bill.amountDue 
+      : bill.amountDue - (bill.amountPaid || 0);
+  };
+
   const handleCashPayment = async () => {
     if (!currentBill) return;
 
@@ -266,11 +285,13 @@ const Invoices: React.FC = () => {
         return;
       }
 
+      setSubmittingCashPayment(true);
+
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
       const token = localStorage.getItem("token");
       
-      // Tính số tiền còn lại phải thanh toán
-      const remainingAmount = currentBill.amountDue - (currentBill.amountPaid || 0);
+      // Tính số tiền còn lại phải thanh toán (dùng helper function)
+      const remainingAmount = getRemainingAmount(currentBill);
       
       // Tạo FormData để upload file
       const formData = new FormData();
@@ -306,6 +327,8 @@ const Invoices: React.FC = () => {
       }
     } catch (error) {
       message.error("Lỗi khi thanh toán");
+    } finally {
+      setSubmittingCashPayment(false);
     }
   };
 
@@ -644,7 +667,7 @@ const Invoices: React.FC = () => {
                     <div>
                       <div style={{ color: "#666", fontSize: 14, marginBottom: 8 }}>Số tiền:</div>
                       <div style={{ fontSize: 20, fontWeight: "bold", color: "#52c41a" }}>
-                        {(currentBill.amountDue - (currentBill.amountPaid || 0)).toLocaleString("vi-VN")} ₫
+                        {getRemainingAmount(currentBill).toLocaleString("vi-VN")} ₫
                       </div>
                     </div>
                   </Card>
@@ -655,7 +678,7 @@ const Invoices: React.FC = () => {
                   <Card title="Quét mã QR để chuyển khoản" style={{ marginBottom: 24 }}>
                     <div style={{ textAlign: "center" }}>
                       <img
-                        src={getQRCodeUrl(currentBill.amountDue - (currentBill.amountPaid || 0))}
+                        src={getQRCodeUrl(getRemainingAmount(currentBill))}
                         alt="QR Code"
                         style={{
                           maxWidth: "100%",
@@ -696,15 +719,23 @@ const Invoices: React.FC = () => {
 
               <div style={{ textAlign: "right", marginTop: 24 }}>
                 <Space>
-                  <Button onClick={() => {
-                    setCashPaymentModalVisible(false);
-                    setUploadFileList([]);
-                    form.resetFields();
-                  }}>
+                  <Button 
+                    onClick={() => {
+                      setCashPaymentModalVisible(false);
+                      setUploadFileList([]);
+                      form.resetFields();
+                    }}
+                    disabled={submittingCashPayment}
+                  >
                     Hủy
                   </Button>
-                  <Button type="primary" onClick={handleCashPayment}>
-                    Xác nhận đã chuyển khoản
+                  <Button 
+                    type="primary" 
+                    onClick={handleCashPayment}
+                    loading={submittingCashPayment}
+                    disabled={submittingCashPayment}
+                  >
+                    {submittingCashPayment ? "Đang xử lý..." : "Xác nhận đã chuyển khoản"}
                   </Button>
                 </Space>
               </div>

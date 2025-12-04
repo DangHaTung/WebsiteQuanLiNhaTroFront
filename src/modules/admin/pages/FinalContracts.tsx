@@ -8,6 +8,7 @@ import dayjs from "dayjs";
 
 const { Option } = Select;
 const { Text } = Typography;
+const { TextArea } = Input;
 
 // Import services
 import { adminFinalContractService } from "../services/finalContract";
@@ -391,6 +392,11 @@ const FinalContracts = () => {
   const [confirmPaymentModalVisible, setConfirmPaymentModalVisible] = useState(false);
   const [confirmingBillId, setConfirmingBillId] = useState<string | null>(null);
   const [confirmingBillImage, setConfirmingBillImage] = useState<string | null>(null);
+  
+  // Reject Payment Modal States
+  const [rejectPaymentModalVisible, setRejectPaymentModalVisible] = useState(false);
+  const [rejectingBillId, setRejectingBillId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState<string>("");
 
   const handleOpenConfirmModal = async (billId: string, bill: any) => {
     // Nếu bill chưa có metadata, load lại từ API
@@ -442,24 +448,148 @@ const FinalContracts = () => {
                 "Authorization": `Bearer ${token}`,
               },
             });
+          const data = await response.json();
+          const bills = data.data || [];
+          
+          // ✅ FILTER: Sử dụng cùng logic như openDetail
+          // 1. Loại bỏ bills đã bị hủy (VOID)
+          // 2. Chỉ hiển thị bills có finalContractId khớp với FinalContract hiện tại (nếu có finalContractId)
+          const filteredBills = bills.filter((bill: any) => {
+            // Loại bỏ bills đã bị hủy (VOID)
+            if (bill.status === "VOID") {
+              return false;
+            }
+            
+            // Kiểm tra nếu bill có finalContractId
+            const billFinalContractId = typeof bill.finalContractId === 'string' 
+              ? bill.finalContractId 
+              : bill.finalContractId?._id;
+            
+            // Nếu bill có finalContractId, chỉ hiển thị nếu khớp với FinalContract hiện tại
+            if (billFinalContractId) {
+              return billFinalContractId === selectedContract._id;
+            }
+            
+            // Nếu bill không có finalContractId (bill CONTRACT cũ), hiển thị
+            return true;
+          });
+          
+          // Sort theo status và ngày (ưu tiên chưa thanh toán trước)
+          const sortedBills = filteredBills.sort((a: any, b: any) => {
+            // Chưa thanh toán trước
+            if (a.status !== "PAID" && b.status === "PAID") return -1;
+            if (a.status === "PAID" && b.status !== "PAID") return 1;
+            // Sau đó sort theo ngày tạo (mới nhất trước)
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+          });
+          
+          console.log("🔄 Reloaded bills after confirm payment:", sortedBills);
+          setContractBills(sortedBills);
+          
+          // Cập nhật contractBillsMap để đảm bảo modal hiển thị đúng khi mở lại
+          if (selectedContract) {
+            setContractBillsMap(prev => {
+              const newMap = new Map(prev);
+              newMap.set(selectedContract._id, sortedBills);
+              return newMap;
+            });
+          }
+        } catch (err) {
+          console.error("Reload bills error:", err);
+        }
+      }
+      
+      // Reload lại selectedContract để đảm bảo data mới nhất
+      if (selectedContract) {
+        try {
+          const updatedContract = await adminFinalContractService.getById(selectedContract._id);
+          setSelectedContract(updatedContract);
+        } catch (err) {
+          console.error("Reload contract error:", err);
+        }
+      }
+    }
+    
+    fetchContracts(pagination.current, pagination.pageSize);
+    
+    // Đóng modal
+    setConfirmPaymentModalVisible(false);
+    setConfirmingBillId(null);
+    setConfirmingBillImage(null);
+    } catch (error: any) {
+      message.error(error.response?.data?.message || "Lỗi khi xác nhận thanh toán");
+    }
+  };
+
+  const handleOpenRejectModal = () => {
+    // Chuyển từ modal xác nhận sang modal từ chối
+    setRejectingBillId(confirmingBillId);
+    setRejectionReason("");
+    setConfirmPaymentModalVisible(false);
+    setRejectPaymentModalVisible(true);
+  };
+
+  const handleRejectCashPayment = async () => {
+    if (!rejectingBillId || !rejectionReason.trim()) {
+      message.error("Vui lòng nhập lý do từ chối");
+      return;
+    }
+    
+    try {
+      await adminBillService.rejectPayment(rejectingBillId, rejectionReason);
+      message.success("Đã từ chối thanh toán!");
+      
+      // Reload bills
+      if (selectedContract) {
+        const contractId = typeof selectedContract.originContractId === 'string' 
+          ? selectedContract.originContractId 
+          : selectedContract.originContractId?._id;
+        
+        if (contractId) {
+          try {
+            const token = localStorage.getItem("admin_token");
+            const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+            const response = await fetch(`${apiUrl}/api/bills?contractId=${contractId}&limit=100`, {
+              headers: {
+                "Authorization": `Bearer ${token}`,
+              },
+            });
             const data = await response.json();
             const bills = data.data || [];
             
-            // ✅ FILTER: Chỉ hiển thị bills của người này
+            // ✅ FILTER: Sử dụng cùng logic như openDetail
+            // 1. Loại bỏ bills đã bị hủy (VOID)
+            // 2. Chỉ hiển thị bills có finalContractId khớp với FinalContract hiện tại (nếu có finalContractId)
             const filteredBills = bills.filter((bill: any) => {
-              if (bill.billType === "CONTRACT") return true;
+              // Loại bỏ bills đã bị hủy (VOID)
+              if (bill.status === "VOID") {
+                return false;
+              }
+              
+              // Kiểm tra nếu bill có finalContractId
               const billFinalContractId = typeof bill.finalContractId === 'string' 
                 ? bill.finalContractId 
                 : bill.finalContractId?._id;
-              return billFinalContractId === selectedContract._id;
+              
+              // Nếu bill có finalContractId, chỉ hiển thị nếu khớp với FinalContract hiện tại
+              if (billFinalContractId) {
+                return billFinalContractId === selectedContract._id;
+              }
+              
+              // Nếu bill không có finalContractId (bill CONTRACT cũ), hiển thị
+              return true;
             });
             
-            // Sort theo status và ngày
+            // Sort theo status và ngày (ưu tiên chưa thanh toán trước)
             const sortedBills = filteredBills.sort((a: any, b: any) => {
+              // Chưa thanh toán trước
               if (a.status !== "PAID" && b.status === "PAID") return -1;
               if (a.status === "PAID" && b.status !== "PAID") return 1;
+              // Sau đó sort theo ngày tạo (mới nhất trước)
               return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
             });
+            
+            console.log("🔄 Reloaded bills after reject payment:", sortedBills);
             setContractBills(sortedBills);
             
             // Cập nhật contractBillsMap để đảm bảo modal hiển thị đúng khi mở lại
@@ -474,21 +604,24 @@ const FinalContracts = () => {
             console.error("Reload bills error:", err);
           }
         }
-        
-        // Reload lại selectedContract để đảm bảo data mới nhất
-        if (selectedContract) {
-          try {
-            const updatedContract = await adminFinalContractService.getById(selectedContract._id);
-            setSelectedContract(updatedContract);
-          } catch (err) {
-            console.error("Reload contract error:", err);
-          }
+      }
+      
+      // Reload lại selectedContract để đảm bảo data mới nhất
+      if (selectedContract) {
+        try {
+          const updatedContract = await adminFinalContractService.getById(selectedContract._id);
+          setSelectedContract(updatedContract);
+        } catch (err) {
+          console.error("Reload contract error:", err);
         }
       }
       
       fetchContracts(pagination.current, pagination.pageSize);
+      setRejectPaymentModalVisible(false);
+      setRejectingBillId(null);
+      setRejectionReason("");
     } catch (error: any) {
-      message.error(error.response?.data?.message || "Lỗi khi xác nhận thanh toán");
+      message.error(error?.response?.data?.message || "Lỗi khi từ chối thanh toán");
     }
   };
 
@@ -1433,23 +1566,29 @@ const FinalContracts = () => {
                       {contractBill && (contractBill.status === "PENDING_CASH_CONFIRM" || contractBill.status === "UNPAID" || contractBill.status === "PARTIALLY_PAID") && (
                         <div style={{ marginTop: 16, textAlign: "center" }}>
                           <Space>
-                            <Popconfirm
-                              title="Xác nhận đã nhận?"
-                              onConfirm={() => handleConfirmCashPayment(contractBill._id)}
-                              okText="Xác nhận"
-                              cancelText="Hủy"
-                            >
-                              <Button type="primary" icon={<DollarOutlined />}>
+                            {contractBill.status === "PENDING_CASH_CONFIRM" && (
+                              <Button 
+                                type="primary" 
+                                icon={<DollarOutlined />}
+                                onClick={() => handleOpenConfirmModal(contractBill._id, contractBill)}
+                              >
                                 Xác nhận
                               </Button>
-                            </Popconfirm>
+                            )}
                             <Button 
                               type="default"
                               onClick={() => {
+                                // Tính số tiền còn lại: Với CONTRACT bill, amountDue đã là tổng tiền cần thanh toán
                                 const contractAmountDue = convertToNumber(contractBill.amountDue);
                                 const contractAmountPaid = convertToNumber(contractBill.amountPaid);
-                                const remaining = Math.max(0, contractAmountDue - contractAmountPaid);
+                                // Với CONTRACT bill: không trừ amountPaid khi status = UNPAID hoặc PENDING_CASH_CONFIRM
+                                const remaining = contractBill.billType === "CONTRACT" && 
+                                  (contractBill.status === "UNPAID" || contractBill.status === "PENDING_CASH_CONFIRM")
+                                  ? contractAmountDue
+                                  : Math.max(0, contractAmountDue - contractAmountPaid);
                                 console.log("🔍 Frontend payment calculation:", {
+                                  billType: contractBill.billType,
+                                  status: contractBill.status,
                                   amountDue: contractAmountDue,
                                   amountPaid: contractAmountPaid,
                                   remaining,
@@ -1574,8 +1713,32 @@ const FinalContracts = () => {
           setConfirmingBillId(null);
           setConfirmingBillImage(null);
         }}
-        okText="Xác nhận"
-        cancelText="Hủy"
+        footer={[
+          <Button
+            key="reject"
+            danger
+            onClick={handleOpenRejectModal}
+          >
+            Từ chối
+          </Button>,
+          <Button
+            key="cancel"
+            onClick={() => {
+              setConfirmPaymentModalVisible(false);
+              setConfirmingBillId(null);
+              setConfirmingBillImage(null);
+            }}
+          >
+            Hủy
+          </Button>,
+          <Button
+            key="confirm"
+            type="primary"
+            onClick={handleConfirmCashPayment}
+          >
+            Xác nhận
+          </Button>,
+        ]}
         width={600}
       >
         {confirmingBillImage ? (
@@ -1606,6 +1769,41 @@ const FinalContracts = () => {
             showIcon
           />
         )}
+      </Modal>
+
+      {/* Modal từ chối thanh toán */}
+      <Modal
+        title="Từ chối thanh toán"
+        open={rejectPaymentModalVisible}
+        onOk={handleRejectCashPayment}
+        onCancel={() => {
+          setRejectPaymentModalVisible(false);
+          setRejectingBillId(null);
+          setRejectionReason("");
+        }}
+        okText="Xác nhận từ chối"
+        cancelText="Hủy"
+        okButtonProps={{ danger: true }}
+        width={500}
+      >
+        <Alert
+          message="Lưu ý"
+          description="Khi từ chối, bill sẽ chuyển về trạng thái 'Chờ thanh toán' và khách hàng có thể thanh toán lại."
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+        <div style={{ marginBottom: 8 }}>
+          <strong>Lý do từ chối <span style={{ color: "red" }}>*</span></strong>
+        </div>
+        <TextArea
+          rows={4}
+          placeholder="Nhập lý do từ chối thanh toán (ví dụ: Ảnh bill không rõ, Số tiền không khớp, Thông tin không đúng...)"
+          value={rejectionReason}
+          onChange={(e) => setRejectionReason(e.target.value)}
+          maxLength={500}
+          showCount
+        />
       </Modal>
     </div>
   );
