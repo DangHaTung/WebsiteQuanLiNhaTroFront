@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Alert, Card, Descriptions, Button, message, Space, Tag, Table, Divider, Modal, Spin, Row, Col, Typography } from "antd";
-import { ArrowLeftOutlined, CreditCardOutlined, DollarOutlined, CheckCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
+import { ArrowLeftOutlined, CreditCardOutlined, DollarOutlined, CheckCircleOutlined, ClockCircleOutlined, FilePdfOutlined } from "@ant-design/icons";
 import { useNavigate, useParams } from "react-router-dom";
 import dayjs from "dayjs";
 import { jwtDecode } from "jwt-decode";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 import { clientBillService, type Bill } from "../services/bill";
 import type { IUserToken } from "../../../types/user";
 
@@ -16,6 +18,8 @@ const InvoiceDetail: React.FC = () => {
   const [receiptBill, setReceiptBill] = useState<Bill | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const invoiceRef = useRef<HTMLDivElement>(null);
 
   // Lấy userId từ token
   useEffect(() => {
@@ -357,6 +361,64 @@ const InvoiceDetail: React.FC = () => {
     return <Tag color={m.color} icon={m.icon}>{m.text}</Tag>;
   };
 
+  // Export PDF function
+  const handleExportPDF = async () => {
+    if (!invoiceRef.current || !bill) return;
+    
+    try {
+      setExporting(true);
+      message.loading({ content: "Đang tạo PDF...", key: "export-pdf" });
+      
+      const canvas = await html2canvas(invoiceRef.current, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+      });
+      
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = 10;
+      
+      pdf.addImage(imgData, "PNG", imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+      
+      // Tạo tên file
+      const billingMonth = dayjs(bill.billingDate).subtract(1, "month");
+      const monthStr = billingMonth.format("MM-YYYY");
+      const billTypeStr = bill.billType === "MONTHLY" ? "HangThang" : bill.billType === "CONTRACT" ? "HopDong" : "PhieuThu";
+      
+      // Lấy tên phòng từ contractId.roomId (nếu đã populate)
+      let roomName = "";
+      if (bill.contractId && typeof bill.contractId === "object") {
+        const contract = bill.contractId as any;
+        if (contract.roomId && typeof contract.roomId === "object") {
+          roomName = contract.roomId.name || contract.roomId.roomNumber || "";
+        }
+      }
+      const roomStr = roomName ? `_${roomName.replace(/\s+/g, "")}` : "";
+      const fileName = `HoaDon_${billTypeStr}${roomStr}_T${monthStr}.pdf`;
+      
+      pdf.save(fileName);
+      message.success({ content: "Xuất PDF thành công!", key: "export-pdf" });
+    } catch (error) {
+      console.error("Export PDF error:", error);
+      message.error({ content: "Lỗi khi xuất PDF", key: "export-pdf" });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ padding: 24, textAlign: "center" }}>
@@ -444,24 +506,57 @@ const InvoiceDetail: React.FC = () => {
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/invoices")}>
             Quay lại
           </Button>
+          <Button 
+            type="primary" 
+            icon={<FilePdfOutlined />} 
+            onClick={handleExportPDF}
+            loading={exporting}
+          >
+            Xuất PDF
+          </Button>
         </Space>
 
-        <div style={{ marginBottom: 24 }}>
-          <h2 style={{ margin: 0 }}>
-            {bill.billType === "RECEIPT" 
-              ? "Chi tiết phiếu thu"
-              : bill.billType === "CONTRACT"
-              ? "Chi tiết hóa đơn hợp đồng"
-              : bill.billType === "MONTHLY"
-              ? "Chi tiết hóa đơn hàng tháng"
-              : "Chi tiết hóa đơn"}
-          </h2>
+        {/* Phần nội dung hóa đơn để export PDF */}
+        <div ref={invoiceRef} style={{ backgroundColor: "#fff", padding: 16 }}>
+          <div style={{ marginBottom: 24 }}>
+            <h2 style={{ margin: 0 }}>
+              {bill.billType === "RECEIPT" 
+                ? "Chi tiết phiếu thu"
+                : bill.billType === "CONTRACT"
+                ? "Chi tiết hóa đơn hợp đồng"
+                : bill.billType === "MONTHLY"
+                ? "Chi tiết hóa đơn hàng tháng"
+                : "Chi tiết hóa đơn"}
+            </h2>
         </div>
 
         <Descriptions bordered column={2}>
-          <Descriptions.Item label="Mã hóa đơn" span={2}>
-            <code>{bill._id}</code>
-          </Descriptions.Item>
+          {/* Tên phòng */}
+          {bill.contractId && typeof bill.contractId === "object" && (bill.contractId as any).roomId && typeof (bill.contractId as any).roomId === "object" && (
+            <Descriptions.Item label="Phòng">
+              <strong>{(bill.contractId as any).roomId.name || (bill.contractId as any).roomId.roomNumber || "N/A"}</strong>
+            </Descriptions.Item>
+          )}
+          {/* Tên người thuê */}
+          {(() => {
+            let tenantName = "";
+            // Ưu tiên lấy từ bill.tenantId
+            if (bill.tenantId && typeof bill.tenantId === "object" && (bill.tenantId as any).fullName) {
+              tenantName = (bill.tenantId as any).fullName;
+            }
+            // Fallback: lấy từ contractId.tenantId
+            else if (bill.contractId && typeof bill.contractId === "object") {
+              const contract = bill.contractId as any;
+              if (contract.tenantId && typeof contract.tenantId === "object" && contract.tenantId.fullName) {
+                tenantName = contract.tenantId.fullName;
+              }
+            }
+            return tenantName ? (
+              <Descriptions.Item label="Người thuê">
+                <strong>{tenantName}</strong>
+              </Descriptions.Item>
+            ) : null;
+          })()}
           <Descriptions.Item label="Ngày lập">
             {dayjs(bill.billingDate).format("DD/MM/YYYY")}
           </Descriptions.Item>
@@ -724,6 +819,8 @@ const InvoiceDetail: React.FC = () => {
             <p>{bill.note}</p>
           </>
         )}
+        </div>
+        {/* Kết thúc phần nội dung export PDF */}
 
         {bill.status !== "PAID" && !isCoTenant(bill) && (
           <div style={{ marginTop: 24, textAlign: "right" }}>
