@@ -1,8 +1,8 @@
 import React from "react";
 import { Drawer, Descriptions, Divider, Tag, Typography, Space, Image, Row, Col } from "antd";
-import { CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined, UserOutlined, HomeOutlined, DollarOutlined, FileTextOutlined, IdcardOutlined, CarOutlined } from "@ant-design/icons";
+import { UserOutlined, HomeOutlined, FileTextOutlined, IdcardOutlined, CarOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
-import type { Checkin, Vehicle, VehicleType } from "../../../types/checkin";
+import type { Checkin, VehicleType } from "../../../types/checkin";
 import type { Room } from "../../../types/room";
 import type { User } from "../../../types/user";
 
@@ -24,16 +24,6 @@ const CheckinDetailDrawer: React.FC<CheckinDetailDrawerProps> = ({
   users,
 }) => {
   if (!checkin) return null;
-
-  const getStatusTag = (status: string) => {
-    const map: Record<string, { color: string; text: string }> = {
-      CREATED: { color: "blue", text: "Đã tạo" },
-      COMPLETED: { color: "green", text: "Hoàn thành" },
-      CANCELED: { color: "red", text: "Đã hủy" },
-    };
-    const m = map[status] || { color: "default", text: status };
-    return <Tag color={m.color}>{m.text}</Tag>;
-  };
 
   const getReceiptBillStatusTag = (bill: any) => {
     if (!bill) return null;
@@ -61,7 +51,7 @@ const CheckinDetailDrawer: React.FC<CheckinDetailDrawerProps> = ({
     : (checkin.tenantId ? users.find((u) => u._id === checkin.tenantId) : null);
 
   // Lấy thông tin staff
-  const staff = typeof checkin.staffId === "object" 
+  const _staff = typeof checkin.staffId === "object" 
     ? checkin.staffId 
     : users.find((u) => u._id === checkin.staffId);
 
@@ -89,7 +79,7 @@ const CheckinDetailDrawer: React.FC<CheckinDetailDrawerProps> = ({
   };
 
   const deposit = convertToNumber(checkin.deposit);
-  const monthlyRent = convertToNumber(checkin.monthlyRent);
+  const _monthlyRent = convertToNumber(checkin.monthlyRent);
 
   // Lấy ảnh CCCD
   const cccdImages = (checkin as any).cccdImages || {};
@@ -201,7 +191,7 @@ const CheckinDetailDrawer: React.FC<CheckinDetailDrawerProps> = ({
         </Descriptions.Item>
 
         <Descriptions.Item label="Email">
-          {tenant?.email || checkin.tenantSnapshot?.email || "N/A"}
+          {tenant?.email || (checkin.tenantSnapshot as any)?.email || "N/A"}
         </Descriptions.Item>
 
         <Descriptions.Item label="CMND/CCCD">
@@ -212,7 +202,7 @@ const CheckinDetailDrawer: React.FC<CheckinDetailDrawerProps> = ({
         </Descriptions.Item>
 
         <Descriptions.Item label="Địa chỉ">
-          {checkin.tenantSnapshot?.address || tenant?.address || "N/A"}
+          {checkin.tenantSnapshot?.address || (tenant as any)?.address || "N/A"}
         </Descriptions.Item>
 
         <Descriptions.Item label="Ghi chú">

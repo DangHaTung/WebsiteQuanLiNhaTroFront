@@ -381,7 +381,41 @@ const InvoiceDetail: React.FC = () => {
       title: "Khoản mục",
       dataIndex: "item",
       key: "item",
-      render: (item: string) => item || "N/A",
+      render: (item: string) => {
+        // Kiểm tra nếu là dòng tiền điện (không phải xe điện)
+        const isElectricityFee = item && item.toLowerCase().includes("tiền điện");
+        if (isElectricityFee) {
+          // Ưu tiên hiển thị từ electricityReading nếu có
+          if (bill?.electricityReading) {
+            const { previous, current } = bill.electricityReading;
+            return (
+              <div>
+                <div>{item}</div>
+                {(previous !== undefined || current !== undefined) && (
+                  <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
+                     Số cũ: <strong>{previous ?? 0}</strong> → Số mới: <strong>{current ?? 0}</strong>
+                  
+                  </div>
+                )}
+              </div>
+            );
+          }
+          // Fallback: parse số kWh từ tên item nếu không có electricityReading
+          const kwhMatch = item.match(/\((\d+(?:\.\d+)?)\s*kWh\)/i);
+          if (kwhMatch && kwhMatch[1]) {
+            const kwh = Number(kwhMatch[1]);
+            return (
+              <div>
+                <div>{item}</div>
+                <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
+                   Tiêu thụ: <strong>{kwh} kWh</strong>
+                </div>
+              </div>
+            );
+          }
+        }
+        return item || "N/A";
+      },
     },
     {
       title: "Đơn giá",

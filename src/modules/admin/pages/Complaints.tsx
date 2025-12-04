@@ -274,7 +274,7 @@ const Complaints: React.FC = () => {
               },
               showTotal: (t) => `${t} khiếu nại`,
             }}
-            rowClassName={(record, index) =>
+            rowClassName={(_record, index) =>
               index % 2 === 0 ? "table-row-light" : ""
             }
           />

@@ -51,6 +51,8 @@ export const adminBillService = {
     occupantCount?: number; 
     vehicleCount?: number; // Deprecated
     vehicles?: Array<{ type: 'motorbike' | 'electric_bike' | 'bicycle'; licensePlate?: string }>;
+    previousReading?: number; // Số điện cũ (kỳ trước)
+    currentReading?: number; // Số điện mới (kỳ này)
   }): Promise<Bill> {
     const res = await api.put<SingleBillResponse>(`/bills/${id}/publish`, payload);
     return res.data.data;
@@ -62,6 +64,8 @@ export const adminBillService = {
     occupantCount?: number; 
     vehicleCount?: number; // Deprecated
     vehicles?: Array<{ type: 'motorbike' | 'electric_bike' | 'bicycle'; licensePlate?: string }>;
+    previousReading?: number;
+    currentReading?: number;
   }>): Promise<any> {
     const res = await api.post("/bills/publish-batch", { bills });
     return res.data;

@@ -66,6 +66,23 @@ export interface BillPayment {
 }
 
 /**
+ * Thông tin số điện
+ */
+export interface ElectricityReading {
+  previous?: number; // Số điện cũ (kỳ trước)
+  current?: number;  // Số điện mới (kỳ này)
+  consumption?: number; // Số điện tiêu thụ = current - previous
+}
+
+/**
+ * Thông tin xe
+ */
+export interface BillVehicle {
+  type: 'motorbike' | 'electric_bike' | 'bicycle';
+  licensePlate?: string;
+}
+
+/**
  * Cấu trúc đầy đủ của 1 hóa đơn
  */
 export interface Bill {
@@ -85,8 +102,16 @@ export interface Bill {
   amountDue: number; // tổng tiền cần thanh toán
   amountPaid: number; // tổng tiền đã thanh toán
 
+  // Thông tin số điện (để hiển thị chi tiết trong hóa đơn)
+  electricityReading?: ElectricityReading;
+  
+  // Thông tin xe chi tiết
+  vehicles?: BillVehicle[];
+
   payments?: BillPayment[]; // danh sách thanh toán
   note?: string; // ghi chú thêm
+  dueDate?: string; // hạn thanh toán
+  tenantId?: string | { _id: string; fullName?: string }; // người thuê
   createdAt?: string;
   updatedAt?: string;
 }

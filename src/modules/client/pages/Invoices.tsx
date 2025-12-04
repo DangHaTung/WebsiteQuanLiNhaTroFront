@@ -304,6 +304,85 @@ const Invoices: React.FC = () => {
     return <Tag color={m.color}>{m.text}</Tag>;
   };
 
+  // Render chi tiết các khoản phí (expandable row)
+  const expandedRowRender = (record: Bill) => {
+    if (!record.lineItems || record.lineItems.length === 0) {
+      return <span style={{ color: "#999" }}>Không có chi tiết</span>;
+    }
+
+    const lineItemColumns = [
+      {
+        title: "Khoản mục",
+        dataIndex: "item",
+        key: "item",
+        render: (item: string) => {
+          // Kiểm tra nếu là dòng tiền điện (không phải xe điện)
+          const isElectricityFee = item && item.toLowerCase().includes("tiền điện");
+          if (isElectricityFee) {
+            // Ưu tiên hiển thị từ electricityReading nếu có
+            if (record.electricityReading) {
+              const { previous, current } = record.electricityReading;
+              return (
+                <div>
+                  <div>{item}</div>
+                  {(previous !== undefined || current !== undefined) && (
+                    <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
+                       Số cũ: <strong>{previous ?? 0}</strong> → Số mới: <strong>{current ?? 0}</strong>
+                    
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            // Fallback: parse số kWh từ tên item nếu không có electricityReading
+            const kwhMatch = item.match(/\((\d+(?:\.\d+)?)\s*kWh\)/i);
+            if (kwhMatch && kwhMatch[1]) {
+              const kwh = Number(kwhMatch[1]);
+              return (
+                <div>
+                  <div>{item}</div>
+                  <div style={{ fontSize: 12, color: "#666", marginTop: 4 }}>
+                     Tiêu thụ: <strong>{kwh} kWh</strong>
+                  </div>
+                </div>
+              );
+            }
+          }
+          return item || "N/A";
+        },
+      },
+      {
+        title: "Đơn giá",
+        dataIndex: "unitPrice",
+        key: "unitPrice",
+        align: "right" as const,
+        render: (price: number) => (price?.toLocaleString("vi-VN") || "0") + " ₫",
+      },
+      {
+        title: "Thành tiền",
+        dataIndex: "lineTotal",
+        key: "lineTotal",
+        align: "right" as const,
+        render: (total: number) => (
+          <strong style={{ color: "#1890ff" }}>
+            {(total?.toLocaleString("vi-VN") || "0")} ₫
+          </strong>
+        ),
+      },
+    ];
+
+    return (
+      <Table
+        columns={lineItemColumns}
+        dataSource={record.lineItems}
+        rowKey={(item, index) => `${item.item}-${index}`}
+        pagination={false}
+        size="small"
+        style={{ margin: 0 }}
+      />
+    );
+  };
+
   const columns = [
     {
       title: "Loại",
@@ -451,6 +530,10 @@ const Invoices: React.FC = () => {
                   rowKey="_id"
                   loading={loading}
                   pagination={{ pageSize: 10 }}
+                  expandable={{
+                    expandedRowRender,
+                    rowExpandable: (record) => record.lineItems && record.lineItems.length > 0,
+                  }}
                 />
               ),
             },
@@ -469,6 +552,10 @@ const Invoices: React.FC = () => {
                   rowKey="_id"
                   loading={loading}
                   pagination={{ pageSize: 10 }}
+                  expandable={{
+                    expandedRowRender,
+                    rowExpandable: (record) => record.lineItems && record.lineItems.length > 0,
+                  }}
                 />
               ),
             },
