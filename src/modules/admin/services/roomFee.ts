@@ -10,6 +10,11 @@ export interface RoomFee {
   updatedAt?: string;
 }
 
+export interface Vehicle {
+  type: 'motorbike' | 'electric_bike' | 'bicycle';
+  licensePlate?: string;
+}
+
 export interface FeeCalculation {
   roomId: string;
   breakdown: Array<{
@@ -18,6 +23,13 @@ export interface FeeCalculation {
     baseRate?: number;
     occupantCount?: number;
     vehicleCount?: number;
+    vehicles?: Array<{
+      type: string;
+      count: number;
+      rate: number;
+      total: number;
+      plates?: string[];
+    }>;
     subtotal?: number;
     vat?: number;
     total: number;
@@ -48,8 +60,14 @@ export const roomFeeService = {
     return res.data.data;
   },
 
-  async calculateFees(roomId: string, kwh: number, occupantCount: number, vehicleCount: number = 0): Promise<FeeCalculation> {
-    const payload = { kwh, occupantCount, vehicleCount };
+  async calculateFees(
+    roomId: string, 
+    kwh: number, 
+    occupantCount: number, 
+    vehicleCount: number = 0,
+    vehicles: Vehicle[] = []
+  ): Promise<FeeCalculation> {
+    const payload = { kwh, occupantCount, vehicleCount, vehicles };
     console.log(`[roomFeeService] calculateFees: payload=`, payload);
     const res = await api.post<FeeCalculationResponse>(`/rooms/${roomId}/fees/calculate`, payload);
     console.log(`[roomFeeService] calculateFees: response=`, res.data);

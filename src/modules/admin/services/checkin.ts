@@ -146,4 +146,19 @@ export const adminCheckinService = {
     const res = await api.post(`/checkins/${id}/extend`, payload);
     return res.data;
   },
+
+  // Lấy thông tin checkin theo ID
+  async getById(id: string): Promise<Checkin> {
+    const res = await api.get<{ success: boolean; data: Checkin }>(`/checkins/${id}`);
+    return res.data.data;
+  },
+
+  // Cập nhật danh sách xe cho checkin
+  async updateVehicles(
+    id: string,
+    vehicles: Array<{ type: 'motorbike' | 'electric_bike' | 'bicycle'; licensePlate?: string }>
+  ): Promise<{ success: boolean; message: string; data: any }> {
+    const res = await api.put(`/checkins/${id}/vehicles`, { vehicles });
+    return res.data;
+  },
 };

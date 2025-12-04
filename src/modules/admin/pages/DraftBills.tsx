@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { Button, Card, InputNumber, message, Space, Table, Tag, Typography, Row, Col, Statistic, Modal, Alert, Descriptions, Divider } from "antd";
-import { FileTextOutlined, ThunderboltOutlined, CheckOutlined, EyeOutlined, CalculatorOutlined } from "@ant-design/icons";
-import { roomFeeService, type FeeCalculation } from "../services/roomFee";
+import { Button, Card, InputNumber, message, Space, Table, Tag, Typography, Row, Col, Statistic, Modal, Alert, Descriptions, Divider, Select, Input, List, Popconfirm } from "antd";
+import { FileTextOutlined, ThunderboltOutlined, CheckOutlined, EyeOutlined, CalculatorOutlined, CarOutlined, PlusOutlined, DeleteOutlined } from "@ant-design/icons";
+import { roomFeeService, type FeeCalculation, type Vehicle } from "../services/roomFee";
 import type { ColumnsType } from "antd/es/table";
 import type { Bill } from "../../../types/bill";
 import type { Contract } from "../../../types/contract";
@@ -9,6 +9,7 @@ import dayjs from "dayjs";
 import { adminBillService } from "../services/bill";
 
 const { Title, Text } = Typography;
+const { Option } = Select;
 
 // Helper function để convert Decimal128 sang number
 const dec = (v: any): number => {
@@ -16,9 +17,7 @@ const dec = (v: any): number => {
   if (typeof v === "number") return v;
   if (typeof v === "string") return Number(v) || 0;
   if (typeof v === "object") {
-    // MongoDB Decimal128 có thể có $numberDecimal
     if (typeof (v as any).$numberDecimal === "string") return Number((v as any).$numberDecimal) || 0;
-    // Hoặc có method toString()
     if (typeof (v as any).toString === "function") {
       const s = (v as any).toString();
       const n = Number(s);
@@ -28,12 +27,20 @@ const dec = (v: any): number => {
   return 0;
 };
 
+// Vehicle type labels
+const vehicleTypeLabels: Record<string, string> = {
+  motorbike: "🏍️ Xe máy",
+  electric_bike: "⚡ Xe điện",
+  bicycle: "🚲 Xe đạp",
+};
+
 interface DraftBillWithElectricity extends Bill {
-  electricityKwh?: number; // Số điện hiện tại user nhập
-  initialElectricReading?: number; // Số điện ban đầu từ check-in (để tính số điện tiêu thụ)
-  lastElectricReading?: number; // Số điện cuối cùng từ hóa đơn trước (nếu có)
+  electricityKwh?: number;
+  initialElectricReading?: number;
+  lastElectricReading?: number;
   occupantCount?: number;
   vehicleCount?: number;
+  vehicles?: Vehicle[];
 }
 
 const DraftBills: React.FC = () => {
@@ -46,32 +53,45 @@ const DraftBills: React.FC = () => {
   const [calculatingBill, setCalculatingBill] = useState<string | null>(null);
   const [calculationResult, setCalculationResult] = useState<FeeCalculation | null>(null);
   const [calculationVisible, setCalculationVisible] = useState(false);
+  
+  // Vehicle management modal
+  const [vehicleModalVisible, setVehicleModalVisible] = useState(false);
+  const [currentBillId, setCurrentBillId] = useState<string | null>(null);
+  const [tempVehicles, setTempVehicles] = useState<Vehicle[]>([]);
+  const [newVehicleType, setNewVehicleType] = useState<'motorbike' | 'electric_bike' | 'bicycle'>('motorbike');
+  const [newVehiclePlate, setNewVehiclePlate] = useState('');
+  
+  // Ref để lưu trữ draftBills mới nhất (để tránh stale closure)
+  const draftBillsRef = React.useRef<DraftBillWithElectricity[]>([]);
+  
+  // Sync ref với state
+  React.useEffect(() => {
+    draftBillsRef.current = draftBills;
+  }, [draftBills]);
 
   useEffect(() => {
     loadDraftBills();
   }, []);
+
 
   const loadDraftBills = async () => {
     try {
       setLoading(true);
       const data = await adminBillService.getDrafts({ limit: 100 });
       
-      // Load rooms để lấy số người ở (giống như quản lý phòng)
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
       const token = localStorage.getItem("admin_token");
       
-      // Lấy tất cả rooms với số người ở (gọi nhiều lần nếu cần, limit max = 100)
+      // Lấy tất cả rooms với số người ở
       let allRooms: any[] = [];
       let page = 1;
-      const limit = 100; // Max limit theo validation
+      const limit = 100;
       let hasMore = true;
 
       while (hasMore) {
         try {
           const roomsResponse = await fetch(`${apiUrl}/api/rooms?page=${page}&limit=${limit}`, {
-            headers: {
-              "Authorization": `Bearer ${token}`,
-            },
+            headers: { "Authorization": `Bearer ${token}` },
           });
           
           if (!roomsResponse.ok) {
@@ -82,10 +102,7 @@ const DraftBills: React.FC = () => {
           }
           
           const roomsData = await roomsResponse.json();
-          if (!roomsData.success) {
-            console.error("Rooms API returned error:", roomsData);
-            break;
-          }
+          if (!roomsData.success) break;
           
           const rooms = roomsData.data || [];
           allRooms = [...allRooms, ...rooms];
@@ -101,71 +118,53 @@ const DraftBills: React.FC = () => {
       }
       
       const rooms = allRooms;
-      
-      // Tạo map roomId -> occupantCount (theo đúng logic quản lý phòng)
-      // Normalize roomId về string để so sánh chính xác
       const roomOccupantMap = new Map<string, number>();
       rooms.forEach((room: any) => {
         if (room.occupantCount !== undefined && room._id) {
-          const roomIdStr = String(room._id);
-          roomOccupantMap.set(roomIdStr, room.occupantCount);
+          roomOccupantMap.set(String(room._id), room.occupantCount);
         }
       });
       
-      console.log("Room occupant map:", Array.from(roomOccupantMap.entries()));
-      console.log("Total rooms:", rooms.length);
-      
-      // Hàm helper để lấy số điện: initialElectricReading từ check-in và tính số điện hiện tại
-      const getElectricReadings = async (contractId: string): Promise<{ initialElectricReading: number; currentElectricReading: number }> => {
+      // Helper để lấy số điện và vehicles từ checkin
+      // Logic: Số điện "Trước" = số điện chốt từ check-in + tổng số điện đã dùng từ các hóa đơn PAID
+      const getCheckinData = async (contractId: string): Promise<{ initialElectricReading: number; currentElectricReading: number; vehicles: Vehicle[] }> => {
         try {
           let initialElectricReading = 0;
+          let vehicles: Vehicle[] = [];
           
-          // 1. Lấy initialElectricReading từ check-in
+          // 1. Lấy số điện chốt và vehicles từ check-in
           const checkinResponse = await fetch(`${apiUrl}/api/checkins?contractId=${contractId}&limit=1`, {
-            headers: {
-              "Authorization": `Bearer ${token}`,
-            },
+            headers: { "Authorization": `Bearer ${token}` },
           });
           
           if (checkinResponse.ok) {
             const checkinData = await checkinResponse.json();
             const checkins = checkinData.data || [];
-            console.log(`[getElectricReadings] Checkins found for contractId ${contractId}:`, checkins.length);
-            
+            console.log(`[getCheckinData] Contract ${contractId}: Found ${checkins.length} checkins`);
             if (checkins.length > 0) {
               const checkin = checkins[0];
-              console.log(`[getElectricReadings] Checkin data:`, {
+              console.log(`[getCheckinData] Checkin data:`, {
                 _id: checkin._id,
-                contractId: checkin.contractId,
                 initialElectricReading: checkin.initialElectricReading,
-                hasInitialElectricReading: checkin.initialElectricReading !== undefined && checkin.initialElectricReading !== null,
+                vehicles: checkin.vehicles,
               });
-              
               if (checkin.initialElectricReading !== undefined && checkin.initialElectricReading !== null) {
                 const initialReading = Number(checkin.initialElectricReading);
                 if (!isNaN(initialReading) && initialReading >= 0) {
                   initialElectricReading = initialReading;
-                  console.log(`[getElectricReadings] ✅ Found initialElectricReading from checkin: ${initialElectricReading} kWh`);
-                } else {
-                  console.warn(`[getElectricReadings] ⚠️ initialElectricReading is not a valid number:`, checkin.initialElectricReading);
                 }
-              } else {
-                console.warn(`[getElectricReadings] ⚠️ Checkin ${checkin._id} does not have initialElectricReading field`);
-                // Fallback: nếu checkin không có initialElectricReading, có thể lấy từ hóa đơn đầu tiên
-                // Hoặc user cần cập nhật lại checkin với số điện chốt
               }
-            } else {
-              console.warn(`[getElectricReadings] ⚠️ No checkins found for contractId: ${contractId}`);
+              // Lấy vehicles từ checkin
+              if (checkin.vehicles && Array.isArray(checkin.vehicles)) {
+                vehicles = checkin.vehicles;
+                console.log(`[getCheckinData] Found ${vehicles.length} vehicles from checkin`);
+              }
             }
-          } else {
-            console.error(`[getElectricReadings] ❌ Failed to fetch checkins:`, checkinResponse.status, checkinResponse.statusText);
           }
           
-          // 2. Tính tổng số điện đã dùng từ tất cả hóa đơn MONTHLY đã phát hành trước đó
+          // 2. Lấy tổng số điện đã dùng từ các hóa đơn MONTHLY đã thanh toán (PAID hoặc UNPAID - đã phát hành)
           const billsResponse = await fetch(`${apiUrl}/api/bills?contractId=${contractId}&billType=MONTHLY&limit=100&sort=-billingDate`, {
-            headers: {
-              "Authorization": `Bearer ${token}`,
-            },
+            headers: { "Authorization": `Bearer ${token}` },
           });
           
           let totalElectricityUsed = 0;
@@ -173,27 +172,38 @@ const DraftBills: React.FC = () => {
           if (billsResponse.ok) {
             const billsData = await billsResponse.json();
             const previousBills = billsData.data || [];
+            console.log(`[getElectricReadings] Contract ${contractId}: Found ${previousBills.length} MONTHLY bills`);
             
-            // Tính tổng số điện tiêu thụ từ tất cả hóa đơn đã phát hành (không phải DRAFT)
             for (const prevBill of previousBills) {
-              if (prevBill.status === "DRAFT") continue;
+              // Bỏ qua DRAFT bills
+              if (prevBill.status === "DRAFT") {
+                console.log(`[getElectricReadings] Skipping DRAFT bill ${prevBill._id}`);
+                continue;
+              }
+              
+              console.log(`[getElectricReadings] Processing bill ${prevBill._id}, status=${prevBill.status}, lineItems=${prevBill.lineItems?.length || 0}`);
               
               if (prevBill.lineItems && Array.isArray(prevBill.lineItems)) {
                 for (const item of prevBill.lineItems) {
+                  // Tìm item tiền điện
                   if (item.item && item.item.includes("Tiền điện")) {
-                    // Parse số điện tiêu thụ từ "Tiền điện (X kWh)" hoặc lấy từ quantity
+                    console.log(`[getElectricReadings] Found electricity item:`, item);
+                    
+                    // Cách 1: Parse từ tên item "Tiền điện (200 kWh)"
                     const match = item.item.match(/\((\d+(?:\.\d+)?)\s*kWh\)/i);
                     if (match && match[1]) {
                       const kwh = Number(match[1]);
                       if (!isNaN(kwh) && kwh > 0) {
                         totalElectricityUsed += kwh;
-                        console.log(`Found electricity consumption from bill ${prevBill._id}: ${kwh} kWh`);
+                        console.log(`[getElectricReadings] Parsed ${kwh} kWh from item name`);
                       }
-                    } else if (item.quantity && Number(item.quantity) > 0) {
+                    } 
+                    // Cách 2: Lấy từ quantity
+                    else if (item.quantity && Number(item.quantity) > 0) {
                       const kwh = Number(item.quantity);
                       if (!isNaN(kwh) && kwh > 0) {
                         totalElectricityUsed += kwh;
-                        console.log(`Found electricity consumption from bill quantity ${prevBill._id}: ${kwh} kWh`);
+                        console.log(`[getElectricReadings] Got ${kwh} kWh from quantity`);
                       }
                     }
                   }
@@ -202,42 +212,37 @@ const DraftBills: React.FC = () => {
             }
           }
           
-          // Số điện hiện tại = số điện ban đầu + tổng số điện đã dùng
+          // Số điện hiện tại = số điện chốt + tổng số điện đã dùng
           const currentElectricReading = initialElectricReading + totalElectricityUsed;
-          console.log(`Electric readings for contract ${contractId}: initial=${initialElectricReading}, used=${totalElectricityUsed}, current=${currentElectricReading}`);
+          console.log(`[getCheckinData] Contract ${contractId}: initial=${initialElectricReading}, used=${totalElectricityUsed}, current=${currentElectricReading}, vehicles=${vehicles.length}`);
           
-          return { initialElectricReading, currentElectricReading };
+          return { initialElectricReading, currentElectricReading, vehicles };
         } catch (error) {
-          console.error("Error getting electric readings:", error);
-          return { initialElectricReading: 0, currentElectricReading: 0 };
+          console.error("Error getting checkin data:", error);
+          return { initialElectricReading: 0, currentElectricReading: 0, vehicles: [] };
         }
       };
       
-      // Initialize với electricityKwh và lấy số người ở từ room (theo contract ACTIVE của phòng)
       const contractIds = data.map(bill => {
         const contract = bill.contractId as Contract;
         return typeof contract === 'object' && contract?._id ? contract._id : (typeof contract === 'string' ? contract : null);
       }).filter(Boolean) as string[];
       
-      // Load số điện cho tất cả bills song song
-      const electricReadingsList = await Promise.all(
-        contractIds.map(contractId => getElectricReadings(contractId))
+      const checkinDataList = await Promise.all(
+        contractIds.map(contractId => getCheckinData(contractId))
       );
       
-      // Tạo map contractId -> {initialElectricReading, currentElectricReading}
-      const electricReadingMap = new Map<string, { initialElectricReading: number; currentElectricReading: number }>();
+      const checkinDataMap = new Map<string, { initialElectricReading: number; currentElectricReading: number; vehicles: Vehicle[] }>();
       contractIds.forEach((contractId, index) => {
-        electricReadingMap.set(contractId, electricReadingsList[index] || { initialElectricReading: 0, currentElectricReading: 0 });
+        checkinDataMap.set(contractId, checkinDataList[index] || { initialElectricReading: 0, currentElectricReading: 0, vehicles: [] });
       });
       
       const billsWithElectricity = await Promise.all(data.map(async (bill) => {
-        // Lấy roomId từ contract của bill
         const contract = bill.contractId as Contract;
         const contractId = typeof contract === 'object' && contract?._id ? contract._id : (typeof contract === 'string' ? contract : null);
         let roomId: string | undefined;
         
         if (contract) {
-          // contract.roomId có thể là object (đã populate) hoặc string (chưa populate)
           if (contract.roomId) {
             if (typeof contract.roomId === 'object' && contract.roomId._id) {
               roomId = String(contract.roomId._id);
@@ -249,22 +254,18 @@ const DraftBills: React.FC = () => {
           }
         }
         
-        // Lấy số người ở từ room (theo đúng logic quản lý phòng)
         const occupantCount = roomId ? (roomOccupantMap.get(roomId) ?? 1) : 1;
-        
-        // Lấy số điện từ map
-        const electricReadings = contractId ? (electricReadingMap.get(contractId) || { initialElectricReading: 0, currentElectricReading: 0 }) : { initialElectricReading: 0, currentElectricReading: 0 };
-        const { initialElectricReading, currentElectricReading } = electricReadings;
-        
-        console.log(`Bill ${bill._id?.substring(0, 8)}: roomId=${roomId}, occupantCount=${occupantCount}, initial=${initialElectricReading}, current=${currentElectricReading}, contract=`, contract ? { hasRoomId: !!contract.roomId, roomIdType: typeof contract.roomId } : 'no contract');
+        const checkinData = contractId ? (checkinDataMap.get(contractId) || { initialElectricReading: 0, currentElectricReading: 0, vehicles: [] }) : { initialElectricReading: 0, currentElectricReading: 0, vehicles: [] };
+        const { initialElectricReading, currentElectricReading, vehicles } = checkinData;
         
         return {
-        ...bill,
-        electricityKwh: undefined, // Không set mặc định, để user nhập số điện mới
-        initialElectricReading, // Lưu số điện ban đầu từ check-in (để tính số điện tiêu thụ)
-        lastElectricReading: currentElectricReading, // Lưu số điện hiện tại để validate và tính số điện tiêu thụ
+          ...bill,
+          electricityKwh: undefined,
+          initialElectricReading,
+          lastElectricReading: currentElectricReading,
           occupantCount,
-          vehicleCount: 0, // Mặc định 0 xe, user sẽ nhập
+          vehicleCount: vehicles.length,
+          vehicles: vehicles, // Lấy vehicles từ checkin
         };
       }));
       setDraftBills(billsWithElectricity);
@@ -306,8 +307,113 @@ const DraftBills: React.FC = () => {
     }
   };
 
-  // Hàm auto-calculate (không hiển thị modal)
-  const autoCalculate = async (bill: DraftBillWithElectricity, currentElectricReading: number, occupantCount: number, vehicleCount: number = 0) => {
+
+  // Vehicle management functions
+  const openVehicleModal = (billId: string) => {
+    const bill = draftBills.find(b => b._id === billId);
+    if (bill) {
+      setCurrentBillId(billId);
+      setTempVehicles(bill.vehicles || []);
+      setNewVehicleType('motorbike');
+      setNewVehiclePlate('');
+      setVehicleModalVisible(true);
+    }
+  };
+
+  const addVehicle = () => {
+    const bill = draftBills.find(b => b._id === currentBillId);
+    if (!bill) return;
+    
+    // Validate
+    if (tempVehicles.length >= (bill.occupantCount || 1)) {
+      message.error(`Số xe không được vượt quá số người ở (${bill.occupantCount || 1})`);
+      return;
+    }
+    
+    if (['motorbike', 'electric_bike'].includes(newVehicleType) && !newVehiclePlate.trim()) {
+      message.error('Xe máy và xe điện phải có biển số');
+      return;
+    }
+    
+    const newVehicle: Vehicle = {
+      type: newVehicleType,
+      licensePlate: newVehicleType === 'bicycle' ? undefined : newVehiclePlate.trim().toUpperCase(),
+    };
+    
+    setTempVehicles([...tempVehicles, newVehicle]);
+    setNewVehiclePlate('');
+  };
+
+  const removeVehicle = (index: number) => {
+    setTempVehicles(tempVehicles.filter((_, i) => i !== index));
+  };
+
+  const saveVehicles = async () => {
+    if (!currentBillId) return;
+    
+    // Lấy bill hiện tại trước khi update
+    const bill = draftBills.find(b => b._id === currentBillId);
+    
+    // Nếu có xe, tự động gán phí parking cho phòng (nếu chưa có)
+    if (tempVehicles.length > 0 && bill) {
+      const contract = bill.contractId as Contract;
+      if (contract?.roomId) {
+        const roomId = typeof contract.roomId === 'string' ? contract.roomId : contract.roomId._id;
+        if (roomId) {
+          try {
+            // Lấy phí hiện tại của phòng
+            const currentFees = await roomFeeService.getRoomFees(roomId);
+            const currentTypes = currentFees?.appliedTypes || [];
+            
+            // Thêm parking nếu chưa có
+            if (!currentTypes.includes('parking')) {
+              const newTypes = [...currentTypes, 'parking'];
+              await roomFeeService.assignFees(roomId, newTypes);
+              console.log(`[saveVehicles] Added parking fee to room ${roomId}. New types: ${newTypes.join(', ')}`);
+              message.info('Đã tự động gán phí đỗ xe cho phòng');
+            }
+          } catch (error: any) {
+            console.error(`[saveVehicles] Error assigning fees:`, error);
+            // Nếu phòng chưa có RoomFee, tạo mới với tất cả phí
+            if (error?.response?.status === 404) {
+              try {
+                await roomFeeService.assignFees(roomId, ['electricity', 'water', 'internet', 'cleaning', 'parking']);
+                console.log(`[saveVehicles] Created new RoomFee with all fees for room ${roomId}`);
+                message.info('Đã tự động gán phí cho phòng');
+              } catch (err) {
+                console.error(`[saveVehicles] Error creating RoomFee:`, err);
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Update state và ref với vehicles mới
+    const updatedBills = draftBills.map(b => {
+      if (b._id === currentBillId) {
+        return { ...b, vehicles: tempVehicles, vehicleCount: tempVehicles.length };
+      }
+      return b;
+    });
+    
+    // Update ref ngay lập tức (trước khi setDraftBills)
+    draftBillsRef.current = updatedBills;
+    setDraftBills(updatedBills);
+    
+    // Auto-calculate với vehicles mới (truyền tempVehicles trực tiếp, không lấy từ state)
+    if (bill && bill.electricityKwh !== undefined && bill.electricityKwh > 0) {
+      // Tạo bill mới với vehicles đã update để tính toán
+      const updatedBill = { ...bill, vehicles: tempVehicles };
+      await autoCalculateWithVehicles(updatedBill, bill.electricityKwh, bill.occupantCount || 1, tempVehicles);
+    }
+    
+    setVehicleModalVisible(false);
+    message.success('Đã cập nhật danh sách xe');
+  };
+
+  // Auto-calculate with vehicles
+  const autoCalculateWithVehicles = async (bill: DraftBillWithElectricity, currentElectricReading: number, occupantCount: number, vehicles: Vehicle[]) => {
     try {
       const contract = bill.contractId as Contract;
       if (!contract?.roomId) return;
@@ -315,32 +421,24 @@ const DraftBills: React.FC = () => {
       const roomId = typeof contract.roomId === 'string' ? contract.roomId : contract.roomId._id;
       if (!roomId) return;
       
-      // Tính số điện tiêu thụ = số điện hiện tại user nhập - số điện chốt ban đầu từ check-in (initialElectricReading)
-      // Logic: luôn trừ đi số điện chốt từ phiếu thu, không phải số điện từ hóa đơn trước
-      const initialElectricReading = bill.initialElectricReading || 0;
-      const electricityConsumption = Math.max(0, currentElectricReading - initialElectricReading);
+      // Dùng lastElectricReading (số điện sau các hóa đơn trước) để tính số điện tiêu thụ
+      const previousReading = bill.lastElectricReading || 0;
+      const electricityConsumption = Math.max(0, currentElectricReading - previousReading);
       
-      // Debug: Log để kiểm tra
-      console.log(`[DraftBills] autoCalculate: currentReading=${currentElectricReading}, initialReading=${initialElectricReading}, consumption=${electricityConsumption}, vehicleCount=${vehicleCount}, occupantCount=${occupantCount}`);
+      console.log(`[autoCalculateWithVehicles] Calling API with vehicles:`, vehicles);
       
-      // Gửi số điện tiêu thụ (không phải số điện hiện tại) lên API để tính tiền
-      const result = await roomFeeService.calculateFees(roomId, electricityConsumption, occupantCount, vehicleCount);
-      
-      console.log(`[DraftBills] autoCalculate result:`, result);
-      console.log(`[DraftBills] autoCalculate breakdown:`, result.breakdown);
+      const result = await roomFeeService.calculateFees(roomId, electricityConsumption, occupantCount, 0, vehicles);
 
-      // Update bill với calculated amount
-      setDraftBills(prev =>
-        prev.map(b =>
-          b._id === bill._id 
-            ? { 
-                ...b, 
-                amountDue: result.total,
-                calculatedBreakdown: result.breakdown 
-              } 
-            : b
-        )
+      console.log(`[autoCalculateWithVehicles] Result:`, result);
+
+      // Update ref và state
+      const updatedBills = draftBillsRef.current.map(b =>
+        b._id === bill._id 
+          ? { ...b, amountDue: result.total, calculatedBreakdown: result.breakdown } 
+          : b
       );
+      draftBillsRef.current = updatedBills;
+      setDraftBills(updatedBills);
     } catch (error) {
       console.error("Auto-calculate error:", error);
     }
@@ -349,95 +447,56 @@ const DraftBills: React.FC = () => {
   const handleElectricityChange = async (billId: string, value: number | null) => {
     const currentElectricReading = value || 0;
     
-    console.log(`[DraftBills] handleElectricityChange: billId=${billId}, currentElectricReading=${currentElectricReading}`);
+    // Lấy bill hiện tại từ ref
+    const currentBill = draftBillsRef.current.find(b => b._id === billId);
+    if (!currentBill) return;
     
-    // Update state và lấy bill mới nhất
-    let updatedBill: DraftBillWithElectricity | undefined;
-    setDraftBills(prev => {
-      const updated = prev.map(bill => {
-        if (bill._id === billId) {
-          const newBill = { ...bill, electricityKwh: currentElectricReading };
-          updatedBill = newBill;
-          return newBill;
-        }
-        return bill;
-      });
-      return updated;
-    });
+    // Tạo bill mới với electricityKwh đã update
+    const updatedBill = { ...currentBill, electricityKwh: currentElectricReading };
     
-    // Auto-calculate luôn (kể cả khi currentElectricReading = 0) để tính lại tổng tiền
-    if (updatedBill) {
-      console.log(`[DraftBills] handleElectricityChange: Calling autoCalculate with currentElectricReading=${currentElectricReading}, vehicleCount=${updatedBill.vehicleCount || 0}`);
-      await autoCalculate(updatedBill, currentElectricReading, updatedBill.occupantCount || 1, updatedBill.vehicleCount || 0);
-    }
+    // Update ref và state
+    const updatedBills = draftBillsRef.current.map(bill => 
+      bill._id === billId ? updatedBill : bill
+    );
+    draftBillsRef.current = updatedBills;
+    setDraftBills(updatedBills);
+    
+    // Auto-calculate với vehicles từ bill
+    await autoCalculateWithVehicles(updatedBill, currentElectricReading, updatedBill.occupantCount || 1, updatedBill.vehicles || []);
   };
 
   const handleOccupantChange = async (billId: string, value: number | null) => {
     const occupantCount = value || 1;
     
-    // Update state và lấy bill mới nhất
-    let updatedBill: DraftBillWithElectricity | undefined;
-    setDraftBills(prev => {
-      const updated = prev.map(bill => {
-        if (bill._id === billId) {
-          const newBill = { ...bill, occupantCount };
-          updatedBill = newBill;
-          return newBill;
-        }
-        return bill;
-      });
-      return updated;
-    });
+    // Lấy bill hiện tại từ ref
+    const currentBill = draftBillsRef.current.find(b => b._id === billId);
+    if (!currentBill) return;
     
-    // Auto-calculate nếu đã có số điện (dùng bill mới nhất)
-    if (updatedBill && updatedBill.electricityKwh && updatedBill.electricityKwh > 0) {
-      await autoCalculate(updatedBill, updatedBill.electricityKwh, occupantCount, updatedBill.vehicleCount || 0);
-    }
-  };
-
-  const handleVehicleChange = async (billId: string, value: number | null) => {
-    const vehicleCount = value || 0;
+    // Tạo bill mới với occupantCount đã update
+    const updatedBill = { ...currentBill, occupantCount };
     
-    console.log(`[DraftBills] handleVehicleChange: billId=${billId}, vehicleCount=${vehicleCount}`);
+    // Update ref và state
+    const updatedBills = draftBillsRef.current.map(bill => 
+      bill._id === billId ? updatedBill : bill
+    );
+    draftBillsRef.current = updatedBills;
+    setDraftBills(updatedBills);
     
-    // Update state và lấy bill mới nhất từ state
-    let updatedBill: DraftBillWithElectricity | undefined;
-    setDraftBills(prev => {
-      const updated = prev.map(bill => {
-        if (bill._id === billId) {
-          const newBill = { ...bill, vehicleCount };
-          updatedBill = newBill;
-          console.log(`[DraftBills] handleVehicleChange: Updated bill, vehicleCount=${newBill.vehicleCount}, electricityKwh=${newBill.electricityKwh}`);
-          return newBill;
-        }
-        return bill;
-      });
-      return updated;
-    });
-    
-    // Auto-calculate nếu đã có số điện (truyền vehicleCount trực tiếp từ parameter)
-    if (updatedBill && updatedBill.electricityKwh !== undefined && updatedBill.electricityKwh > 0) {
-      console.log(`[DraftBills] handleVehicleChange: Calling autoCalculate with vehicleCount=${vehicleCount}`);
-      // Truyền vehicleCount trực tiếp từ parameter, không lấy từ state
-      await autoCalculate(updatedBill, updatedBill.electricityKwh, updatedBill.occupantCount || 1, vehicleCount);
-    } else {
-      console.log(`[DraftBills] handleVehicleChange: Skipping autoCalculate - electricityKwh=${updatedBill?.electricityKwh}`);
+    if (updatedBill.electricityKwh && updatedBill.electricityKwh > 0) {
+      await autoCalculateWithVehicles(updatedBill, updatedBill.electricityKwh, occupantCount, updatedBill.vehicles || []);
     }
   };
 
   const handleCalculate = async (bill: DraftBillWithElectricity) => {
-    // Lấy bill mới nhất từ state để đảm bảo có vehicleCount mới nhất
-    // Sử dụng functional update để đảm bảo lấy state mới nhất
-    let currentBill: DraftBillWithElectricity | undefined;
-    setDraftBills(prev => {
-      currentBill = prev.find(b => b._id === bill._id) || bill;
-      return prev; // Không thay đổi state, chỉ lấy giá trị
-    });
+    // Lấy bill mới nhất từ ref (để tránh stale closure)
+    const currentBill = draftBillsRef.current.find(b => b._id === bill._id) || bill;
     
-    // Fallback nếu không tìm thấy trong state
-    if (!currentBill) {
-      currentBill = bill;
-    }
+    console.log(`[handleCalculate] currentBill:`, {
+      _id: currentBill._id,
+      vehicles: currentBill.vehicles,
+      vehicleCount: currentBill.vehicleCount,
+      electricityKwh: currentBill.electricityKwh,
+    });
     
     if (!currentBill.electricityKwh && currentBill.electricityKwh !== 0) {
       message.warning("Vui lòng nhập số điện trước");
@@ -455,8 +514,8 @@ const DraftBills: React.FC = () => {
     try {
       setCalculatingBill(currentBill._id);
       
-      // Validate số điện trước khi tính
-      const initialElectricReading = currentBill.initialElectricReading || 0;
+      // Dùng lastElectricReading (số điện sau các hóa đơn trước) để tính số điện tiêu thụ
+      const previousReading = currentBill.lastElectricReading || 0;
       const currentElectricReading = currentBill.electricityKwh;
       
       if (currentElectricReading === undefined || currentElectricReading === null) {
@@ -465,15 +524,13 @@ const DraftBills: React.FC = () => {
         return;
       }
       
-      if (currentElectricReading < initialElectricReading) {
-        message.error(`Số điện hiện tại (${currentElectricReading.toLocaleString()} kWh) không được nhỏ hơn số điện chốt ban đầu (${initialElectricReading.toLocaleString()} kWh)`);
+      if (currentElectricReading < previousReading) {
+        message.error(`Số điện hiện tại (${currentElectricReading.toLocaleString()} kWh) không được nhỏ hơn số điện trước (${previousReading.toLocaleString()} kWh)`);
         setCalculatingBill(null);
         return;
       }
       
-      // Tính số điện tiêu thụ = số điện hiện tại user nhập - số điện chốt ban đầu từ check-in (initialElectricReading)
-      // Logic: luôn trừ đi số điện chốt từ phiếu thu, không phải số điện từ hóa đơn trước
-      const electricityConsumption = Math.max(0, currentElectricReading - initialElectricReading);
+      const electricityConsumption = Math.max(0, currentElectricReading - previousReading);
       
       if (electricityConsumption <= 0) {
         message.error("Số điện tiêu thụ phải lớn hơn 0. Vui lòng kiểm tra lại số điện đã nhập.");
@@ -481,41 +538,34 @@ const DraftBills: React.FC = () => {
         return;
       }
       
-      // Debug: Log vehicleCount trước khi tính
-      const vehicleCountToSend = currentBill.vehicleCount ?? 0;
+      const vehicles = currentBill.vehicles || [];
       const occupantCountToSend = currentBill.occupantCount ?? 1;
       
-      console.log(`[DraftBills] handleCalculate: currentReading=${currentElectricReading}, initialReading=${initialElectricReading}, consumption=${electricityConsumption}, vehicleCount=${vehicleCountToSend}, occupantCount=${occupantCountToSend}`);
-      console.log(`[DraftBills] handleCalculate: currentBill object:`, {
-        _id: currentBill._id,
-        vehicleCount: currentBill.vehicleCount,
-        electricityKwh: currentBill.electricityKwh,
-        initialElectricReading: currentBill.initialElectricReading,
-        occupantCount: currentBill.occupantCount,
-      });
-      console.log(`[DraftBills] handleCalculate: Calling API with:`, {
+      console.log(`[handleCalculate] Calling API with:`, {
         roomId,
-        kwh: electricityConsumption, // Gửi số điện tiêu thụ, không phải số điện hiện tại
-        occupantCount: occupantCountToSend,
-        vehicleCount: vehicleCountToSend,
+        electricityConsumption,
+        occupantCountToSend,
+        vehicles,
       });
       
       const result = await roomFeeService.calculateFees(
         roomId, 
-        electricityConsumption, // Gửi số điện tiêu thụ
+        electricityConsumption,
         occupantCountToSend, 
-        vehicleCountToSend
+        0, // vehicleCount = 0 khi dùng vehicles array
+        vehicles
       );
       
-      console.log(`[DraftBills] handleCalculate result:`, result);
-      console.log(`[DraftBills] handleCalculate breakdown:`, result.breakdown);
+      console.log(`[handleCalculate] API result:`, result);
+      console.log(`[handleCalculate] Breakdown:`, result.breakdown);
       
-      // Tìm parking trong breakdown để debug
+      // Kiểm tra xem có parking trong breakdown không
       const parkingItem = result.breakdown.find(item => item.type === 'parking');
       if (parkingItem) {
-        console.log(`[DraftBills] handleCalculate: Parking item found:`, parkingItem);
-      } else {
-        console.log(`[DraftBills] handleCalculate: Parking item NOT found in breakdown`);
+        console.log(`[handleCalculate] Parking found:`, parkingItem);
+      } else if (vehicles.length > 0) {
+        console.log(`[handleCalculate] Parking NOT found in breakdown but has ${vehicles.length} vehicles. Phòng chưa được gán phí parking.`);
+        message.warning(`Phòng chưa được gán phí đỗ xe. Vui lòng vào Quản lý phòng để gán phí parking.`);
       }
       
       setCalculationResult(result);
@@ -528,38 +578,40 @@ const DraftBills: React.FC = () => {
     }
   };
 
+
   const handlePublishSingle = async (bill: DraftBillWithElectricity) => {
-    const currentElectricReading = bill.electricityKwh;
-    const initialElectricReading = bill.initialElectricReading || 0;
+    // Lấy bill mới nhất từ ref
+    const currentBill = draftBillsRef.current.find(b => b._id === bill._id) || bill;
     
-    // Validate số điện
+    const currentElectricReading = currentBill.electricityKwh;
+    // Dùng lastElectricReading (số điện sau các hóa đơn trước) để tính số điện tiêu thụ
+    const previousReading = currentBill.lastElectricReading || 0;
+    
     if (currentElectricReading === undefined || currentElectricReading === null) {
       message.error("Vui lòng nhập số điện hiện tại");
       return;
     }
     
-    if (currentElectricReading < initialElectricReading) {
-      message.error(`Số điện hiện tại (${currentElectricReading.toLocaleString()} kWh) không được nhỏ hơn số điện chốt ban đầu (${initialElectricReading.toLocaleString()} kWh)`);
+    if (currentElectricReading < previousReading) {
+      message.error(`Số điện hiện tại (${currentElectricReading.toLocaleString()} kWh) không được nhỏ hơn số điện trước (${previousReading.toLocaleString()} kWh)`);
       return;
     }
 
-    // Tính số điện tiêu thụ = số điện hiện tại user nhập - số điện chốt ban đầu từ check-in (initialElectricReading)
-    // Logic: luôn trừ đi số điện chốt từ phiếu thu, không phải số điện từ hóa đơn trước
-    const electricityConsumption = Math.max(0, currentElectricReading - initialElectricReading);
+    const electricityConsumption = Math.max(0, currentElectricReading - previousReading);
     
     if (electricityConsumption <= 0) {
       message.error("Số điện tiêu thụ phải lớn hơn 0. Vui lòng kiểm tra lại số điện đã nhập.");
       return;
     }
 
+    console.log(`[handlePublishSingle] Publishing with vehicles:`, currentBill.vehicles);
+
     try {
       setPublishing(true);
-      console.log(`[DraftBills] Publishing bill ${bill._id}: currentReading=${currentElectricReading}, initialReading=${initialElectricReading}, consumption=${electricityConsumption}`);
-      // Gửi số điện tiêu thụ (không phải số điện hiện tại) lên backend
-      await adminBillService.publishDraft(bill._id, {
-        electricityKwh: electricityConsumption, // Gửi số điện tiêu thụ
-        occupantCount: bill.occupantCount || 1,
-        vehicleCount: bill.vehicleCount || 0,
+      await adminBillService.publishDraft(currentBill._id, {
+        electricityKwh: electricityConsumption,
+        occupantCount: currentBill.occupantCount || 1,
+        vehicles: currentBill.vehicles || [],
       });
       message.success("Phát hành hóa đơn thành công!");
       loadDraftBills();
@@ -571,25 +623,25 @@ const DraftBills: React.FC = () => {
   };
 
   const handlePublishBatch = async () => {
-    const billsToPublish = draftBills.filter(bill => selectedBills.includes(bill._id));
+    // Lấy từ ref để có dữ liệu mới nhất
+    const billsToPublish = draftBillsRef.current.filter(bill => selectedBills.includes(bill._id));
     
     if (billsToPublish.length === 0) {
       message.warning("Vui lòng chọn ít nhất 1 hóa đơn");
       return;
     }
 
-    // Validate: Kiểm tra tất cả đã nhập số điện chưa
     const missingElectricity = billsToPublish.filter(bill => bill.electricityKwh === undefined || bill.electricityKwh === null);
     if (missingElectricity.length > 0) {
       message.error("Vui lòng nhập số điện cho tất cả hóa đơn đã chọn");
       return;
     }
 
-    // Validate: Kiểm tra số điện phải >= số điện chốt
     const invalidElectricity = billsToPublish.filter(bill => {
       const currentReading = bill.electricityKwh;
-      const initialReading = bill.initialElectricReading || 0;
-      return currentReading !== undefined && currentReading !== null && currentReading < initialReading;
+      // Dùng lastElectricReading (số điện sau các hóa đơn trước)
+      const previousReading = bill.lastElectricReading || 0;
+      return currentReading !== undefined && currentReading !== null && currentReading < previousReading;
     });
     
     if (invalidElectricity.length > 0) {
@@ -599,7 +651,7 @@ const DraftBills: React.FC = () => {
       message.error(
         `Số điện không hợp lệ ở phòng ${roomNumber}. ` +
         `Số điện hiện tại (${firstInvalid.electricityKwh?.toLocaleString()} kWh) ` +
-        `phải >= số điện chốt (${(firstInvalid.initialElectricReading || 0).toLocaleString()} kWh)`
+        `phải >= số điện trước (${(firstInvalid.lastElectricReading || 0).toLocaleString()} kWh)`
       );
       return;
     }
@@ -608,22 +660,19 @@ const DraftBills: React.FC = () => {
       setPublishing(true);
       const payload = billsToPublish.map(bill => {
         const currentElectricReading = bill.electricityKwh!;
-        // Tính số điện tiêu thụ = số điện hiện tại user nhập - số điện chốt ban đầu từ check-in (initialElectricReading)
-        const initialElectricReading = bill.initialElectricReading || 0;
-        const electricityConsumption = currentElectricReading - initialElectricReading;
+        // Dùng lastElectricReading (số điện sau các hóa đơn trước)
+        const previousReading = bill.lastElectricReading || 0;
+        const electricityConsumption = currentElectricReading - previousReading;
         
-        // Validate: số điện tiêu thụ phải > 0 (đã validate ở trên, nhưng double check)
         if (electricityConsumption <= 0) {
           throw new Error(`Số điện tiêu thụ phải lớn hơn 0 cho hóa đơn ${bill._id}`);
         }
         
-        console.log(`[DraftBills] Publishing bill ${bill._id}: currentReading=${currentElectricReading}, initialReading=${initialElectricReading}, consumption=${electricityConsumption}`);
-        
         return {
           billId: bill._id,
-          electricityKwh: electricityConsumption, // Gửi số điện tiêu thụ, không phải số điện hiện tại
+          electricityKwh: electricityConsumption,
           occupantCount: bill.occupantCount || 1,
-          vehicleCount: bill.vehicleCount || 0,
+          vehicles: bill.vehicles || [],
         };
       });
 
@@ -652,7 +701,6 @@ const DraftBills: React.FC = () => {
     }
 
     const totalAmount = billsToPreview.reduce((sum, bill) => {
-      // Tính tạm (chưa chính xác, cần call API để tính đúng)
       return sum + (bill.amountDue || 0);
     }, 0);
 
@@ -672,6 +720,7 @@ const DraftBills: React.FC = () => {
     }
     return { roomNumber: "N/A", tenantName: "N/A" };
   };
+
 
   const columns: ColumnsType<DraftBillWithElectricity> = [
     {
@@ -706,39 +755,34 @@ const DraftBills: React.FC = () => {
       key: "electricity",
       width: 150,
       render: (_: any, record: DraftBillWithElectricity) => {
-        const initialElectricReading = record.initialElectricReading || 0;
+        // lastElectricReading = số điện sau khi cộng các hóa đơn trước (số điện "Trước" cho hóa đơn mới)
+        // initialElectricReading = số điện chốt từ check-in (dùng để tính tổng số điện tiêu thụ)
+        const previousReading = record.lastElectricReading || 0;
         const currentReading = record.electricityKwh;
-        // Tính số điện tiêu thụ = số điện mới - số điện chốt
-        const isValidReading = currentReading !== undefined && currentReading !== null && currentReading >= initialElectricReading;
-        const consumption = isValidReading
-          ? currentReading - initialElectricReading
-          : 0;
+        const isValidReading = currentReading !== undefined && currentReading !== null && currentReading >= previousReading;
+        const consumption = isValidReading ? currentReading - previousReading : 0;
         
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <Text type="secondary" style={{ fontSize: '12px' }}>
-              Trước: {initialElectricReading.toLocaleString()} kWh
+              Trước: {previousReading.toLocaleString()} kWh
             </Text>
             <InputNumber
-              min={initialElectricReading}
+              min={previousReading}
               value={currentReading}
-              status={currentReading !== undefined && currentReading !== null && currentReading < initialElectricReading ? "error" : undefined}
+              status={currentReading !== undefined && currentReading !== null && currentReading < previousReading ? "error" : undefined}
               onChange={(value) => {
-                // Validate ngay khi nhập: số điện mới phải >= số điện chốt
-                if (value !== null && value < initialElectricReading) {
-                  message.error(`Số điện mới (${value?.toLocaleString()} kWh) không được nhỏ hơn số điện chốt ban đầu (${initialElectricReading.toLocaleString()} kWh)`);
-                  // Vẫn cho phép nhập để user thấy giá trị sai, nhưng sẽ validate khi tính/publish
-                  handleElectricityChange(record._id, value);
-                  return;
+                if (value !== null && value < previousReading) {
+                  message.error(`Số điện mới (${value?.toLocaleString()} kWh) không được nhỏ hơn số điện trước (${previousReading.toLocaleString()} kWh)`);
                 }
                 handleElectricityChange(record._id, value);
               }}
               placeholder="Nhập số điện hiện tại"
               style={{ width: "100%" }}
             />
-            {currentReading !== undefined && currentReading !== null && currentReading < initialElectricReading && (
+            {currentReading !== undefined && currentReading !== null && currentReading < previousReading && (
               <Text type="danger" style={{ fontSize: '12px' }}>
-                ⚠️ Số điện phải {'>='} {initialElectricReading.toLocaleString()} kWh
+                ⚠️ Số điện phải {'>='} {previousReading.toLocaleString()} kWh
               </Text>
             )}
             <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -751,7 +795,7 @@ const DraftBills: React.FC = () => {
     {
       title: "Số người",
       key: "occupant",
-      width: 120,
+      width: 100,
       render: (_: any, record: DraftBillWithElectricity) => (
         <InputNumber
           min={1}
@@ -763,21 +807,35 @@ const DraftBills: React.FC = () => {
       ),
     },
     {
-      title: "Số xe",
-      key: "vehicle",
-      width: 120,
+      title: "Xe",
+      key: "vehicles",
+      width: 150,
       render: (_: any, record: DraftBillWithElectricity) => {
-        const isInvalid = (record.vehicleCount || 0) > (record.occupantCount || 1);
+        const vehicles = record.vehicles || [];
+        const maxVehicles = record.occupantCount || 1;
+        
         return (
-          <InputNumber
-            min={0}
-            max={record.occupantCount || 1}
-            value={record.vehicleCount}
-            onChange={(value) => handleVehicleChange(record._id, value)}
-            placeholder="Nhập số xe"
-            style={{ width: "100%" }}
-            status={isInvalid ? "error" : undefined}
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <Button 
+              size="small" 
+              icon={<CarOutlined />}
+              onClick={() => openVehicleModal(record._id)}
+            >
+              Quản lý xe ({vehicles.length}/{maxVehicles})
+            </Button>
+            {vehicles.length > 0 && (
+              <div style={{ fontSize: '11px', color: '#666' }}>
+                {vehicles.map((v, i) => (
+                  <div key={i}>
+                    {v.type === 'motorbike' && '🏍️'}
+                    {v.type === 'electric_bike' && '⚡'}
+                    {v.type === 'bicycle' && '🚲'}
+                    {v.licensePlate && ` ${v.licensePlate}`}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         );
       },
     },
@@ -785,15 +843,10 @@ const DraftBills: React.FC = () => {
       title: "Tiền phòng (₫)",
       key: "monthlyRent",
       align: "right",
-      width: 150,
+      width: 130,
       render: (_: any, record: DraftBillWithElectricity) => {
-        // Lấy tiền thuê phòng từ contract, không phải từ amountDue (tổng)
         const contract = record.contractId as Contract;
-        if (!contract) {
-          return "0";
-        }
-        // Sử dụng helper function dec để xử lý Decimal128
-        // Ưu tiên lấy từ pricingSnapshot nếu có (đã được format)
+        if (!contract) return "0";
         const monthlyRent = contract.pricingSnapshot?.monthlyRent 
           ? dec(contract.pricingSnapshot.monthlyRent)
           : dec(contract.monthlyRent);
@@ -846,6 +899,7 @@ const DraftBills: React.FC = () => {
     },
   };
 
+
   return (
     <div style={{ padding: 24, background: "#f0f2f5", minHeight: "100vh" }}>
       <div style={{ background: "#fff", padding: 24, borderRadius: 16, boxShadow: "0 8px 24px rgba(0,0,0,0.08)" }}>
@@ -860,10 +914,7 @@ const DraftBills: React.FC = () => {
 
         {/* Alert */}
         <Alert
-          //message="Hướng dẫn"
-          //description="Hóa đơn nháp được tạo tự động vào ngày 5 hàng tháng. Vui lòng nhập số điện tiêu thụ cho từng phòng và phát hành để tenant có thể thanh toán."
           type="info"
-          //showIcon
           style={{ marginBottom: 24 }}
           action={
             <Button
@@ -939,6 +990,114 @@ const DraftBills: React.FC = () => {
         />
       </div>
 
+      {/* Vehicle Management Modal */}
+      <Modal
+        title={
+          <Space>
+            <CarOutlined />
+            Quản lý xe
+          </Space>
+        }
+        open={vehicleModalVisible}
+        onCancel={() => setVehicleModalVisible(false)}
+        onOk={saveVehicles}
+        okText="Lưu"
+        cancelText="Hủy"
+        width={500}
+      >
+        {currentBillId && (
+          <div>
+            <Alert
+              message={`Tối đa ${draftBills.find(b => b._id === currentBillId)?.occupantCount || 1} xe (theo số người ở)`}
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+            
+            {/* Add new vehicle */}
+            <div style={{ marginBottom: 16, padding: 16, background: '#f5f5f5', borderRadius: 8 }}>
+              <Text strong>Thêm xe mới</Text>
+              <Row gutter={8} style={{ marginTop: 8 }}>
+                <Col span={8}>
+                  <Select
+                    value={newVehicleType}
+                    onChange={setNewVehicleType}
+                    style={{ width: '100%' }}
+                  >
+                    <Option value="motorbike">🏍️ Xe máy</Option>
+                    <Option value="electric_bike">⚡ Xe điện (x2)</Option>
+                    <Option value="bicycle">🚲 Xe đạp</Option>
+                  </Select>
+                </Col>
+                <Col span={10}>
+                  <Input
+                    placeholder={newVehicleType === 'bicycle' ? 'Không cần biển số' : 'Biển số (bắt buộc)'}
+                    value={newVehiclePlate}
+                    onChange={(e) => setNewVehiclePlate(e.target.value)}
+                    disabled={newVehicleType === 'bicycle'}
+                  />
+                </Col>
+                <Col span={6}>
+                  <Button 
+                    type="primary" 
+                    icon={<PlusOutlined />} 
+                    onClick={addVehicle}
+                    block
+                  >
+                    Thêm
+                  </Button>
+                </Col>
+              </Row>
+              {newVehicleType === 'electric_bike' && (
+                <Text type="warning" style={{ fontSize: 12, marginTop: 4, display: 'block' }}>
+                  ⚠️ Xe điện tính phí gấp đôi xe máy/xe đạp
+                </Text>
+              )}
+            </div>
+            
+            {/* Vehicle list */}
+            <List
+              header={<Text strong>Danh sách xe ({tempVehicles.length})</Text>}
+              bordered
+              dataSource={tempVehicles}
+              locale={{ emptyText: 'Chưa có xe nào' }}
+              renderItem={(vehicle, index) => (
+                <List.Item
+                  actions={[
+                    <Popconfirm
+                      key="delete"
+                      title="Xóa xe này?"
+                      onConfirm={() => removeVehicle(index)}
+                      okText="Xóa"
+                      cancelText="Hủy"
+                    >
+                      <Button type="text" danger icon={<DeleteOutlined />} size="small" />
+                    </Popconfirm>
+                  ]}
+                >
+                  <Space>
+                    <span style={{ fontSize: 20 }}>
+                      {vehicle.type === 'motorbike' && '🏍️'}
+                      {vehicle.type === 'electric_bike' && '⚡'}
+                      {vehicle.type === 'bicycle' && '🚲'}
+                    </span>
+                    <div>
+                      <div>{vehicleTypeLabels[vehicle.type]}</div>
+                      {vehicle.licensePlate && (
+                        <Text type="secondary" style={{ fontSize: 12 }}>
+                          Biển số: {vehicle.licensePlate}
+                        </Text>
+                      )}
+                    </div>
+                  </Space>
+                </List.Item>
+              )}
+            />
+          </div>
+        )}
+      </Modal>
+
+
       {/* Calculation Result Modal */}
       <Modal
         title="Chi tiết tính toán chi phí"
@@ -977,7 +1136,22 @@ const DraftBills: React.FC = () => {
                     <Space direction="vertical" size="small" style={{ width: "100%" }}>
                       {item.kwh !== undefined && <Text>Số điện: {item.kwh} kWh</Text>}
                       {item.occupantCount !== undefined && <Text>Số người: {item.occupantCount}</Text>}
-                      {item.vehicleCount !== undefined && <Text>Số xe: {item.vehicleCount}</Text>}
+                      {item.vehicles && item.vehicles.length > 0 && (
+                        <div>
+                          <Text>Chi tiết xe:</Text>
+                          {item.vehicles.map((v, i) => (
+                            <div key={i} style={{ marginLeft: 16, fontSize: 12 }}>
+                              {v.type === 'motorbike' && '🏍️ Xe máy'}
+                              {v.type === 'electric_bike' && '⚡ Xe điện'}
+                              {v.type === 'bicycle' && '🚲 Xe đạp'}
+                              : {v.count} xe × {v.rate.toLocaleString("vi-VN")} ₫ = {v.total.toLocaleString("vi-VN")} ₫
+                              {v.plates && v.plates.length > 0 && (
+                                <span style={{ color: '#666' }}> ({v.plates.join(', ')})</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       {item.baseRate !== undefined && <Text>Đơn giá: {item.baseRate.toLocaleString("vi-VN")} ₫</Text>}
                       {item.subtotal !== undefined && <Text>Tiền điện: {item.subtotal.toLocaleString("vi-VN")} ₫</Text>}
                       {item.vat !== undefined && <Text>VAT: {item.vat.toLocaleString("vi-VN")} ₫</Text>}
@@ -1056,6 +1230,14 @@ const DraftBills: React.FC = () => {
                   render: (v: number) => `${v} kWh`,
                 },
                 {
+                  title: "Xe",
+                  dataIndex: "vehicles",
+                  render: (vehicles: Vehicle[]) => {
+                    if (!vehicles || vehicles.length === 0) return "0 xe";
+                    return `${vehicles.length} xe`;
+                  },
+                },
+                {
                   title: "Tạm tính",
                   dataIndex: "amountDue",
                   align: "right",
@@ -1068,7 +1250,7 @@ const DraftBills: React.FC = () => {
             </div>
             <Alert
               message="Lưu ý"
-              description="Số tiền trên chỉ là tạm tính. Số tiền chính xác sẽ được tính lại khi phát hành (bao gồm tiền điện theo bậc thang)."
+              description="Số tiền trên chỉ là tạm tính. Số tiền chính xác sẽ được tính lại khi phát hành (bao gồm tiền điện theo bậc thang và phí xe theo loại)."
               type="info"
               showIcon
               style={{ marginTop: 16 }}
