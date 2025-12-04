@@ -15,8 +15,9 @@ import {
   Divider,
   Upload,
   Typography,
+  Tooltip,
 } from "antd";
-import { PlusOutlined, LogoutOutlined, UploadOutlined, InboxOutlined } from "@ant-design/icons";
+import { PlusOutlined, LogoutOutlined, UploadOutlined, InboxOutlined, CheckCircleOutlined } from "@ant-design/icons";
 import type { UploadFile } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 import { clientMoveOutRequestService, type MoveOutRequest } from "../services/moveOutRequest";
@@ -51,6 +52,13 @@ const MyMoveOutRequests = () => {
 
   useEffect(() => {
     loadRequests();
+    
+    // Tự động reload mỗi 1 phút để cập nhật countdown và tự động confirm sau 3 ngày
+    const interval = setInterval(() => {
+      loadRequests();
+    }, 60000); // 1 phút
+    
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -61,6 +69,13 @@ const MyMoveOutRequests = () => {
     setLoading(true);
     try {
       const data = await clientMoveOutRequestService.getMyRequests();
+      console.log('[MyMoveOutRequests] Loaded requests:', data.map(r => ({
+        _id: r._id,
+        status: r.status,
+        refundProcessed: r.refundProcessed,
+        refundConfirmed: r.refundConfirmed,
+        refundedAt: r.refundedAt,
+      })));
       setRequests(data);
     } catch (error: any) {
       message.error(error.response?.data?.message || "Lỗi khi tải yêu cầu");
@@ -117,7 +132,16 @@ const MyMoveOutRequests = () => {
           return rContractId && contractId && rContractId.toString() === contractId.toString() && r.status === "PENDING";
         });
         
-        return !hasPendingRequest;
+        // Kiểm tra xem contract đã được hoàn cọc chưa (dựa trên requests đã có refundProcessed = true)
+        const hasRefunded = requests.some(r => {
+          const rContractId = typeof r.contractId === 'object' 
+            ? r.contractId?._id 
+            : r.contractId;
+          return rContractId && contractId && rContractId.toString() === contractId.toString() && 
+                 (r.refundProcessed === true || r.status === "COMPLETED" || r.status === "WAITING_CONFIRMATION");
+        });
+        
+        return !hasPendingRequest && !hasRefunded;
       });
       
       console.log("Filtered signedContracts:", signedContracts.length);
@@ -303,10 +327,21 @@ const MyMoveOutRequests = () => {
       PENDING: { color: "processing", text: "Chờ xử lý" },
       APPROVED: { color: "success", text: "Đã duyệt" },
       REJECTED: { color: "error", text: "Từ chối" },
+      WAITING_CONFIRMATION: { color: "purple", text: "Chờ khách xác nhận" },
       COMPLETED: { color: "default", text: "Đã hoàn tất" },
     };
     const s = map[status] || { color: "default", text: status };
     return <Tag color={s.color}>{s.text}</Tag>;
+  };
+
+  const handleConfirmRefund = async (requestId: string) => {
+    try {
+      await clientMoveOutRequestService.confirmRefund(requestId);
+      message.success("Đã xác nhận nhận được tiền hoàn cọc");
+      loadRequests();
+    } catch (error: any) {
+      message.error(error.response?.data?.message || "Lỗi khi xác nhận");
+    }
   };
 
   const columns = [
@@ -334,10 +369,73 @@ const MyMoveOutRequests = () => {
       render: (status: string) => getStatusTag(status),
     },
     {
+      title: "Thời hạn xác nhận",
+      key: "confirmationDeadline",
+      render: (_: any, record: MoveOutRequest) => {
+        // Chỉ hiển thị khi status = WAITING_CONFIRMATION và có refundedAt
+        if (record.status === "WAITING_CONFIRMATION" && record.refundedAt && record.refundProcessed && !record.refundConfirmed) {
+          const refundedAt = dayjs(record.refundedAt);
+          const deadline = refundedAt.add(3, 'day');
+          const now = dayjs();
+          const remaining = deadline.diff(now, 'hour');
+          
+          if (remaining <= 0) {
+            return <Tag color="error">Đã hết hạn</Tag>;
+          } else if (remaining <= 24) {
+            return <Tag color="warning">Còn {remaining} giờ</Tag>;
+          } else {
+            const days = Math.floor(remaining / 24);
+            const hours = remaining % 24;
+            return <Tag color="processing">Còn {days} ngày {hours} giờ</Tag>;
+          }
+        }
+        return null;
+      },
+    },
+    {
       title: "Ngày tạo",
       dataIndex: "requestedAt",
       key: "requestedAt",
       render: (date: string) => dayjs(date).format("DD/MM/YYYY HH:mm"),
+    },
+    {
+      title: "Hành động",
+      key: "action",
+      width: 200,
+      render: (_: any, record: MoveOutRequest) => {
+        // Hiển thị nút xác nhận nếu status = WAITING_CONFIRMATION, refundProcessed = true, refundConfirmed = false
+        const needsConfirmation = 
+          record.status === "WAITING_CONFIRMATION" && 
+          record.refundProcessed && 
+          !record.refundConfirmed;
+        
+        if (needsConfirmation) {
+          return (
+            <Button
+              type="primary"
+              icon={<CheckCircleOutlined />}
+              onClick={() => handleConfirmRefund(record._id)}
+            >
+              Đã nhận tiền
+            </Button>
+          );
+        }
+        
+        // Nếu đã xác nhận, hiển thị tag
+        if (record.refundConfirmed && record.refundConfirmedAt) {
+          const confirmedTime = dayjs(record.refundConfirmedAt).format("DD/MM/YYYY HH:mm");
+          const shortTime = dayjs(record.refundConfirmedAt).format("DD/MM/YY HH:mm");
+          return (
+            <Tooltip title={`Đã xác nhận lúc ${confirmedTime}`}>
+              <Tag color="success" style={{ maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                Đã xác nhận: {shortTime}
+              </Tag>
+            </Tooltip>
+          );
+        }
+        
+        return null;
+      },
     },
   ];
 
@@ -368,8 +466,22 @@ const MyMoveOutRequests = () => {
           pagination={{ pageSize: 10 }}
           expandable={{
             expandedRowRender: (record: MoveOutRequest) => {
-              if (record.status === "COMPLETED" && record.contractId.depositRefund) {
+              console.log('[MyMoveOutRequests] Expanded row:', {
+                _id: record._id,
+                status: record.status,
+                refundProcessed: record.refundProcessed,
+                refundConfirmed: record.refundConfirmed,
+                hasDepositRefund: !!record.contractId?.depositRefund,
+              });
+              
+              if ((record.status === "COMPLETED" || record.status === "WAITING_CONFIRMATION") && record.contractId?.depositRefund) {
                 const refund = record.contractId.depositRefund;
+                const needsConfirmation = record.refundProcessed && !record.refundConfirmed && record.status === "WAITING_CONFIRMATION";
+                console.log('[MyMoveOutRequests] needsConfirmation:', needsConfirmation, {
+                  refundProcessed: record.refundProcessed,
+                  refundConfirmed: record.refundConfirmed,
+                  status: record.status,
+                });
                 return (
                   <div style={{ padding: 16, background: "#f5f5f5", borderRadius: 8 }}>
                     <Descriptions title="Chi tiết hoàn cọc" bordered column={2} size="small">
@@ -400,6 +512,13 @@ const MyMoveOutRequests = () => {
                       <Descriptions.Item label="Ngày hoàn cọc">
                         {refund.refundedAt ? dayjs(refund.refundedAt).format("DD/MM/YYYY HH:mm") : "N/A"}
                       </Descriptions.Item>
+                      {record.refundConfirmed && record.refundConfirmedAt && (
+                        <Descriptions.Item label="Đã xác nhận nhận tiền" span={2}>
+                          <Tag color="success">
+                            Đã xác nhận lúc {dayjs(record.refundConfirmedAt).format("DD/MM/YYYY HH:mm")}
+                          </Tag>
+                        </Descriptions.Item>
+                      )}
                     </Descriptions>
                   </div>
                 );
@@ -542,7 +661,7 @@ const MyMoveOutRequests = () => {
                   setQrCodeFileList(fileList);
                 }}
               >
-                <Button icon={<UploadOutlined />} type="button">Chọn ảnh QR</Button>
+                <Button icon={<UploadOutlined />}>Chọn ảnh QR</Button>
               </Upload>
             </div>
           </Form.Item>

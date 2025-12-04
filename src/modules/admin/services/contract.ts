@@ -80,8 +80,11 @@ export const adminContractService = {
       waterM3?: number;
       occupantCount?: number;
       vehicleCount?: number;
+      vehicles?: Array<{ type: string; licensePlate?: string }>; // Danh sách xe chi tiết từ check-in
       damageAmount?: number;
       damageNote?: string;
+      method?: string;
+      note?: string;
     }
   ): Promise<any> {
     const res = await api.post<SingleContractResponse>(

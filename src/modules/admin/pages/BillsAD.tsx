@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Table, Tag, Typography, message, Row, Col, Statistic } from "antd";
-import { FileTextOutlined } from "@ant-design/icons";
+import { Table, Tag, Typography, message, Row, Col, Statistic, Button, Modal, Image, Alert, Space, Input } from "antd";
+import { FileTextOutlined, DollarOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { Bill, BillStatus, BillType } from "../../../types/bill";
 import type { Tenant } from "../../../types/tenant";
@@ -14,6 +14,7 @@ import "../../../assets/styles/roomAd.css";
 import { useSearchParams } from "react-router-dom";
 
 const { Title } = Typography;
+const { TextArea } = Input;
 
 interface Contract {
   _id: string;
@@ -38,6 +39,16 @@ const BillsAD: React.FC = () => {
   // State để theo dõi đã load các dữ liệu phụ chưa
   const [hasLoadedTenants, setHasLoadedTenants] = useState<boolean>(false);
   const [hasLoadedRooms, setHasLoadedRooms] = useState<boolean>(false);
+
+  // Payment Confirmation Modal States
+  const [confirmPaymentModalVisible, setConfirmPaymentModalVisible] = useState(false);
+  const [confirmingBillId, setConfirmingBillId] = useState<string | null>(null);
+  const [confirmingBillImage, setConfirmingBillImage] = useState<string | null>(null);
+  
+  // Reject Payment Modal States
+  const [rejectPaymentModalVisible, setRejectPaymentModalVisible] = useState(false);
+  const [rejectingBillId, setRejectingBillId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState<string>("");
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -137,6 +148,67 @@ const BillsAD: React.FC = () => {
   const closeDetail = () => {
     setDetailVisible(false);
     setSelectedBillId(undefined);
+  };
+
+  const handleOpenConfirmModal = async (billId: string, bill: any) => {
+    // Nếu bill chưa có metadata, load lại từ API
+    if (!bill?.metadata) {
+      try {
+        const freshBill = await adminBillService.getById(billId);
+        bill = freshBill;
+      } catch (error) {
+        console.error("Error loading bill:", error);
+      }
+    }
+    
+    // Lấy ảnh từ metadata
+    const receiptImage = bill?.metadata?.cashPaymentRequest?.receiptImage;
+    const imageUrl = receiptImage?.secure_url || receiptImage?.url || null;
+    
+    setConfirmingBillId(billId);
+    setConfirmingBillImage(imageUrl);
+    setConfirmPaymentModalVisible(true);
+  };
+
+  const handleConfirmCashPayment = async () => {
+    if (!confirmingBillId) return;
+    
+    try {
+      await adminBillService.confirmPayment(confirmingBillId);
+      message.success("Xác nhận thanh toán thành công!");
+      await loadBills();
+      setConfirmPaymentModalVisible(false);
+      setConfirmingBillId(null);
+      setConfirmingBillImage(null);
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || "Lỗi khi xác nhận thanh toán");
+    }
+  };
+
+  const handleOpenRejectModal = () => {
+    // Chuyển từ modal xác nhận sang modal từ chối
+    setRejectingBillId(confirmingBillId);
+    setRejectionReason("");
+    setConfirmPaymentModalVisible(false);
+    setRejectPaymentModalVisible(true);
+  };
+
+  const handleRejectCashPayment = async () => {
+    if (!rejectingBillId || !rejectionReason.trim()) {
+      message.error("Vui lòng nhập lý do từ chối");
+      return;
+    }
+    
+    try {
+      await adminBillService.rejectPayment(rejectingBillId, rejectionReason);
+      message.success("Đã từ chối thanh toán!");
+      await loadBills();
+      setRejectPaymentModalVisible(false);
+      setRejectingBillId(null);
+      setRejectionReason("");
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || "Lỗi khi từ chối thanh toán");
+    }
   };
 
   // Helper function để lấy tên khách hàng từ contract
@@ -287,6 +359,35 @@ const BillsAD: React.FC = () => {
         else if (record.status === "PARTIALLY_PAID")
           display = Math.min(paid, due);
         return display.toLocaleString("vi-VN");
+      },
+    },
+    {
+      title: "Thao tác",
+      key: "actions",
+      align: "center",
+      width: 150,
+      render: (_: any, record: Bill) => {
+        // Hiển thị nút xác nhận cho bills chờ xác nhận hoặc chưa thanh toán (nếu có ảnh)
+        const hasReceiptImage = record.metadata?.cashPaymentRequest?.receiptImage;
+        const canConfirm = record.status === "PENDING_CASH_CONFIRM" || 
+                          (record.status === "UNPAID" && hasReceiptImage);
+        
+        if (canConfirm) {
+          return (
+            <Button
+              type="primary"
+              icon={<DollarOutlined />}
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenConfirmModal(record._id, record);
+              }}
+            >
+              Xác nhận
+            </Button>
+          );
+        }
+        return null;
       },
     },
   ];
@@ -487,6 +588,109 @@ const BillsAD: React.FC = () => {
         tenants={tenants}
         rooms={rooms}
       />
+
+      {/* Modal xác nhận thanh toán với preview ảnh */}
+      <Modal
+        title="Xác nhận đã nhận thanh toán"
+        open={confirmPaymentModalVisible}
+        onOk={handleConfirmCashPayment}
+        onCancel={() => {
+          setConfirmPaymentModalVisible(false);
+          setConfirmingBillId(null);
+          setConfirmingBillImage(null);
+        }}
+        footer={[
+          <Button
+            key="reject"
+            danger
+            onClick={handleOpenRejectModal}
+          >
+            Từ chối
+          </Button>,
+          <Button
+            key="cancel"
+            onClick={() => {
+              setConfirmPaymentModalVisible(false);
+              setConfirmingBillId(null);
+              setConfirmingBillImage(null);
+            }}
+          >
+            Hủy
+          </Button>,
+          <Button
+            key="confirm"
+            type="primary"
+            onClick={handleConfirmCashPayment}
+          >
+            Xác nhận
+          </Button>,
+        ]}
+        width={600}
+      >
+        {confirmingBillImage ? (
+          <div>
+            <Alert
+              message="Ảnh bill chuyển khoản"
+              description="Vui lòng kiểm tra ảnh bill trước khi xác nhận"
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+            <div style={{ textAlign: "center" }}>
+              <Image
+                src={confirmingBillImage}
+                alt="Bill chuyển khoản"
+                style={{ maxWidth: "100%", maxHeight: "500px" }}
+                preview={{
+                  mask: "Xem ảnh lớn",
+                }}
+              />
+            </div>
+          </div>
+        ) : (
+          <Alert
+            message="Chưa có ảnh bill chuyển khoản"
+            description="Khách hàng chưa upload ảnh bill. Bạn vẫn có thể xác nhận nếu đã kiểm tra."
+            type="warning"
+            showIcon
+          />
+        )}
+      </Modal>
+
+      {/* Modal từ chối thanh toán */}
+      <Modal
+        title="Từ chối thanh toán"
+        open={rejectPaymentModalVisible}
+        onOk={handleRejectCashPayment}
+        onCancel={() => {
+          setRejectPaymentModalVisible(false);
+          setRejectingBillId(null);
+          setRejectionReason("");
+        }}
+        okText="Xác nhận từ chối"
+        cancelText="Hủy"
+        okButtonProps={{ danger: true }}
+        width={500}
+      >
+        <Alert
+          message="Lưu ý"
+          description="Khi từ chối, bill sẽ chuyển về trạng thái 'Chờ thanh toán' và khách hàng có thể thanh toán lại."
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+        <div style={{ marginBottom: 8 }}>
+          <strong>Lý do từ chối <span style={{ color: "red" }}>*</span></strong>
+        </div>
+        <TextArea
+          rows={4}
+          placeholder="Nhập lý do từ chối thanh toán (ví dụ: Ảnh bill không rõ, Số tiền không khớp, Thông tin không đúng...)"
+          value={rejectionReason}
+          onChange={(e) => setRejectionReason(e.target.value)}
+          maxLength={500}
+          showCount
+        />
+      </Modal>
     </div>
   );
 };

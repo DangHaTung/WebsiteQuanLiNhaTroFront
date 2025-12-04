@@ -14,6 +14,7 @@ export interface MoveOutRequest {
       damageAmount?: number;
       damageNote?: string;
       finalMonthServiceFee?: number;
+      initialDeposit?: number; // Tiền cọc ban đầu (1 tháng tiền phòng)
     };
     depositRefunded?: boolean;
     startDate?: string;
@@ -32,7 +33,7 @@ export interface MoveOutRequest {
   requestedAt: string;
   moveOutDate: string;
   reason: string;
-  status: "PENDING" | "APPROVED" | "REJECTED" | "COMPLETED";
+  status: "PENDING" | "APPROVED" | "REJECTED" | "WAITING_CONFIRMATION" | "COMPLETED";
   adminNote?: string;
   processedBy?: {
     _id: string;
@@ -40,6 +41,9 @@ export interface MoveOutRequest {
   };
   processedAt?: string;
   refundProcessed: boolean;
+  refundedAt?: string; // Thời gian admin hoàn cọc
+  refundConfirmed?: boolean;
+  refundConfirmedAt?: string;
   refundQrCode?: {
     url?: string;
     secure_url?: string;
@@ -72,6 +76,11 @@ export const clientMoveOutRequestService = {
 
   async getMyRequests(): Promise<MoveOutRequest[]> {
     const res = await api.get<MoveOutRequestsResponse>("/move-out-requests/my");
+    return res.data.data;
+  },
+
+  async confirmRefund(id: string): Promise<MoveOutRequest> {
+    const res = await api.put<SingleMoveOutRequestResponse>(`/move-out-requests/${id}/confirm-refund`);
     return res.data.data;
   },
 };
