@@ -118,8 +118,11 @@ const Dashboard: React.FC = () => {
         let yearTotal = 0;
         let lastMonthTotal = 0;
 
-        // Map để lưu điện tiêu thụ theo phòng
-        const electricityByRoom: Record<string, { roomNumber: string; electricity: number; amount: number }> = {};
+        // Tính tháng trước
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+        // Thống kê điện: lọc bill MONTHLY, lấy số điện, sắp xếp giảm dần
+        const electricityList: { roomNumber: string; electricity: number; amount: number }[] = [];
 
         bills.forEach((bill: Bill) => {
           const dateStr = bill.createdAt || bill.billingDate;
@@ -144,46 +147,42 @@ const Dashboard: React.FC = () => {
           }
 
           // Tính doanh thu tháng trước
-          const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-          if (date.getMonth() === lastMonth.getMonth() && date.getFullYear() === lastMonth.getFullYear()) {
+          const isLastMonth = date.getMonth() === lastMonth.getMonth() && date.getFullYear() === lastMonth.getFullYear();
+          if (isLastMonth) {
             lastMonthTotal += amount;
+          }
 
-            // Thống kê điện tháng trước (chỉ hóa đơn đã thanh toán)
-            if (bill.status === 'PAID' && bill.lineItems && Array.isArray(bill.lineItems)) {
+          // Thống kê điện: lấy tất cả bill MONTHLY có số điện
+          if (bill.billType === 'MONTHLY') {
+            // Lấy số điện từ electricityReading hoặc lineItems
+            let electricityKwh = bill.electricityReading?.consumption || 0;
+            let electricityAmount = 0;
+
+            // Lấy tiền điện từ lineItems
+            if (bill.lineItems) {
               const electricityItem = bill.lineItems.find((item: any) => 
-                item.item?.toLowerCase().includes('điện') || 
-                item.item?.toLowerCase().includes('electric')
+                item.item?.toLowerCase().includes('điện')
               );
-
-              if (electricityItem && electricityItem.quantity) {
-                const roomId = typeof bill.contractId === 'object' && (bill.contractId as any)?.roomId 
-                  ? (typeof (bill.contractId as any).roomId === 'object' 
-                      ? (bill.contractId as any).roomId._id 
-                      : (bill.contractId as any).roomId)
-                  : null;
-
-                const roomNumber = typeof bill.contractId === 'object' && (bill.contractId as any)?.roomId
-                  ? (typeof (bill.contractId as any).roomId === 'object'
-                      ? (bill.contractId as any).roomId.roomNumber
-                      : resolveRoomNumber(bill.contractId, Array.isArray(roomsData) ? roomsData : []))
-                  : 'N/A';
-
-                if (roomId) {
-                  if (!electricityByRoom[roomId]) {
-                    electricityByRoom[roomId] = { roomNumber, electricity: 0, amount: 0 };
-                  }
-                  electricityByRoom[roomId].electricity += electricityItem.quantity;
-                  electricityByRoom[roomId].amount += electricityItem.lineTotal || 0;
-                }
+              if (electricityItem) {
+                electricityAmount = electricityItem.lineTotal || 0;
+                if (!electricityKwh) electricityKwh = electricityItem.quantity || 0;
               }
+            }
+
+            // Lấy roomNumber từ contractId.roomId
+            const contract = bill.contractId as any;
+            const roomNumber = contract?.roomId?.roomNumber || 'N/A';
+
+            if (electricityKwh > 0) {
+              electricityList.push({ roomNumber, electricity: electricityKwh, amount: electricityAmount });
             }
           }
         });
 
-        // Chuyển map thành array và sắp xếp theo điện tiêu thụ
-        const electricityArray = Object.values(electricityByRoom)
+        // Sắp xếp theo số điện giảm dần, lấy top 10
+        const electricityArray = electricityList
           .sort((a, b) => b.electricity - a.electricity)
-          .slice(0, 10); // Top 10 phòng
+          .slice(0, 10);
 
         setElectricityStats(electricityArray);
         setYearlyRevenue(yearTotal);

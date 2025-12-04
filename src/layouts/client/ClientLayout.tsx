@@ -2,13 +2,23 @@ import React, { useEffect, useState } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import { Layout } from "antd";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import "../../assets/styles/sticky.css";
+import { clientAuthService } from "../../modules/client/services/auth";
 const { Content } = Layout;
 
 const ClientLayout: React.FC = () => {
   const [showNavbar, setShowNavbar] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
+  const navigate = useNavigate();
+
+  // Chặn ADMIN vào trang client - redirect về admin dashboard
+  useEffect(() => {
+    const user = clientAuthService.getCurrentUser();
+    if (user && user.role === "ADMIN") {
+      navigate("/admin/dashboard", { replace: true });
+    }
+  }, [navigate]);
 
   useEffect(() => {
     const handleScroll = () => {
