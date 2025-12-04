@@ -26,9 +26,10 @@ import {
   CheckOutlined,
   SendOutlined,
   DownloadOutlined,
+  CarOutlined,
 } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
-import type { Checkin } from "../../../types/checkin";
+import type { Checkin, Vehicle, VehicleType } from "../../../types/checkin";
 import type { Room } from "../../../types/room";
 import type { User } from "../../../types/user";
 import dayjs, { Dayjs } from "dayjs";
@@ -83,6 +84,11 @@ const CheckinsAD: React.FC = () => {
   // File input refs
   const cccdFrontInputRef = useRef<HTMLInputElement>(null);
   const cccdBackInputRef = useRef<HTMLInputElement>(null);
+
+  // Vehicle management states
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [newVehicleType, setNewVehicleType] = useState<VehicleType>('motorbike');
+  const [newVehiclePlate, setNewVehiclePlate] = useState('');
 
   // State để theo dõi đã load các dữ liệu phụ chưa
   const [hasLoadedRooms, setHasLoadedRooms] = useState(false);
@@ -362,6 +368,9 @@ const CheckinsAD: React.FC = () => {
     setCccdBackFile(null);
     setCccdFrontPreview(null);
     setCccdBackPreview(null);
+    setVehicles([]);
+    setNewVehicleType('motorbike');
+    setNewVehiclePlate('');
     loadRoomsIfNeeded();
     loadUsersIfNeeded();
   };
@@ -373,6 +382,35 @@ const CheckinsAD: React.FC = () => {
     setCccdBackFile(null);
     setCccdFrontPreview(null);
     setCccdBackPreview(null);
+    setVehicles([]);
+    setNewVehicleType('motorbike');
+    setNewVehiclePlate('');
+  };
+
+  // Vehicle management functions
+  const addVehicle = () => {
+    if (['motorbike', 'electric_bike'].includes(newVehicleType) && !newVehiclePlate.trim()) {
+      message.error('Xe máy và xe điện phải có biển số');
+      return;
+    }
+    
+    const newVehicle: Vehicle = {
+      type: newVehicleType,
+      licensePlate: newVehicleType === 'bicycle' ? undefined : newVehiclePlate.trim().toUpperCase(),
+    };
+    
+    setVehicles([...vehicles, newVehicle]);
+    setNewVehiclePlate('');
+  };
+
+  const removeVehicle = (index: number) => {
+    setVehicles(vehicles.filter((_, i) => i !== index));
+  };
+
+  const vehicleTypeLabels: Record<VehicleType, string> = {
+    motorbike: "🏍️ Xe máy",
+    electric_bike: "⚡ Xe điện",
+    bicycle: "🚲 Xe đạp",
   };
 
   const openCccdUploadModal = () => {
@@ -449,6 +487,11 @@ const CheckinsAD: React.FC = () => {
       }
       if (values.notes) {
         formData.append("notes", values.notes);
+      }
+      
+      // Thêm vehicles vào formData
+      if (vehicles.length > 0) {
+        formData.append("vehicles", JSON.stringify(vehicles));
       }
 
       formData.append("cccdFront", cccdFrontFile);
@@ -1055,6 +1098,79 @@ const CheckinsAD: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
+
+          {/* Vehicle Management Section */}
+          <div style={{ marginBottom: 16, padding: 16, backgroundColor: "#f5f5f5", borderRadius: 8 }}>
+            <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+              <CarOutlined style={{ fontSize: 18 }} />
+              <strong>Quản lý xe ({vehicles.length} xe)</strong>
+            </div>
+            
+            {/* Add vehicle form */}
+            <Row gutter={8} style={{ marginBottom: 12 }}>
+              <Col xs={8}>
+                <Select
+                  value={newVehicleType}
+                  onChange={(v) => setNewVehicleType(v)}
+                  style={{ width: "100%" }}
+                >
+                  <Option value="motorbike">🏍️ Xe máy</Option>
+                  <Option value="electric_bike">⚡ Xe điện</Option>
+                  <Option value="bicycle">🚲 Xe đạp</Option>
+                </Select>
+              </Col>
+              <Col xs={10}>
+                <Input
+                  placeholder="Biển số (VD: 29A-12345)"
+                  value={newVehiclePlate}
+                  onChange={(e) => setNewVehiclePlate(e.target.value)}
+                  disabled={newVehicleType === 'bicycle'}
+                  onPressEnter={addVehicle}
+                />
+              </Col>
+              <Col xs={6}>
+                <Button type="primary" icon={<PlusOutlined />} onClick={addVehicle} block>
+                  Thêm
+                </Button>
+              </Col>
+            </Row>
+            
+            {/* Vehicle list */}
+            {vehicles.length > 0 && (
+              <div style={{ backgroundColor: "#fff", padding: 8, borderRadius: 4 }}>
+                {vehicles.map((vehicle, index) => (
+                  <div 
+                    key={index} 
+                    style={{ 
+                      display: "flex", 
+                      justifyContent: "space-between", 
+                      alignItems: "center",
+                      padding: "8px 12px",
+                      borderBottom: index < vehicles.length - 1 ? "1px solid #f0f0f0" : "none"
+                    }}
+                  >
+                    <span>
+                      {vehicleTypeLabels[vehicle.type]}
+                      {vehicle.licensePlate && ` - ${vehicle.licensePlate}`}
+                    </span>
+                    <Button 
+                      type="text" 
+                      danger 
+                      icon={<DeleteOutlined />} 
+                      onClick={() => removeVehicle(index)}
+                      size="small"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {vehicles.length === 0 && (
+              <div style={{ color: "#999", textAlign: "center", padding: 8 }}>
+                Chưa có xe nào. Thêm xe để tính phí đỗ xe hàng tháng.
+              </div>
+            )}
+          </div>
 
           <Form.Item
             label="Tài khoản khách hàng"

@@ -21,6 +21,13 @@ export interface TenantSnapshot {
   note?: string;
 }
 
+export type VehicleType = 'motorbike' | 'electric_bike' | 'bicycle';
+
+export interface Vehicle {
+  type: VehicleType;
+  licensePlate?: string;
+}
+
 export interface Checkin {
   _id: string;
   tenantId?: string | User;
@@ -44,6 +51,7 @@ export interface Checkin {
   depositDisposition?: DepositDisposition;
   receiptPaidAt?: string; // Thời điểm thanh toán phiếu thu (để tính thời hạn 3 ngày)
   initialElectricReading?: number; // Số điện chốt ban đầu khi check-in (để tính số điện tiêu thụ cho hóa đơn hàng tháng)
+  vehicles?: Vehicle[]; // Danh sách xe của khách thuê
   createdAt: string;
   updatedAt?: string;
 }

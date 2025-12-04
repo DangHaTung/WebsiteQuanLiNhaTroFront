@@ -106,3 +106,46 @@ export interface Checkin {
   /** Thời gian cập nhật */
   updatedAt?: string;
 }
+
+
+/**
+ * Trạng thái hợp đồng
+ */
+export type ContractStatus = "PENDING" | "ACTIVE" | "EXPIRED" | "CANCELED";
+
+/**
+ * Thông tin người ở cùng
+ */
+export interface CoTenant {
+  userId?: string | User;
+  fullName: string;
+  phone?: string;
+  identityNo?: string;
+  status: "ACTIVE" | "INACTIVE";
+}
+
+/**
+ * Snapshot giá tại thời điểm ký hợp đồng
+ */
+export interface PricingSnapshot {
+  monthlyRent?: number;
+  deposit?: number;
+}
+
+/**
+ * Hợp đồng thuê phòng
+ */
+export interface Contract {
+  _id: string;
+  tenantId?: string | User;
+  roomId?: string | Room;
+  startDate?: string;
+  endDate?: string;
+  monthlyRent?: number;
+  deposit?: number;
+  status?: ContractStatus;
+  coTenants?: CoTenant[];
+  pricingSnapshot?: PricingSnapshot;
+  createdAt?: string;
+  updatedAt?: string;
+}

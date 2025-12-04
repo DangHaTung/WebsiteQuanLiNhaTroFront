@@ -1,8 +1,8 @@
 import React from "react";
 import { Drawer, Descriptions, Divider, Tag, Typography, Space, Image, Row, Col } from "antd";
-import { CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined, UserOutlined, HomeOutlined, DollarOutlined, FileTextOutlined, IdcardOutlined } from "@ant-design/icons";
+import { CheckCircleOutlined, ClockCircleOutlined, ExclamationCircleOutlined, UserOutlined, HomeOutlined, DollarOutlined, FileTextOutlined, IdcardOutlined, CarOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
-import type { Checkin } from "../../../types/checkin";
+import type { Checkin, Vehicle, VehicleType } from "../../../types/checkin";
 import type { Room } from "../../../types/room";
 import type { User } from "../../../types/user";
 
@@ -93,6 +93,16 @@ const CheckinDetailDrawer: React.FC<CheckinDetailDrawerProps> = ({
 
   // Lấy ảnh CCCD
   const cccdImages = (checkin as any).cccdImages || {};
+
+  // Lấy vehicles
+  const vehicles = checkin.vehicles || [];
+
+  // Vehicle type labels
+  const vehicleTypeLabels: Record<VehicleType, string> = {
+    motorbike: "🏍️ Xe máy",
+    electric_bike: "⚡ Xe điện",
+    bicycle: "🚲 Xe đạp",
+  };
 
   return (
     <Drawer
@@ -209,6 +219,47 @@ const CheckinDetailDrawer: React.FC<CheckinDetailDrawerProps> = ({
           {checkin.tenantSnapshot?.note || checkin.notes || "Không có"}
         </Descriptions.Item>
       </Descriptions>
+
+      {/* Vehicles Section */}
+      <Divider orientation="left">
+        <Space>
+          <CarOutlined />
+          Phương tiện ({vehicles.length} xe)
+        </Space>
+      </Divider>
+      
+      {vehicles.length > 0 ? (
+        <div style={{ backgroundColor: "#fff", padding: 16, borderRadius: 8, border: "1px solid #f0f0f0" }}>
+          {vehicles.map((vehicle, index) => (
+            <div 
+              key={index}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                padding: "8px 0",
+                borderBottom: index < vehicles.length - 1 ? "1px solid #f0f0f0" : "none"
+              }}
+            >
+              <Space>
+                <Tag color={vehicle.type === 'electric_bike' ? 'gold' : vehicle.type === 'motorbike' ? 'blue' : 'green'}>
+                  {vehicleTypeLabels[vehicle.type]}
+                </Tag>
+                {vehicle.licensePlate && (
+                  <Text strong>{vehicle.licensePlate}</Text>
+                )}
+              </Space>
+              {vehicle.type === 'electric_bike' && (
+                <Text type="secondary" style={{ fontSize: 12 }}>Phí x2</Text>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ backgroundColor: "#fafafa", padding: 16, borderRadius: 8, textAlign: "center", color: "#999" }}>
+          Chưa đăng ký xe
+        </div>
+      )}
 
       {(cccdImages.front || cccdImages.back) && (
         <>
