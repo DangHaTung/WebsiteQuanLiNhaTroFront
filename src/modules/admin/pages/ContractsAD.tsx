@@ -10,6 +10,7 @@ interface CoTenant {
   phone: string;
   email?: string;
   joinedAt: string;
+  status?: "ACTIVE" | "EXPIRED"; // Trạng thái: ACTIVE = đang hoạt động, EXPIRED = hết hiệu lực
 }
 
 interface Contract {
@@ -37,6 +38,7 @@ interface Contract {
   deposit: number;
   monthlyRent: number;
   status: "ACTIVE" | "ENDED" | "CANCELED";
+  canceledAt?: string; // Ngày hủy hợp đồng (nếu hủy trước hạn)
   coTenants?: CoTenant[];
   createdAt: string;
 }
@@ -59,7 +61,9 @@ const ContractsAD: React.FC = () => {
       const { adminContractService } = await import("../services/contract");
       
       console.log("🔍 Loading contracts...");
-      const data = await adminContractService.getAll({ status: "ACTIVE", limit: 100 });
+      // Lấy tất cả hợp đồng (ACTIVE, ENDED, CANCELED) - không filter theo status
+      // Backend sẽ tự động loại bỏ contracts có room AVAILABLE nhưng contract ACTIVE (không nhất quán)
+      const data = await adminContractService.getAll({ limit: 100 });
       
       console.log("✅ Loaded contracts:", data.length);
       setContracts(data);
@@ -101,6 +105,13 @@ const ContractsAD: React.FC = () => {
             </Descriptions.Item>
             <Descriptions.Item label="Thời hạn">
               {dayjs(contract.startDate).format("DD/MM/YYYY")} - {dayjs(contract.endDate).format("DD/MM/YYYY")}
+              {contract.status === "CANCELED" && contract.canceledAt && (
+                <div style={{ marginTop: 4 }}>
+                  <small style={{ color: "#ff4d4f", fontWeight: 500 }}>
+                    Hủy ngày: {dayjs(contract.canceledAt).format("DD/MM/YYYY HH:mm")}
+                  </small>
+                </div>
+              )}
             </Descriptions.Item>
             <Descriptions.Item label="Tiền cọc">
               {contract.deposit.toLocaleString("vi-VN")} đ
@@ -111,17 +122,26 @@ const ContractsAD: React.FC = () => {
             <Descriptions.Item label="Người ở cùng">
               {contract.coTenants && contract.coTenants.length > 0 ? (
                 <div>
-                  {contract.coTenants.map((ct, idx) => (
-                    <div key={idx} style={{ marginBottom: 8 }}>
-                      <strong>{ct.fullName}</strong>
-                      <br />
-                      <small style={{ color: "#666" }}>
-                        {ct.phone} {ct.email && `| ${ct.email}`}
+                  {contract.coTenants
+                    .filter(ct => ct.status === "ACTIVE") // Chỉ hiển thị những người đang hoạt động
+                    .map((ct, idx) => (
+                      <div key={idx} style={{ marginBottom: 8 }}>
+                        <strong>{ct.fullName}</strong>
                         <br />
-                        Tham gia: {dayjs(ct.joinedAt).format("DD/MM/YYYY")}
+                        <small style={{ color: "#666" }}>
+                          {ct.phone} {ct.email && `| ${ct.email}`}
+                          <br />
+                          Tham gia: {dayjs(ct.joinedAt).format("DD/MM/YYYY")}
+                        </small>
+                      </div>
+                    ))}
+                  {contract.coTenants.filter(ct => ct.status === "EXPIRED").length > 0 && (
+                    <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #eee" }}>
+                      <small style={{ color: "#999" }}>
+                        Hết hiệu lực: {contract.coTenants.filter(ct => ct.status === "EXPIRED").length} người
                       </small>
                     </div>
-                  ))}
+                  )}
                 </div>
               ) : (
                 <span style={{ color: "#999" }}>Chưa có</span>
@@ -136,8 +156,8 @@ const ContractsAD: React.FC = () => {
   const getStatusTag = (status: string) => {
     const map: Record<string, { color: string; text: string }> = {
       ACTIVE: { color: "success", text: "Đang hoạt động" },
-      ENDED: { color: "default", text: "Đã kết thúc" },
-      CANCELED: { color: "error", text: "Đã hủy" },
+      ENDED: { color: "default", text: "Hết hiệu lực" },
+      CANCELED: { color: "error", text: "Hết hiệu lực" },
     };
     const m = map[status] || { color: "default", text: status };
     return <Tag color={m.color}>{m.text}</Tag>;
@@ -173,17 +193,21 @@ const ContractsAD: React.FC = () => {
       title: "Người ở cùng",
       dataIndex: "coTenants",
       key: "coTenants",
-      render: (coTenants: CoTenant[]) => (
-        <div>
-          {coTenants && coTenants.length > 0 ? (
-            <Tag icon={<TeamOutlined />} color="blue">
-              {coTenants.length} người
-            </Tag>
-          ) : (
-            <span style={{ color: "#999" }}>Chưa có</span>
-          )}
-        </div>
-      ),
+      render: (coTenants: CoTenant[]) => {
+        // Chỉ tính những người đang hoạt động (status = ACTIVE)
+        const activeCoTenants = coTenants?.filter(ct => ct.status === "ACTIVE") || [];
+        return (
+          <div>
+            {activeCoTenants.length > 0 ? (
+              <Tag icon={<TeamOutlined />} color="blue">
+                {activeCoTenants.length} người
+              </Tag>
+            ) : (
+              <span style={{ color: "#999" }}>Chưa có</span>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: "Thời hạn",
@@ -192,6 +216,13 @@ const ContractsAD: React.FC = () => {
         <div>
           <div>{dayjs(record.startDate).format("DD/MM/YYYY")}</div>
           <small style={{ color: "#666" }}>đến {dayjs(record.endDate).format("DD/MM/YYYY")}</small>
+          {record.status === "CANCELED" && record.canceledAt && (
+            <div style={{ marginTop: 4 }}>
+              <small style={{ color: "#ff4d4f", fontWeight: 500 }}>
+                Hủy: {dayjs(record.canceledAt).format("DD/MM/YYYY")}
+              </small>
+            </div>
+          )}
         </div>
       ),
     },
@@ -216,14 +247,16 @@ const ContractsAD: React.FC = () => {
           <Button type="link" icon={<EyeOutlined />} onClick={() => handleViewDetail(record)}>
             Chi tiết
           </Button>
-          <Button
-            type="primary"
-            icon={<UserAddOutlined />}
-            onClick={() => handleAddCoTenant(record)}
-            size="small"
-          >
-            Thêm người ở cùng
-          </Button>
+          {record.status === "ACTIVE" && (
+            <Button
+              type="primary"
+              icon={<UserAddOutlined />}
+              onClick={() => handleAddCoTenant(record)}
+              size="small"
+            >
+              Thêm người ở cùng
+            </Button>
+          )}
         </Space>
       ),
     },
@@ -235,7 +268,7 @@ const ContractsAD: React.FC = () => {
         <div style={{ marginBottom: 16 }}>
           <h2 style={{ margin: 0 }}>Quản lý người ở cùng</h2>
           <p style={{ color: "#666", marginTop: 8 }}>
-            Danh sách các hợp đồng đang hoạt động. Bạn có thể thêm người ở cùng phòng cho mỗi hợp đồng.
+            Danh sách tất cả hợp đồng. Bạn có thể thêm người ở cùng phòng cho các hợp đồng đang hoạt động.
           </p>
         </div>
 
@@ -246,7 +279,7 @@ const ContractsAD: React.FC = () => {
           loading={loading}
           pagination={{ pageSize: 10 }}
           locale={{
-            emptyText: "Chưa có hợp đồng nào đang hoạt động",
+            emptyText: "Chưa có hợp đồng nào",
           }}
         />
       </Card>

@@ -57,7 +57,7 @@ const Invoices: React.FC = () => {
         const ctUserId = typeof ct.userId === 'object' && ct.userId?._id 
           ? ct.userId._id 
           : ct.userId;
-        return ctUserId === currentUserId && !ct.leftAt;
+        return ctUserId === currentUserId && ct.status === "ACTIVE";
       });
       return isInCoTenants; // Nếu có trong coTenants nhưng không phải tenantId, thì là co-tenant
     }
@@ -276,16 +276,11 @@ const Invoices: React.FC = () => {
   // Tính tổng amountDue của các bill chưa thanh toán (không trừ amountPaid)
   const totalUnpaid = unpaidBills.reduce((sum, bill) => sum + bill.amountDue, 0);
   
-  // Tính tổng "Đã thanh toán": 
-  // - Không tính RECEIPT bill (tiền cọc giữ phòng) vì nó được tính riêng
-  // - Chỉ tính CONTRACT và MONTHLY bills
+  // Tính tổng "Đã thanh toán": tính tất cả bills đã thanh toán (bao gồm cả RECEIPT, CONTRACT, MONTHLY)
   const totalPaid = paidBills.reduce((sum, bill) => {
-    // Bỏ qua RECEIPT bills khi tính tổng "Đã thanh toán"
-    // Vì RECEIPT (tiền cọc giữ phòng) là khoản riêng biệt, không liên quan đến tổng thanh toán hóa đơn
-    if (bill.billType === "RECEIPT") {
-      return sum;
-    }
-    return sum + (bill.amountPaid || 0);
+    // Tính amountPaid, nếu không có thì dùng amountDue
+    const paidAmount = bill.amountPaid || bill.amountDue || 0;
+    return sum + paidAmount;
   }, 0);
 
   const getStatusTag = (status: string) => {

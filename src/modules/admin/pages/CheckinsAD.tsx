@@ -38,6 +38,7 @@ import { adminRoomService } from "../services/room";
 import { adminUserService } from "../services/user";
 import { adminBillService } from "../services/bill";
 import { adminFinalContractService } from "../services/finalContract";
+import { adminContractService } from "../services/contract";
 import CheckinDetailDrawer from "../components/CheckinDetailDrawer";
 
 const { Option } = Select;
@@ -67,6 +68,11 @@ const CheckinsAD: React.FC = () => {
   const [detailVisible, setDetailVisible] = useState(false);
   const [selectedCheckin, setSelectedCheckin] = useState<Checkin | null>(null);
 
+  // Extend Receipt Modal States
+  const [extendModalVisible, setExtendModalVisible] = useState(false);
+  const [extendingCheckin, setExtendingCheckin] = useState<Checkin | null>(null);
+  const [extendForm] = Form.useForm<{ additionalDeposit: number }>();
+
   // CCCD Upload Modal States
   const [cccdUploadModalVisible, setCccdUploadModalVisible] = useState(false);
   const [cccdFrontFile, setCccdFrontFile] = useState<File | null>(null);
@@ -85,6 +91,10 @@ const CheckinsAD: React.FC = () => {
   const [contractBillsMap, setContractBillsMap] = useState<Map<string, any>>(new Map());
    // Map để lưu FinalContract info theo finalContractId (key: finalContractId, value: FinalContract)
   const [finalContractsMap, setFinalContractsMap] = useState<Map<string, any>>(new Map());
+   // Map để lưu Contract info theo contractId (key: contractId, value: Contract) - để kiểm tra contract bị hủy
+  const [contractsMap, setContractsMap] = useState<Map<string, any>>(new Map());
+   // Map để lưu Receipt Bill info theo receiptBillId (key: receiptBillId, value: Bill) - để kiểm tra trạng thái thanh toán
+  const [receiptBillsMap, setReceiptBillsMap] = useState<Map<string, any>>(new Map());
 
   useEffect(() => {
     loadCheckins();
@@ -118,6 +128,12 @@ const CheckinsAD: React.FC = () => {
      
       // Load FinalContract info để kiểm tra images
       await loadFinalContracts(allCheckins);
+     
+      // Load Contract info để kiểm tra contract bị hủy
+      await loadContracts(allCheckins);
+     
+      // Load Receipt Bills để kiểm tra trạng thái thanh toán
+      await loadReceiptBills(allCheckins);
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Lỗi khi tải dữ liệu check-in");
     } finally {
@@ -224,6 +240,94 @@ const CheckinsAD: React.FC = () => {
       setFinalContractsMap(newFinalContractsMap);
     } catch (error) {
       console.error("Error loading FinalContracts:", error);
+    }
+  };
+
+  // Load Contract info để kiểm tra contract bị hủy
+  const loadContracts = async (checkins: Checkin[]) => {
+    try {
+      const contractIds = new Set<string>();
+     
+      // Lấy tất cả contractId từ checkins
+      checkins.forEach((checkin: any) => {
+        if (checkin.contractId) {
+          const contractId = typeof checkin.contractId === 'string'
+            ? checkin.contractId
+            : checkin.contractId._id;
+          if (contractId) {
+            contractIds.add(contractId);
+          }
+        }
+      });
+
+      if (contractIds.size === 0) {
+        return;
+      }
+
+      // Load Contract cho từng contractId
+      const newContractsMap = new Map<string, any>();
+
+      await Promise.all(
+        Array.from(contractIds).map(async (contractId) => {
+          try {
+            // Lấy Contract theo ID
+            const contract = await adminContractService.getById(contractId);
+            if (contract) {
+              newContractsMap.set(contractId, contract);
+            }
+          } catch (error) {
+            console.error(`Error loading Contract ${contractId}:`, error);
+          }
+        })
+      );
+
+      setContractsMap(newContractsMap);
+    } catch (error) {
+      console.error("Error loading Contracts:", error);
+    }
+  };
+
+  // Load Receipt Bills để kiểm tra trạng thái thanh toán
+  const loadReceiptBills = async (checkins: Checkin[]) => {
+    try {
+      const receiptBillIds = new Set<string>();
+     
+      // Lấy tất cả receiptBillId từ checkins
+      checkins.forEach((checkin: any) => {
+        if (checkin.receiptBillId) {
+          const billId = typeof checkin.receiptBillId === 'string'
+            ? checkin.receiptBillId
+            : checkin.receiptBillId._id;
+          if (billId) {
+            receiptBillIds.add(billId);
+          }
+        }
+      });
+
+      if (receiptBillIds.size === 0) {
+        return;
+      }
+
+      // Load Receipt Bill cho từng receiptBillId
+      const newReceiptBillsMap = new Map<string, any>();
+
+      await Promise.all(
+        Array.from(receiptBillIds).map(async (billId) => {
+          try {
+            // Lấy Bill theo ID
+            const bill = await adminBillService.getById(billId);
+            if (bill) {
+              newReceiptBillsMap.set(billId, bill);
+            }
+          } catch (error) {
+            console.error(`Error loading Receipt Bill ${billId}:`, error);
+          }
+        })
+      );
+
+      setReceiptBillsMap(newReceiptBillsMap);
+    } catch (error) {
+      console.error("Error loading Receipt Bills:", error);
     }
   };
 
@@ -383,7 +487,8 @@ const CheckinsAD: React.FC = () => {
     try {
       await adminBillService.confirmPayment(receiptBillId);
       message.success("Xác nhận thanh toán tiền mặt thành công!");
-      loadCheckins();
+      // Reload để cập nhật receiptPaidAt và receiptBill status
+      await loadCheckins();
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Lỗi khi xác nhận thanh toán");
     }
@@ -446,6 +551,34 @@ const CheckinsAD: React.FC = () => {
       message.success("Tải hợp đồng mẫu thành công!");
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Lỗi khi tải hợp đồng mẫu");
+    }
+  };
+
+  const handleOpenExtendModal = (checkin: Checkin) => {
+    setExtendingCheckin(checkin);
+    setExtendModalVisible(true);
+    extendForm.resetFields();
+  };
+
+  const handleExtendReceipt = async () => {
+    if (!extendingCheckin) return;
+
+    try {
+      const values = await extendForm.validateFields();
+      await adminCheckinService.extendReceipt(extendingCheckin._id, {
+        additionalDeposit: values.additionalDeposit,
+      });
+      message.success("Gia hạn phiếu thu thành công!");
+      setExtendModalVisible(false);
+      setExtendingCheckin(null);
+      extendForm.resetFields();
+      loadCheckins();
+    } catch (error: any) {
+      if (error?.errorFields) {
+        // Form validation error
+        return;
+      }
+      message.error(error?.response?.data?.message || "Lỗi khi gia hạn phiếu thu");
     }
   };
 
@@ -536,12 +669,27 @@ const CheckinsAD: React.FC = () => {
       key: "expiration",
       align: "center",
       render: (_: any, record: Checkin) => {
+        // Kiểm tra xem Contract có bị hủy không (ưu tiên kiểm tra Contract trước)
+        const contractId = (record as any).contractId;
+        if (contractId) {
+          const cId = typeof contractId === 'string' ? contractId : contractId._id;
+          const contract = contractsMap.get(cId);
+          if (contract && contract.status === "CANCELED") {
+            return <Tag color="error">Hợp đồng đã hủy</Tag>;
+          }
+        }
+        
         // Kiểm tra xem có finalContractId và bill CONTRACT đã thanh toán chưa
         const finalContractId = (record as any).finalContractId;
         if (finalContractId) {
           const fcId = typeof finalContractId === 'string' ? finalContractId : finalContractId._id;
           const contractBill = contractBillsMap.get(fcId);
           const finalContract = finalContractsMap.get(fcId);
+         
+          // Kiểm tra xem FinalContract có bị hủy không
+          if (finalContract && finalContract.status === "CANCELED") {
+            return <Tag color="error">Hợp đồng đã hủy</Tag>;
+          }
          
           // Nếu bill CONTRACT đã thanh toán (PAID)
           if (contractBill && contractBill.status === "PAID") {
@@ -566,6 +714,7 @@ const CheckinsAD: React.FC = () => {
         }
        
         // Hiển thị đếm ngược thời hạn (3 ngày từ khi thanh toán phiếu thu)
+        // Nếu có đếm ngược nghĩa là đã thanh toán phiếu thu
         const receiptPaidAt = dayjs(record.receiptPaidAt);
         const now = dayjs();
         const expirationDate = receiptPaidAt.add(3, 'day');
@@ -602,11 +751,59 @@ const CheckinsAD: React.FC = () => {
         if (record.status === "CANCELED") {
           return <span style={{ color: "#999" }}>-</span>;
         }
-        const receiptBill = typeof record.receiptBillId === "object" ? record.receiptBillId : null;
-        const receiptBillId = receiptBill ? (receiptBill as any)._id : (typeof record.receiptBillId === "string" ? record.receiptBillId : null);
+        
+        // Lấy receiptBillId
+        const receiptBillId = typeof record.receiptBillId === "object" 
+          ? (record.receiptBillId as any)?._id 
+          : (typeof record.receiptBillId === "string" ? record.receiptBillId : null);
+        
+        // Lấy receiptBill từ map hoặc từ populated object
+        let receiptBill = typeof record.receiptBillId === "object" ? record.receiptBillId : null;
+        if (receiptBillId && !receiptBill) {
+          receiptBill = receiptBillsMap.get(receiptBillId) || null;
+        }
+        
+        // Nếu vẫn không có receiptBill, thử load từ populated object
+        if (!receiptBill && receiptBillId) {
+          // receiptBill có thể đã được populate nhưng chưa có trong map
+          receiptBill = typeof record.receiptBillId === "object" ? record.receiptBillId : null;
+        }
+        
         const isPendingCash = receiptBill && (receiptBill as any).status === "PENDING_CASH_CONFIRM";
         const isUnpaid = receiptBill && (receiptBill as any).status === "UNPAID";
         const isPaid = receiptBill && (receiptBill as any).status === "PAID";
+        
+        // Kiểm tra xem có đếm ngược thời hạn không (có receiptPaidAt)
+        // Nếu có receiptPaidAt thì chắc chắn đã thanh toán (đang đếm ngược hoặc đã hết hạn)
+        const hasReceiptPaidAt = !!record.receiptPaidAt;
+        
+        // Kiểm tra xem có đang đếm ngược hoặc đã hết hạn không
+        let isCountingDown = false;
+        let isExpired = false;
+        if (hasReceiptPaidAt) {
+          const receiptPaidAt = dayjs(record.receiptPaidAt);
+          const now = dayjs();
+          const expirationDate = receiptPaidAt.add(3, 'day');
+          const daysRemaining = expirationDate.diff(now, 'day', true);
+          isCountingDown = daysRemaining >= 0;
+          isExpired = daysRemaining < 0;
+        }
+        
+        // Có thể gia hạn nếu: có receiptPaidAt (đang đếm ngược HOẶC đã hết hạn) và chưa bị hủy
+        // Cho phép gia hạn ngay cả khi status = "COMPLETED" nếu vẫn còn đếm ngược hoặc đã hết hạn
+        const canExtend = hasReceiptPaidAt && record.status !== "CANCELED";
+        
+        // Debug: Log để kiểm tra
+        if (hasReceiptPaidAt) {
+          console.log(`[Checkin ${(record.roomId as any)?.roomNumber || record._id}] canExtend:`, {
+            hasReceiptPaidAt,
+            status: record.status,
+            receiptPaidAt: record.receiptPaidAt,
+            canExtend,
+            isCountingDown,
+            isExpired
+          });
+        }
 
         return (
           <Space size="small" wrap={false}>
@@ -650,6 +847,18 @@ const CheckinsAD: React.FC = () => {
                     icon={<CheckOutlined />}
                   />
                 </Popconfirm>
+              </Tooltip>
+            )}
+            {/* Button gia hạn: hiển thị khi đang đếm ngược hoặc đã hết hạn, và chưa hoàn thành */}
+            {canExtend && (
+              <Tooltip title="Gia hạn phiếu thu">
+                <Button
+                  size="small"
+                  icon={<ClockCircleOutlined />}
+                  onClick={() => handleOpenExtendModal(record)}
+                >
+                  Gia hạn
+                </Button>
               </Tooltip>
             )}
             <Tooltip title="Tải DOCX">
@@ -753,9 +962,13 @@ const CheckinsAD: React.FC = () => {
               <Form.Item
                 label="Thời hạn thuê (tháng)"
                 name="duration"
-                rules={[{ required: true, message: "Nhập thời hạn thuê!" }]}
+                rules={[
+                  { required: true, message: "Nhập thời hạn thuê!" },
+                  { type: "number", min: 1, message: "Thời hạn thuê tối thiểu là 1 tháng" },
+                  { type: "number", max: 36, message: "Thời hạn thuê tối đa là 36 tháng (3 năm)" },
+                ]}
               >
-                <InputNumber min={1} style={{ width: "100%" }} placeholder="Nhập thời hạn thuê" />
+                <InputNumber min={1} max={36} style={{ width: "100%" }} placeholder="Nhập thời hạn thuê (tối đa 36 tháng)" />
               </Form.Item>
             </Col>
             <Col xs={24} md={12}>
@@ -1031,6 +1244,59 @@ const CheckinsAD: React.FC = () => {
               ⚠️ Vui lòng upload đầy đủ ảnh mặt trước và mặt sau
             </span>
           </div>
+        )}
+      </Modal>
+
+      {/* Extend Receipt Modal */}
+      <Modal
+        title="Gia hạn phiếu thu"
+        open={extendModalVisible}
+        onOk={handleExtendReceipt}
+        onCancel={() => {
+          setExtendModalVisible(false);
+          setExtendingCheckin(null);
+          extendForm.resetFields();
+        }}
+        okText="Gia hạn"
+        cancelText="Hủy"
+        width={600}
+      >
+        {extendingCheckin && (
+          <Form form={extendForm} layout="vertical">
+            <div style={{ marginBottom: 16, padding: 12, backgroundColor: "#f0f9ff", borderRadius: 4 }}>
+              <div><strong>Thông tin hiện tại:</strong></div>
+              <div>Tiền cọc đã đóng: {Number(extendingCheckin.deposit?.toString() || 0).toLocaleString("vi-VN")} VNĐ</div>
+              <div>Thời hạn thuê: {extendingCheckin.durationMonths} tháng</div>
+            </div>
+            <Form.Item
+              label="Tiền cọc gia hạn (VNĐ)"
+              name="additionalDeposit"
+              rules={[
+                { required: true, message: "Nhập tiền cọc gia hạn!" },
+                { type: "number", min: 500000, message: "Tiền cọc tối thiểu là 500,000 VNĐ" },
+              ]}
+            >
+              <InputNumber
+                min={500000}
+                style={{ width: "100%" }}
+                placeholder="Nhập tiền cọc gia hạn (tối thiểu 500,000 VNĐ)"
+                formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                parser={(value) => value!.replace(/\$\s?|(,*)/g, "")}
+              />
+            </Form.Item>
+            <div style={{ marginTop: 16, padding: 12, backgroundColor: "#fff7e6", borderRadius: 4 }}>
+              <div style={{ color: "#d46b08" }}>
+                <strong>💡 Lưu ý:</strong>
+                <ul style={{ marginTop: 8, marginBottom: 0, paddingLeft: 20 }}>
+                  <li>Gia hạn này dùng để kéo dài thời hạn cọc giữ phòng (thêm 3 ngày) khi khách bận chưa tới làm hợp đồng.</li>
+                  <li>Sau khi gia hạn, hệ thống sẽ tạo phiếu thu mới cho số tiền cọc gia hạn.</li>
+                  <li>Khách hàng cần thanh toán phiếu thu mới này trong vòng 3 ngày để tiếp tục giữ phòng.</li>
+                  <li>Thời hạn đếm ngược sẽ được reset lại 3 ngày từ khi thanh toán phiếu thu mới.</li>
+                  <li>Nếu đã có hóa đơn hợp đồng (CONTRACT bill), tiền cọc còn lại sẽ được tính lại tự động.</li>
+                </ul>
+              </div>
+            </div>
+          </Form>
         )}
       </Modal>
 

@@ -62,6 +62,7 @@ interface FinalContract {
   };
   terms?: string;
   status: "DRAFT" | "WAITING_SIGN" | "SIGNED" | "CANCELED";
+  canceledAt?: string; // Ngày hủy hợp đồng (nếu hủy trước hạn)
   images?: FileInfo[];
   tenantSignedAt?: string;
   ownerApprovedAt?: string;
@@ -335,17 +336,12 @@ const FinalContracts = () => {
           
           const bills = data.data || [];
           
-          // ✅ FILTER: Chỉ hiển thị bills của người này và không bị hủy
+          // ✅ FILTER: Chỉ hiển thị bills không bị hủy (VOID)
+          // Lưu ý: Vẫn hiển thị bills ngay cả khi FinalContract đã bị hủy để xem lịch sử
           // 1. Loại bỏ bills có status VOID
-          // 2. Nếu FinalContract đã bị hủy (CANCELED), không hiển thị bills nào
-          // 3. Chỉ hiển thị bills có finalContractId khớp với FinalContract hiện tại (nếu có finalContractId)
+          // 2. Chỉ hiển thị bills có finalContractId khớp với FinalContract hiện tại (nếu có finalContractId)
           const filteredBills = bills.filter((bill: any) => {
-            // Nếu FinalContract đã bị hủy, không hiển thị bills nào
-            if (fullContract.status === "CANCELED") {
-              return false;
-            }
-            
-            // Loại bỏ bills đã bị hủy
+            // Loại bỏ bills đã bị hủy (VOID)
             if (bill.status === "VOID") {
               return false;
             }
@@ -816,6 +812,13 @@ const FinalContracts = () => {
         <div>
           <div>{dayjs(record.startDate).format("DD/MM/YYYY")}</div>
           <div>→ {dayjs(record.endDate).format("DD/MM/YYYY")}</div>
+          {record.status === "CANCELED" && record.canceledAt && (
+            <div style={{ marginTop: 4 }}>
+              <small style={{ color: "#ff4d4f", fontWeight: 500 }}>
+                Hủy: {dayjs(record.canceledAt).format("DD/MM/YYYY")}
+              </small>
+            </div>
+          )}
         </div>
       ),
     },
@@ -1202,13 +1205,22 @@ const FinalContracts = () => {
               </Descriptions.Item>
               <Descriptions.Item label="Trạng thái">{getStatusTag(selectedContract.status, selectedContract)}</Descriptions.Item>
               <Descriptions.Item label="Thời gian">
-                {selectedContract.startDate 
-                  ? `${dayjs(selectedContract.startDate).format("DD/MM/YYYY")} → ${dayjs(selectedContract.endDate).format("DD/MM/YYYY")}`
-                  : (typeof selectedContract.originContractId === 'object' && (selectedContract.originContractId as any)?.startDate
-                      ? `${dayjs((selectedContract.originContractId as any).startDate).format("DD/MM/YYYY")} → ${dayjs((selectedContract.originContractId as any).endDate).format("DD/MM/YYYY")}`
-                      : "N/A"
-                    )
-                }
+                <div>
+                  {selectedContract.startDate 
+                    ? `${dayjs(selectedContract.startDate).format("DD/MM/YYYY")} → ${dayjs(selectedContract.endDate).format("DD/MM/YYYY")}`
+                    : (typeof selectedContract.originContractId === 'object' && (selectedContract.originContractId as any)?.startDate
+                        ? `${dayjs((selectedContract.originContractId as any).startDate).format("DD/MM/YYYY")} → ${dayjs((selectedContract.originContractId as any).endDate).format("DD/MM/YYYY")}`
+                        : "N/A"
+                      )
+                  }
+                  {selectedContract.status === "CANCELED" && selectedContract.canceledAt && (
+                    <div style={{ marginTop: 4 }}>
+                      <small style={{ color: "#ff4d4f", fontWeight: 500 }}>
+                        Hủy ngày: {dayjs(selectedContract.canceledAt).format("DD/MM/YYYY HH:mm")}
+                      </small>
+                    </div>
+                  )}
+                </div>
               </Descriptions.Item>
               <Descriptions.Item label="Tiền đã cọc">
                 {(selectedContract.deposit || 

@@ -60,7 +60,7 @@ const InvoiceDetail: React.FC = () => {
         const ctUserId = typeof ct.userId === 'object' && ct.userId?._id 
           ? ct.userId._id 
           : ct.userId;
-        return ctUserId === currentUserId && !ct.leftAt;
+        return ctUserId === currentUserId && ct.status === "ACTIVE";
       });
       return isInCoTenants; // Nếu có trong coTenants nhưng không phải tenantId, thì là co-tenant
     }
