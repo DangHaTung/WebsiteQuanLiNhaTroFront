@@ -1,4 +1,5 @@
 import api from "../services/api";
+import { message } from "antd";
 
 type LoginPayload = { email: string; password: string };
 type RegisterPayload = {
@@ -67,6 +68,7 @@ export const adminAuthService = {
     localStorage.removeItem("admin_currentUser");
     localStorage.removeItem("token");
     localStorage.removeItem("currentUser");
+    message.success("Đăng xuất thành công!");
     window.location.href = "/login";
   },
 };
