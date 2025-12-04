@@ -1059,9 +1059,18 @@ const FinalContracts = () => {
               <Button
                 size="small"
                 icon={<ClockCircleOutlined />}
-                onClick={() => {
-                  setExtendingContract(record);
-                  setExtendModalVisible(true);
+                onClick={async () => {
+                  // Reload contract để đảm bảo có metadata mới nhất
+                  try {
+                    const fullContract = await adminFinalContractService.getById(record._id);
+                    setExtendingContract(fullContract);
+                    setExtendModalVisible(true);
+                  } catch (error) {
+                    console.error("Error loading contract:", error);
+                    // Fallback: dùng record hiện tại
+                    setExtendingContract(record);
+                    setExtendModalVisible(true);
+                  }
                 }}
               >
                 Gia hạn

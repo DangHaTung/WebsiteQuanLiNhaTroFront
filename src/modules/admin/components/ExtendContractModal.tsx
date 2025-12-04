@@ -32,6 +32,39 @@ const ExtendContractModal: React.FC<ExtendContractModalProps> = ({
 
   const handleExtend = async () => {
     try {
+      // Validate trước khi submit
+      if (extensionMonths > 36) {
+        message.error("Không thể gia hạn quá 36 tháng");
+        return;
+      }
+
+      if (extensionMonths <= 0) {
+        message.error("Số tháng gia hạn phải lớn hơn 0");
+        return;
+      }
+
+      // Tính thời hạn hợp đồng hiện tại (từ startDate đến endDate)
+      if (contract.startDate && contract.endDate) {
+        const startDate = new Date(contract.startDate);
+        const endDate = new Date(contract.endDate);
+        const currentDurationMonths = (endDate.getFullYear() - startDate.getFullYear()) * 12 
+          + (endDate.getMonth() - startDate.getMonth());
+        
+        // Validate: Nếu thời hạn hợp đồng hiện tại >= 36 tháng thì không thể gia hạn thêm
+        if (currentDurationMonths >= 36) {
+          message.error(`Không thể gia hạn hợp đồng. Thời hạn hợp đồng hiện tại đã đạt tối đa 36 tháng (${currentDurationMonths} tháng)`);
+          return;
+        }
+
+        // Validate: Nếu gia hạn thêm sẽ vượt quá 36 tháng tổng cộng
+        const totalDurationAfterExtension = currentDurationMonths + extensionMonths;
+        if (totalDurationAfterExtension > 36) {
+          const maxExtensionMonths = 36 - currentDurationMonths;
+          message.error(`Không thể gia hạn thêm ${extensionMonths} tháng. Thời hạn hợp đồng sau gia hạn sẽ là ${totalDurationAfterExtension} tháng, vượt quá giới hạn 36 tháng. Số tháng tối đa có thể gia hạn: ${maxExtensionMonths} tháng`);
+          return;
+        }
+      }
+
       setLoading(true);
       await adminFinalContractService.extend(contract._id, extensionMonths);
       message.success(`Gia hạn hợp đồng thành công thêm ${extensionMonths} tháng`);
@@ -98,7 +131,9 @@ const ExtendContractModal: React.FC<ExtendContractModalProps> = ({
           </span>
         </Descriptions.Item>
         <Descriptions.Item label="Số lần gia hạn">
-          {contract.metadata?.extensions?.length || 0} lần
+          {contract.metadata?.extensions && Array.isArray(contract.metadata.extensions) 
+            ? contract.metadata.extensions.length 
+            : 0} lần
         </Descriptions.Item>
       </Descriptions>
 
@@ -106,16 +141,37 @@ const ExtendContractModal: React.FC<ExtendContractModalProps> = ({
         <Form.Item
           label="Số tháng gia hạn"
           name="extensionMonths"
-          rules={[{ required: true, message: "Vui lòng chọn số tháng gia hạn" }]}
+          rules={[
+            { required: true, message: "Vui lòng chọn số tháng gia hạn" },
+            { 
+              type: 'number', 
+              min: 1, 
+              message: "Số tháng gia hạn phải lớn hơn 0" 
+            },
+            { 
+              type: 'number', 
+              max: 36, 
+              message: "Không thể gia hạn quá 36 tháng" 
+            }
+          ]}
         >
           <InputNumber
             min={1}
-            max={60}
+            max={36}
             value={extensionMonths}
-            onChange={(value) => setExtensionMonths(value || 6)}
+            onChange={(value) => {
+              const numValue = value || 6;
+              if (numValue > 36) {
+                message.error("Không thể gia hạn quá 36 tháng");
+                setExtensionMonths(36);
+                form.setFieldsValue({ extensionMonths: 36 });
+              } else {
+                setExtensionMonths(numValue);
+              }
+            }}
             addonAfter="tháng"
             style={{ width: "100%" }}
-            placeholder="Nhập số tháng (6, 12, 24...)"
+            placeholder="Nhập số tháng (tối đa 36 tháng)"
           />
         </Form.Item>
 

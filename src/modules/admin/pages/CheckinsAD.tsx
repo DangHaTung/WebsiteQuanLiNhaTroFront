@@ -912,22 +912,23 @@ const CheckinsAD: React.FC = () => {
           isExpired = daysRemaining < 0;
         }
         
+        // Kiểm tra xem có FinalContract đã được ký chưa
+        const finalContractId = (record as any).finalContractId;
+        let isContractSigned = false;
+        if (finalContractId) {
+          const fcId = typeof finalContractId === 'string' ? finalContractId : finalContractId._id;
+          const finalContract = finalContractsMap.get(fcId);
+          // Nếu FinalContract có status = "SIGNED" thì không được gia hạn
+          if (finalContract && finalContract.status === "SIGNED") {
+            isContractSigned = true;
+          }
+        }
+        
         // Có thể gia hạn nếu: có receiptPaidAt (đang đếm ngược HOẶC đã hết hạn) và chưa bị hủy
+        // VÀ hợp đồng chưa được ký (status !== "SIGNED")
         // Cho phép gia hạn ngay cả khi status = "COMPLETED" nếu vẫn còn đếm ngược hoặc đã hết hạn
         // Note: record.status đã được narrow sau check "CANCELED" ở trên, nên luôn true ở đây
-        const canExtend = hasReceiptPaidAt;
-        
-        // Debug: Log để kiểm tra
-        if (hasReceiptPaidAt) {
-          console.log(`[Checkin ${(record.roomId as any)?.roomNumber || record._id}] canExtend:`, {
-            hasReceiptPaidAt,
-            status: record.status,
-            receiptPaidAt: record.receiptPaidAt,
-            canExtend,
-            isCountingDown,
-            isExpired
-          });
-        }
+        const canExtend = hasReceiptPaidAt && !isContractSigned;
 
         return (
           <Space size="small" wrap={false}>
