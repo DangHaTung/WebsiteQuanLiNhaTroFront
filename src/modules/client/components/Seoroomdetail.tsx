@@ -1,11 +1,5 @@
 import React from "react";
 
-/**
- * ⭐ VSEO ROOM DETAIL — VERSION CHI TIẾT
- * Không dùng useParams, không dùng react-router-dom,
- * Nhận props chi tiết phòng → SEO đầy đủ, JSON-LD, Open Graph, Twitter.
- */
-
 interface VSeoRoomDetailProps {
   title: string;
   description: string;
@@ -16,6 +10,8 @@ interface VSeoRoomDetailProps {
   area?: string;
   amenities?: string[];
   address?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 export default function VSeoRoomDetail({
@@ -28,30 +24,47 @@ export default function VSeoRoomDetail({
   area,
   amenities = [],
   address,
+  latitude = 0,
+  longitude = 0,
 }: VSeoRoomDetailProps) {
-  const structuredData = {
+  // structured data chi tiết
+  const structuredData: any = {
     "@context": "https://schema.org",
     "@type": "Place",
     name: title,
     description,
     image,
-    address: address || "Không xác định",
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: address || "Không xác định",
+    },
     geo: {
       "@type": "GeoCoordinates",
-      latitude: "0", // có thể bổ sung
-      longitude: "0",
+      latitude,
+      longitude,
     },
     offers: price
       ? {
           "@type": "Offer",
           price,
           priceCurrency: currency,
+          availability: "https://schema.org/InStock",
         }
       : undefined,
     amenityFeature: amenities.map((a) => ({
       "@type": "LocationFeatureSpecification",
       name: a,
+      value: true,
     })),
+    additionalProperty: area
+      ? [
+          {
+            "@type": "PropertyValue",
+            name: "Diện tích",
+            value: area,
+          },
+        ]
+      : undefined,
   };
 
   return (
@@ -59,7 +72,7 @@ export default function VSeoRoomDetail({
       {/* BASIC SEO */}
       <title>{title}</title>
       <meta name="description" content={description} />
-      <meta name="keywords" content={`phong tro, nha tro, ${title}`} />
+      <meta name="keywords" content={`phong tro, nha tro, ${title}, cho thue phong`} />
       <link rel="canonical" href={canonical} />
 
       {/* OPEN GRAPH */}
@@ -77,7 +90,7 @@ export default function VSeoRoomDetail({
 
       {/* JSON-LD Structured Data */}
       <script type="application/ld+json">
-        {JSON.stringify(structuredData)}
+        {JSON.stringify(structuredData, null, 2)}
       </script>
     </>
   );
