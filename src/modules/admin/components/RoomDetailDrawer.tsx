@@ -115,7 +115,7 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
 
   const getBillStatusTag = (status: BillStatus) => {
     if (status === "PENDING_CASH_CONFIRM") {
-      return <Tag color="gold">Chờ xác nhận tiền mặt</Tag>;
+      return <Tag color="gold">Chờ xác nhận</Tag>;
     }
     const map: Record<string, { color: string; text: string }> = {
       DRAFT: { color: "orange", text: "Nháp" },

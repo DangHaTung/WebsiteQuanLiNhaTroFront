@@ -387,10 +387,45 @@ const FinalContracts = () => {
     }
   };
 
-  const handleConfirmCashPayment = async (billId: string) => {
+  // Confirm Payment Modal States
+  const [confirmPaymentModalVisible, setConfirmPaymentModalVisible] = useState(false);
+  const [confirmingBillId, setConfirmingBillId] = useState<string | null>(null);
+  const [confirmingBillImage, setConfirmingBillImage] = useState<string | null>(null);
+
+  const handleOpenConfirmModal = async (billId: string, bill: any) => {
+    // Nếu bill chưa có metadata, load lại từ API
+    if (!bill?.metadata) {
+      try {
+        const freshBill = await adminBillService.getById(billId);
+        bill = freshBill;
+      } catch (error) {
+        console.error("Error loading bill:", error);
+      }
+    }
+    
+    // Lấy ảnh từ metadata
+    const receiptImage = bill?.metadata?.cashPaymentRequest?.receiptImage;
+    const imageUrl = receiptImage?.secure_url || receiptImage?.url || null;
+    
+    console.log("🔍 Debug bill metadata:", {
+      billId,
+      hasMetadata: !!bill?.metadata,
+      metadata: bill?.metadata,
+      receiptImage,
+      imageUrl
+    });
+    
+    setConfirmingBillId(billId);
+    setConfirmingBillImage(imageUrl);
+    setConfirmPaymentModalVisible(true);
+  };
+
+  const handleConfirmCashPayment = async () => {
+    if (!confirmingBillId) return;
+    
     try {
-      await adminBillService.confirmPayment(billId);
-      message.success("Xác nhận thanh toán tiền mặt thành công!");
+      await adminBillService.confirmPayment(confirmingBillId);
+      message.success("Xác nhận thanh toán thành công!");
       
       // Reload bills
       if (selectedContract) {
@@ -1268,7 +1303,7 @@ const FinalContracts = () => {
                       receiptStatus = "Đã thanh toán";
                     } else {
                       receiptAmount = convertToNumber(receiptBill.amountDue);
-                      receiptStatus = receiptBill.status === "PENDING_CASH_CONFIRM" ? "Chờ xác nhận tiền mặt" : "Chờ thanh toán";
+                      receiptStatus = receiptBill.status === "PENDING_CASH_CONFIRM" ? "Chờ xác nhận" : "Chờ thanh toán";
                     }
                   }
 
@@ -1281,7 +1316,7 @@ const FinalContracts = () => {
                   if (contractBill) {
                     contractStatus = contractBill.status === "PAID" ? "Đã thanh toán" 
                       : contractBill.status === "PARTIALLY_PAID" ? "Thanh toán 1 phần"
-                      : contractBill.status === "PENDING_CASH_CONFIRM" ? "Chờ xác nhận tiền mặt"
+                      : contractBill.status === "PENDING_CASH_CONFIRM" ? "Chờ xác nhận"
                       : "Chờ thanh toán";
                     
                     if (contractBill.lineItems && contractBill.lineItems.length > 0) {
@@ -1342,7 +1377,7 @@ const FinalContracts = () => {
                                   : "error"
                                 }>
                                   {contractBill.status === "PAID" ? "Đã thanh toán"
-                                    : contractBill.status === "PENDING_CASH_CONFIRM" ? "Chờ xác nhận tiền mặt"
+                                    : contractBill.status === "PENDING_CASH_CONFIRM" ? "Chờ xác nhận"
                                     : "Chờ thanh toán"}
                                 </Tag>
                               </Space>
@@ -1369,7 +1404,7 @@ const FinalContracts = () => {
                                   : "error"
                                 }>
                                   {contractBill.status === "PAID" ? "Đã thanh toán"
-                                    : contractBill.status === "PENDING_CASH_CONFIRM" ? "Chờ xác nhận tiền mặt"
+                                    : contractBill.status === "PENDING_CASH_CONFIRM" ? "Chờ xác nhận"
                                     : "Chờ thanh toán"}
                                 </Tag>
                               </Space>
@@ -1399,13 +1434,13 @@ const FinalContracts = () => {
                         <div style={{ marginTop: 16, textAlign: "center" }}>
                           <Space>
                             <Popconfirm
-                              title="Xác nhận đã nhận tiền mặt?"
+                              title="Xác nhận đã nhận?"
                               onConfirm={() => handleConfirmCashPayment(contractBill._id)}
                               okText="Xác nhận"
                               cancelText="Hủy"
                             >
                               <Button type="primary" icon={<DollarOutlined />}>
-                                Xác nhận tiền mặt
+                                Xác nhận
                               </Button>
                             </Popconfirm>
                             <Button 
@@ -1528,6 +1563,50 @@ const FinalContracts = () => {
           fetchContracts(pagination.current, pagination.pageSize);
         }}
       />
+
+      {/* Modal xác nhận thanh toán với preview ảnh */}
+      <Modal
+        title="Xác nhận đã nhận thanh toán"
+        open={confirmPaymentModalVisible}
+        onOk={handleConfirmCashPayment}
+        onCancel={() => {
+          setConfirmPaymentModalVisible(false);
+          setConfirmingBillId(null);
+          setConfirmingBillImage(null);
+        }}
+        okText="Xác nhận"
+        cancelText="Hủy"
+        width={600}
+      >
+        {confirmingBillImage ? (
+          <div>
+            <Alert
+              message="Ảnh bill chuyển khoản"
+              description="Vui lòng kiểm tra ảnh bill trước khi xác nhận"
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+            <div style={{ textAlign: "center" }}>
+              <Image
+                src={confirmingBillImage}
+                alt="Bill chuyển khoản"
+                style={{ maxWidth: "100%", maxHeight: "500px" }}
+                preview={{
+                  mask: "Xem ảnh lớn",
+                }}
+              />
+            </div>
+          </div>
+        ) : (
+          <Alert
+            message="Chưa có ảnh bill chuyển khoản"
+            description="Khách hàng chưa upload ảnh bill. Bạn vẫn có thể xác nhận nếu đã kiểm tra."
+            type="warning"
+            showIcon
+          />
+        )}
+      </Modal>
     </div>
   );
 };

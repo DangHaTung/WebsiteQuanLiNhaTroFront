@@ -15,6 +15,8 @@ import {
   Space,
   Tooltip,
   Popconfirm,
+  Alert,
+  Image,
 } from "antd";
 import {
   PlusOutlined,
@@ -73,6 +75,11 @@ const CheckinsAD: React.FC = () => {
   const [extendModalVisible, setExtendModalVisible] = useState(false);
   const [extendingCheckin, setExtendingCheckin] = useState<Checkin | null>(null);
   const [extendForm] = Form.useForm<{ additionalDeposit: number }>();
+
+  // Confirm Payment Modal States
+  const [confirmPaymentModalVisible, setConfirmPaymentModalVisible] = useState(false);
+  const [confirmingBillId, setConfirmingBillId] = useState<string | null>(null);
+  const [confirmingBillImage, setConfirmingBillImage] = useState<string | null>(null);
 
   // CCCD Upload Modal States
   const [cccdUploadModalVisible, setCccdUploadModalVisible] = useState(false);
@@ -526,12 +533,45 @@ const CheckinsAD: React.FC = () => {
     return <Tag color={m.color} icon={m.icon}>{m.text}</Tag>;
   };
 
-  const handleConfirmCashPayment = async (receiptBillId: string) => {
+  const handleOpenConfirmModal = async (receiptBillId: string, receiptBill: any) => {
+    // Nếu receiptBill chưa có metadata, load lại từ API
+    if (!receiptBill?.metadata) {
+      try {
+        const freshBill = await adminBillService.getById(receiptBillId);
+        receiptBill = freshBill;
+      } catch (error) {
+        console.error("Error loading bill:", error);
+      }
+    }
+    
+    // Lấy ảnh từ metadata
+    const receiptImage = receiptBill?.metadata?.cashPaymentRequest?.receiptImage;
+    const imageUrl = receiptImage?.secure_url || receiptImage?.url || null;
+    
+    console.log("🔍 Debug receiptBill metadata:", {
+      receiptBillId,
+      hasMetadata: !!receiptBill?.metadata,
+      metadata: receiptBill?.metadata,
+      receiptImage,
+      imageUrl
+    });
+    
+    setConfirmingBillId(receiptBillId);
+    setConfirmingBillImage(imageUrl);
+    setConfirmPaymentModalVisible(true);
+  };
+
+  const handleConfirmCashPayment = async () => {
+    if (!confirmingBillId) return;
+    
     try {
-      await adminBillService.confirmPayment(receiptBillId);
-      message.success("Xác nhận thanh toán tiền mặt thành công!");
+      await adminBillService.confirmPayment(confirmingBillId);
+      message.success("Xác nhận thanh toán thành công!");
       // Reload để cập nhật receiptPaidAt và receiptBill status
       await loadCheckins();
+      setConfirmPaymentModalVisible(false);
+      setConfirmingBillId(null);
+      setConfirmingBillImage(null);
     } catch (error: any) {
       message.error(error?.response?.data?.message || "Lỗi khi xác nhận thanh toán");
     }
@@ -693,7 +733,7 @@ const CheckinsAD: React.FC = () => {
             UNPAID: { color: "red", text: "Chờ thanh toán" },
             PARTIALLY_PAID: { color: "orange", text: "Một phần" },
             VOID: { color: "default", text: "Đã hủy" },
-            PENDING_CASH_CONFIRM: { color: "gold", text: "Chờ xác nhận tiền mặt" },
+            PENDING_CASH_CONFIRM: { color: "gold", text: "Chờ xác nhận" },
           };
           const m = map[billStatus] || { color: "default", text: billStatus || "Trạng thái" };
           return <Tag color={m.color}>{m.text}</Tag>;
@@ -853,19 +893,13 @@ const CheckinsAD: React.FC = () => {
           <Space size="small" wrap={false}>
             {(isPendingCash || isUnpaid) && receiptBillId && (
               <>
-                <Tooltip title="Xác nhận đã nhận tiền mặt">
-                  <Popconfirm
-                    title="Xác nhận đã nhận tiền mặt?"
-                    okText="Xác nhận"
-                    cancelText="Hủy"
-                    onConfirm={() => handleConfirmCashPayment(receiptBillId)}
-                  >
-                    <Button
-                      size="small"
-                      type="primary"
-                      icon={<DollarOutlined />}
-                    />
-                  </Popconfirm>
+                <Tooltip title="Xác nhận đã nhận">
+                  <Button
+                    size="small"
+                    type="primary"
+                    icon={<DollarOutlined />}
+                    onClick={() => handleOpenConfirmModal(receiptBillId, receiptBill)}
+                  />
                 </Tooltip>
                 <Tooltip title="Gửi link thanh toán qua email">
                   <Button
@@ -1428,6 +1462,50 @@ const CheckinsAD: React.FC = () => {
         rooms={rooms}
         users={users}
       />
+
+      {/* Modal xác nhận thanh toán với preview ảnh */}
+      <Modal
+        title="Xác nhận đã nhận thanh toán"
+        open={confirmPaymentModalVisible}
+        onOk={handleConfirmCashPayment}
+        onCancel={() => {
+          setConfirmPaymentModalVisible(false);
+          setConfirmingBillId(null);
+          setConfirmingBillImage(null);
+        }}
+        okText="Xác nhận"
+        cancelText="Hủy"
+        width={600}
+      >
+        {confirmingBillImage ? (
+          <div>
+            <Alert
+              message="Ảnh bill chuyển khoản"
+              description="Vui lòng kiểm tra ảnh bill trước khi xác nhận"
+              type="info"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
+            <div style={{ textAlign: "center" }}>
+              <Image
+                src={confirmingBillImage}
+                alt="Bill chuyển khoản"
+                style={{ maxWidth: "100%", maxHeight: "500px" }}
+                preview={{
+                  mask: "Xem ảnh lớn",
+                }}
+              />
+            </div>
+          </div>
+        ) : (
+          <Alert
+            message="Chưa có ảnh bill chuyển khoản"
+            description="Khách hàng chưa upload ảnh bill. Bạn vẫn có thể xác nhận nếu đã kiểm tra."
+            type="warning"
+            showIcon
+          />
+        )}
+      </Modal>
     </div>
   );
 };
