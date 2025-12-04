@@ -52,9 +52,14 @@ const NotificationBell: React.FC = () => {
     if (socketNotifications.length > 0) {
       // Merge socket notifications with existing ones
       setNotifications((prev) => {
-        const newNotifs = socketNotifications.filter(
-          (sn) => !prev.some((pn) => pn._id === sn._id)
-        );
+        const newNotifs = socketNotifications
+          .filter((sn) => !prev.some((pn) => pn._id === sn._id))
+          .map((sn) => ({
+            ...sn,
+            userId: '', // Socket notifications don't include userId
+            isRead: false, // New notifications are unread
+            updatedAt: sn.createdAt, // Use createdAt as updatedAt
+          }));
         return [...newNotifs, ...prev].slice(0, 10);
       });
       setUnreadCount(socketUnreadCount);
