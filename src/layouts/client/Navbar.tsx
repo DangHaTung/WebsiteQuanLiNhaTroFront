@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Input, Drawer, Button, Dropdown, Avatar, Typography } from "antd";
+import { Input, Drawer, Button, Dropdown, Avatar, Typography, message } from "antd";
 import { PhoneOutlined, MailOutlined, BellOutlined, SearchOutlined, UserOutlined, MenuOutlined, CloseOutlined, SettingOutlined, LogoutOutlined, UserSwitchOutlined, MessageOutlined } from "@ant-design/icons";
 import Logo from "../../assets/images/logo.png";
 import "../../assets/styles/nav.css";
@@ -106,6 +106,7 @@ const Navbar: React.FC = () => {
         setUserName("");
         localStorage.removeItem("currentUser");
         localStorage.removeItem("token");
+        message.success("Đăng xuất thành công!");
         navigate("/");
         break;
     }
