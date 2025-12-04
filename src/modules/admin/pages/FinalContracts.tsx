@@ -625,6 +625,29 @@ const FinalContracts = () => {
     }
   };
 
+  const handleSendPaymentLink = async (billId: string) => {
+    try {
+      const result = await adminBillService.generatePaymentLink(billId);
+      message.success(
+        `Đã gửi link thanh toán qua email! Link: ${result.paymentUrl}`,
+        10
+      );
+     
+      // Copy link to clipboard
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(result.paymentUrl);
+        message.info("Đã copy link vào clipboard");
+      }
+    } catch (error: any) {
+      const errorData = error?.response?.data;
+      if (errorData?.message) {
+        message.error(errorData.message);
+      } else {
+        message.error(errorData?.message || "Lỗi khi gửi link thanh toán");
+      }
+    }
+  };
+
   const handleOnlinePayment = async (billId: string, amount: number) => {
     const createPayment = async (provider: "vnpay" | "momo" | "zalopay") => {
       try {
@@ -1577,26 +1600,7 @@ const FinalContracts = () => {
                             )}
                             <Button 
                               type="default"
-                              onClick={() => {
-                                // Tính số tiền còn lại: Với CONTRACT bill, amountDue đã là tổng tiền cần thanh toán
-                                const contractAmountDue = convertToNumber(contractBill.amountDue);
-                                const contractAmountPaid = convertToNumber(contractBill.amountPaid);
-                                // Với CONTRACT bill: không trừ amountPaid khi status = UNPAID hoặc PENDING_CASH_CONFIRM
-                                const remaining = contractBill.billType === "CONTRACT" && 
-                                  (contractBill.status === "UNPAID" || contractBill.status === "PENDING_CASH_CONFIRM")
-                                  ? contractAmountDue
-                                  : Math.max(0, contractAmountDue - contractAmountPaid);
-                                console.log("🔍 Frontend payment calculation:", {
-                                  billType: contractBill.billType,
-                                  status: contractBill.status,
-                                  amountDue: contractAmountDue,
-                                  amountPaid: contractAmountPaid,
-                                  remaining,
-                                  rawAmountDue: contractBill.amountDue,
-                                  rawAmountPaid: contractBill.amountPaid
-                                });
-                                handleOnlinePayment(contractBill._id, remaining);
-                              }}
+                              onClick={() => handleSendPaymentLink(contractBill._id)}
                             >
                               Gửi link thanh toán Online
                             </Button>

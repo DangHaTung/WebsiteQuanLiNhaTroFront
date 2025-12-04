@@ -403,6 +403,12 @@ const CheckinsAD: React.FC = () => {
 
   // Vehicle management functions
   const addVehicle = () => {
+    // Validation: chỉ được thêm tối đa 1 xe (tính theo đầu người)
+    if (vehicles.length >= 1) {
+      message.error('Chỉ được thêm tối đa 1 xe (tính theo đầu người)');
+      return;
+    }
+    
     if (['motorbike', 'electric_bike'].includes(newVehicleType) && !newVehiclePlate.trim()) {
       message.error('Xe máy và xe điện phải có biển số');
       return;
@@ -1214,7 +1220,13 @@ const CheckinsAD: React.FC = () => {
                 />
               </Col>
               <Col xs={6}>
-                <Button type="primary" icon={<PlusOutlined />} onClick={addVehicle} block>
+                <Button 
+                  type="primary" 
+                  icon={<PlusOutlined />} 
+                  onClick={addVehicle} 
+                  block
+                  disabled={vehicles.length >= 1}
+                >
                   Thêm
                 </Button>
               </Col>
