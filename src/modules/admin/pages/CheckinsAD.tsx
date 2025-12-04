@@ -834,7 +834,8 @@ const CheckinsAD: React.FC = () => {
         
         // Có thể gia hạn nếu: có receiptPaidAt (đang đếm ngược HOẶC đã hết hạn) và chưa bị hủy
         // Cho phép gia hạn ngay cả khi status = "COMPLETED" nếu vẫn còn đếm ngược hoặc đã hết hạn
-        const canExtend = hasReceiptPaidAt && record.status !== "CANCELED";
+        // Note: record.status đã được narrow sau check "CANCELED" ở trên, nên luôn true ở đây
+        const canExtend = hasReceiptPaidAt;
         
         // Debug: Log để kiểm tra
         if (hasReceiptPaidAt) {
@@ -1114,9 +1115,9 @@ const CheckinsAD: React.FC = () => {
                   onChange={(v) => setNewVehicleType(v)}
                   style={{ width: "100%" }}
                 >
-                  <Option value="motorbike">🏍️ Xe máy</Option>
-                  <Option value="electric_bike">⚡ Xe điện</Option>
-                  <Option value="bicycle">🚲 Xe đạp</Option>
+                  <Option value="motorbike">Xe máy</Option>
+                  <Option value="electric_bike">Xe điện</Option>
+                  <Option value="bicycle">Xe đạp</Option>
                 </Select>
               </Col>
               <Col xs={10}>
@@ -1397,7 +1398,7 @@ const CheckinsAD: React.FC = () => {
                 style={{ width: "100%" }}
                 placeholder="Nhập tiền cọc gia hạn (tối thiểu 500,000 VNĐ)"
                 formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
-                parser={(value) => value!.replace(/\$\s?|(,*)/g, "")}
+                parser={(value) => Number(value!.replace(/\$\s?|(,*)/g, "")) as unknown as 500000}
               />
             </Form.Item>
             <div style={{ marginTop: 16, padding: 12, backgroundColor: "#fff7e6", borderRadius: 4 }}>

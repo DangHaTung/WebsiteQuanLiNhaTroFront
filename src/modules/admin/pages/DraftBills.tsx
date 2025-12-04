@@ -612,6 +612,8 @@ const DraftBills: React.FC = () => {
         electricityKwh: electricityConsumption,
         occupantCount: currentBill.occupantCount || 1,
         vehicles: currentBill.vehicles || [],
+        previousReading: previousReading, // Số điện cũ
+        currentReading: currentElectricReading, // Số điện mới
       });
       message.success("Phát hành hóa đơn thành công!");
       loadDraftBills();
@@ -673,6 +675,8 @@ const DraftBills: React.FC = () => {
           electricityKwh: electricityConsumption,
           occupantCount: bill.occupantCount || 1,
           vehicles: bill.vehicles || [],
+          previousReading: previousReading, // Số điện cũ
+          currentReading: currentElectricReading, // Số điện mới
         };
       });
 

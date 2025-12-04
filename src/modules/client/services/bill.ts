@@ -2,8 +2,16 @@ import api from "./api";
 
 export interface Bill {
   _id: string;
-  contractId?: string;
+  contractId?: string | {
+    _id?: string;
+    tenantId?: string | { _id?: string; fullName?: string };
+    coTenants?: Array<{
+      userId?: string | { _id?: string };
+      status?: string;
+    }>;
+  };
   finalContractId?: string;
+  tenantId?: string | { _id?: string; fullName?: string };
   billingDate: string;
   dueDate?: string;
   billType: "RECEIPT" | "CONTRACT" | "MONTHLY";
@@ -16,6 +24,17 @@ export interface Bill {
   }>;
   amountDue: number;
   amountPaid: number;
+  // Thông tin số điện (để hiển thị chi tiết trong hóa đơn)
+  electricityReading?: {
+    previous?: number; // Số điện cũ (kỳ trước)
+    current?: number;  // Số điện mới (kỳ này)
+    consumption?: number; // Số điện tiêu thụ
+  };
+  // Thông tin xe
+  vehicles?: Array<{
+    type: 'motorbike' | 'electric_bike' | 'bicycle';
+    licensePlate?: string;
+  }>;
   note?: string;
   createdAt: string;
   updatedAt: string;
