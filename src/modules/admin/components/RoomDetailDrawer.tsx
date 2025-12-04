@@ -421,7 +421,7 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
                 }}
               >
                 {room.activeContract.coTenants
-                  .filter((ct: any) => !ct.leftAt)
+                  .filter((ct: any) => ct.status === "ACTIVE")
                   .map((ct: any, idx: number) => (
                     <Descriptions.Item key={idx} label={`Người ở cùng ${idx + 1}`}>
                       <Space direction="vertical" size="small" style={{ width: "100%" }}>

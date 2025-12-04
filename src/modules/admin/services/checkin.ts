@@ -137,4 +137,13 @@ export const adminCheckinService = {
     const res = await api.put(`/checkins/${id}/complete`, {});
     return res.data;
   },
+
+  // Gia hạn phiếu thu
+  async extendReceipt(
+    id: string,
+    payload: { additionalDeposit: number }
+  ): Promise<{ success: boolean; message: string; data: any }> {
+    const res = await api.post(`/checkins/${id}/extend`, payload);
+    return res.data;
+  },
 };
