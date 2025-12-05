@@ -375,6 +375,72 @@ const CheckinsAD: React.FC = () => {
     }
   };
 
+  // Kiểm tra xem một phòng có đang được cọc (có checkin active) không
+  const isRoomDeposited = (roomId: string): boolean => {
+    // Tìm tất cả checkins của phòng này
+    const roomCheckins = checkins.filter((checkin: any) => {
+      const cRoomId = typeof checkin.roomId === 'object' ? checkin.roomId._id : checkin.roomId;
+      return cRoomId === roomId;
+    });
+
+    // Kiểm tra xem có checkin nào đang active không
+    for (const checkin of roomCheckins) {
+      // Nếu checkin đã bị hủy thì không tính
+      if (checkin.status === "CANCELED") {
+        continue;
+      }
+
+      // Kiểm tra xem Contract có bị hủy không
+      const contractId = (checkin as any).contractId;
+      if (contractId) {
+        const cId = typeof contractId === 'string' ? contractId : contractId._id;
+        const contract = contractsMap.get(cId);
+        if (contract && contract.status === "CANCELED") {
+          continue; // Contract đã hủy, không tính là đang được cọc
+        }
+      }
+
+      // Kiểm tra xem FinalContract có bị hủy không và đã có bill CONTRACT đã thanh toán chưa
+      const finalContractId = (checkin as any).finalContractId;
+      if (finalContractId) {
+        const fcId = typeof finalContractId === 'string' ? finalContractId : finalContractId._id;
+        const finalContract = finalContractsMap.get(fcId);
+        if (finalContract && finalContract.status === "CANCELED") {
+          continue; // FinalContract đã hủy, không tính là đang được cọc
+        }
+        
+        // Kiểm tra xem đã có bill CONTRACT đã thanh toán chưa (đã làm hợp đồng chính thức)
+        const contractBill = contractBillsMap.get(fcId);
+        // Nếu đã có bill CONTRACT đã thanh toán, có nghĩa là đã làm hợp đồng chính thức
+        // Phòng không còn "được cọc" nữa, đã được thuê chính thức
+        if (contractBill && contractBill.status === "PAID") {
+          continue; // Đã làm hợp đồng chính thức, không tính là đang được cọc
+        }
+      }
+
+      // Nếu có receiptPaidAt, kiểm tra xem đã hết hạn chưa (3 ngày từ khi thanh toán)
+      if (checkin.receiptPaidAt) {
+        const receiptPaidAt = dayjs(checkin.receiptPaidAt);
+        const now = dayjs();
+        const expirationDate = receiptPaidAt.add(3, 'day');
+        const daysRemaining = expirationDate.diff(now, 'day', true);
+        
+        // Nếu chưa hết hạn (còn thời gian) thì phòng đang được cọc
+        if (daysRemaining > 0) {
+          return true;
+        }
+        // Nếu đã hết hạn, không còn được cọc nữa (đã hết hạn, phòng về trạng thái trống)
+        // Không return true ở đây
+      } else {
+        // Chưa có receiptPaidAt (chưa thanh toán), nhưng checkin chưa bị hủy
+        // Vẫn coi là đang được cọc (đang chờ thanh toán)
+        return true;
+      }
+    }
+
+    return false; // Không có checkin active nào
+  };
+
   const openModal = () => {
     setIsModalOpen(true);
     form.resetFields();
@@ -924,11 +990,33 @@ const CheckinsAD: React.FC = () => {
           }
         }
         
+        // Kiểm tra xem Contract có bị hủy không
+        const contractId = (record as any).contractId;
+        let isContractCanceled = false;
+        if (contractId) {
+          const cId = typeof contractId === 'string' ? contractId : contractId._id;
+          const contract = contractsMap.get(cId);
+          if (contract && contract.status === "CANCELED") {
+            isContractCanceled = true;
+          }
+        }
+        
+        // Kiểm tra xem FinalContract có bị hủy không
+        let isFinalContractCanceled = false;
+        if (finalContractId) {
+          const fcId = typeof finalContractId === 'string' ? finalContractId : finalContractId._id;
+          const finalContract = finalContractsMap.get(fcId);
+          if (finalContract && finalContract.status === "CANCELED") {
+            isFinalContractCanceled = true;
+          }
+        }
+        
         // Có thể gia hạn nếu: có receiptPaidAt (đang đếm ngược HOẶC đã hết hạn) và chưa bị hủy
         // VÀ hợp đồng chưa được ký (status !== "SIGNED")
+        // VÀ hợp đồng chưa bị hủy (Contract hoặc FinalContract không bị CANCELED)
         // Cho phép gia hạn ngay cả khi status = "COMPLETED" nếu vẫn còn đếm ngược hoặc đã hết hạn
         // Note: record.status đã được narrow sau check "CANCELED" ở trên, nên luôn true ở đây
-        const canExtend = hasReceiptPaidAt && !isContractSigned;
+        const canExtend = hasReceiptPaidAt && !isContractSigned && !isContractCanceled && !isFinalContractCanceled;
 
         return (
           <Space size="small" wrap={false}>
@@ -1046,17 +1134,30 @@ const CheckinsAD: React.FC = () => {
               <Form.Item
                 label="Phòng"
                 name="roomId"
-                rules={[{ required: true, message: "Chọn phòng!" }]}
+                rules={[
+                  { required: true, message: "Chọn phòng!" },
+                  {
+                    validator: (_, value) => {
+                      if (!value) {
+                        return Promise.resolve();
+                      }
+                      if (isRoomDeposited(value)) {
+                        return Promise.reject(new Error("Phòng này đang được cọc, không thể tạo phiếu thu mới!"));
+                      }
+                      return Promise.resolve();
+                    },
+                  },
+                ]}
               >
                 <Select placeholder="Chọn phòng" showSearch optionFilterProp="children">
                   {rooms
-                    .filter((room) => room.status === "AVAILABLE")
+                    .filter((room) => room.status === "AVAILABLE" && !isRoomDeposited(room._id))
                     .map((room) => (
                       <Option key={room._id} value={room._id}>
                         {room.roomNumber} - Còn trống
                       </Option>
                     ))}
-                  {rooms.filter((room) => room.status === "AVAILABLE").length === 0 && (
+                  {rooms.filter((room) => room.status === "AVAILABLE" && !isRoomDeposited(room._id)).length === 0 && (
                     <Option disabled value="">
                       Không có phòng trống
                     </Option>
