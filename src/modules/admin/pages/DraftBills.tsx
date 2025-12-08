@@ -1159,6 +1159,34 @@ const DraftBills: React.FC = () => {
                       {item.baseRate !== undefined && <Text>Đơn giá: {item.baseRate.toLocaleString("vi-VN")} ₫</Text>}
                       {item.subtotal !== undefined && <Text>Tiền điện: {item.subtotal.toLocaleString("vi-VN")} ₫</Text>}
                       {item.vat !== undefined && <Text>VAT: {item.vat.toLocaleString("vi-VN")} ₫</Text>}
+                      
+                      {/* Hiển thị lãi điện (chỉ ADMIN thấy) */}
+                      {item.type === 'electricity' && (item as any).costPrice !== undefined && (item as any).profitAmount !== undefined && (
+                        <div style={{ 
+                          marginTop: 8, 
+                          padding: 8, 
+                          background: "linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)",
+                          borderRadius: 4,
+                          border: "1px solid #ffb74d"
+                        }}>
+                          <Space direction="vertical" size={2} style={{ width: "100%" }}>
+                            <Text strong style={{ color: "#e65100", fontSize: 12 }}>
+                              💰 Thông tin lãi (Chỉ ADMIN)
+                            </Text>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                              <Text>Chi phí gốc:</Text>
+                              <Text>{((item as any).costPrice).toLocaleString("vi-VN")} ₫</Text>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                              <Text>Lãi ({((item as any).profitMargin * 100).toFixed(0)}%):</Text>
+                              <Text strong style={{ color: "#52c41a" }}>
+                                +{((item as any).profitAmount).toLocaleString("vi-VN")} ₫
+                              </Text>
+                            </div>
+                          </Space>
+                        </div>
+                      )}
+                      
                       <Text strong style={{ color: "#1890ff" }}>
                         Tổng: {item.total.toLocaleString("vi-VN")} ₫
                       </Text>

@@ -3,6 +3,7 @@ import { Table, Button, Tag, Modal, Upload, message, Space, Popconfirm, Image, T
 import { UploadOutlined, EyeOutlined, DeleteOutlined, FilePdfOutlined, PlusOutlined, DollarOutlined, SearchOutlined, UserOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import { useLocation } from "react-router-dom";
 import ExtendContractModal from "../components/ExtendContractModal";
+import RentAdditionalRoomModal from "../components/RentAdditionalRoomModal";
 import type { UploadFile } from "antd";
 import dayjs from "dayjs";
 
@@ -98,6 +99,12 @@ const FinalContracts = () => {
   const [searchTenants, setSearchTenants] = useState<any[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [selectedTenantId, setSelectedTenantId] = useState<string>("");
+  // Rent additional room modal
+  const [rentAdditionalRoomModalVisible, setRentAdditionalRoomModalVisible] = useState(false);
+  const [rentTenantId, setRentTenantId] = useState<string | null>(null);
+  const [rentTenantName, setRentTenantName] = useState<string | null>(null);
+  const [selectTenantModalVisible, setSelectTenantModalVisible] = useState(false);
+  const [tenantsWithContracts, setTenantsWithContracts] = useState<any[]>([]);
    // PDF viewer modal
   const [pdfViewerVisible, setPdfViewerVisible] = useState(false);
   const [pdfViewerUrl, setPdfViewerUrl] = useState<string>("");
@@ -144,6 +151,44 @@ const FinalContracts = () => {
       // Mở ảnh trong tab mới
       const url = file.viewUrl || file.inlineUrl || file.secure_url || file.url;
       window.open(url, "_blank");
+    }
+  };
+
+  const loadTenantsWithContracts = async () => {
+    try {
+      // Lấy tất cả hợp đồng SIGNED (phân trang để lấy hết)
+      const tenantMap = new Map();
+      let currentPage = 1;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const response = await adminFinalContractService.getAll({ 
+          status: "SIGNED", 
+          limit: 100,
+          page: currentPage 
+        });
+        
+        // Lọc ra danh sách tenant unique
+        response.data.forEach((contract: FinalContract) => {
+          if (contract.tenantId) {
+            tenantMap.set(contract.tenantId._id, {
+              _id: contract.tenantId._id,
+              fullName: contract.tenantId.fullName,
+              email: contract.tenantId.email,
+              phone: contract.tenantId.phone,
+            });
+          }
+        });
+        
+        // Kiểm tra còn trang nữa không
+        const totalPages = response.pagination?.totalPages || 1;
+        hasMore = currentPage < totalPages;
+        currentPage++;
+      }
+      
+      setTenantsWithContracts(Array.from(tenantMap.values()));
+    } catch (error) {
+      message.error("Lỗi khi tải danh sách khách hàng");
     }
   };
 
@@ -1118,16 +1163,28 @@ const FinalContracts = () => {
     <div style={{ padding: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <h2>Quản lý Hợp đồng Chính thức (Final Contracts)</h2>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => {
-            loadAvailableContracts();
-            setNewContractModalVisible(true);
-          }}
-        >
-          Tạo hóa đơn hợp đồng
-        </Button>
+        <Space>
+          <Button
+            type="default"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              loadTenantsWithContracts();
+              setSelectTenantModalVisible(true);
+            }}
+          >
+            Thuê thêm phòng
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              loadAvailableContracts();
+              setNewContractModalVisible(true);
+            }}
+          >
+            Tạo hóa đơn hợp đồng
+          </Button>
+        </Space>
       </div>
       <Table
         columns={columns}
@@ -1818,6 +1875,64 @@ const FinalContracts = () => {
           showCount
         />
       </Modal>
+
+      {/* Select Tenant Modal */}
+      <Modal
+        title="Chọn khách hàng thuê thêm phòng"
+        open={selectTenantModalVisible}
+        onOk={() => {
+          if (!rentTenantId) {
+            message.warning("Vui lòng chọn khách hàng");
+            return;
+          }
+          setSelectTenantModalVisible(false);
+          setRentAdditionalRoomModalVisible(true);
+        }}
+        onCancel={() => {
+          setSelectTenantModalVisible(false);
+          setRentTenantId(null);
+          setRentTenantName(null);
+        }}
+        okText="Tiếp tục"
+        cancelText="Hủy"
+      >
+        <div style={{ marginBottom: 16 }}>
+          <Text>Chọn khách hàng đã có hợp đồng để thuê thêm phòng:</Text>
+        </div>
+        <Select
+          showSearch
+          style={{ width: "100%" }}
+          placeholder="Tìm kiếm khách hàng"
+          value={rentTenantId}
+          onChange={(value) => {
+            setRentTenantId(value);
+            const tenant = tenantsWithContracts.find((t) => t._id === value);
+            setRentTenantName(tenant?.fullName || null);
+          }}
+          filterOption={(input, option) =>
+            (option?.label ?? "").toLowerCase().includes(input.toLowerCase())
+          }
+          options={tenantsWithContracts.map((tenant) => ({
+            value: tenant._id,
+            label: `${tenant.fullName} - ${tenant.phone} - ${tenant.email}`,
+          }))}
+        />
+      </Modal>
+
+      {/* Rent Additional Room Modal */}
+      <RentAdditionalRoomModal
+        visible={rentAdditionalRoomModalVisible}
+        tenantId={rentTenantId}
+        tenantName={rentTenantName}
+        onClose={() => {
+          setRentAdditionalRoomModalVisible(false);
+          setRentTenantId(null);
+          setRentTenantName(null);
+        }}
+        onSuccess={() => {
+          fetchContracts(pagination.current, pagination.pageSize);
+        }}
+      />
     </div>
   );
 };

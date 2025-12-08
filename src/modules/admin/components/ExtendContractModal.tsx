@@ -20,6 +20,7 @@ const ExtendContractModal: React.FC<ExtendContractModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [extensionMonths, setExtensionMonths] = useState<number>(6);
   const [newEndDate, setNewEndDate] = useState<Date | null>(null);
+  const [newRentPrice, setNewRentPrice] = useState<number | null>(null);
 
   useEffect(() => {
     if (contract && extensionMonths) {
@@ -66,7 +67,7 @@ const ExtendContractModal: React.FC<ExtendContractModalProps> = ({
       }
 
       setLoading(true);
-      await adminFinalContractService.extend(contract._id, extensionMonths);
+      await adminFinalContractService.extend(contract._id, extensionMonths, newRentPrice);
       message.success(`Gia hạn hợp đồng thành công thêm ${extensionMonths} tháng`);
       form.resetFields();
       onSuccess();
@@ -81,6 +82,7 @@ const ExtendContractModal: React.FC<ExtendContractModalProps> = ({
   const handleCancel = () => {
     form.resetFields();
     setExtensionMonths(6);
+    setNewRentPrice(null);
     onClose();
   };
 
@@ -135,6 +137,9 @@ const ExtendContractModal: React.FC<ExtendContractModalProps> = ({
             ? contract.metadata.extensions.length 
             : 0} lần
         </Descriptions.Item>
+        <Descriptions.Item label="Giá thuê hiện tại">
+          {(contract.monthlyRent || contract.rentPrice)?.toLocaleString('vi-VN') || 'N/A'} VNĐ/tháng
+        </Descriptions.Item>
       </Descriptions>
 
       <Form form={form} layout="vertical" initialValues={{ extensionMonths: 6 }}>
@@ -175,6 +180,23 @@ const ExtendContractModal: React.FC<ExtendContractModalProps> = ({
           />
         </Form.Item>
 
+        <Form.Item
+          label="Giá thuê mới (tùy chọn)"
+          name="newRentPrice"
+          tooltip="Để trống nếu giữ nguyên giá thuê hiện tại"
+        >
+          <InputNumber
+            min={0}
+            value={newRentPrice || undefined}
+            onChange={(value) => setNewRentPrice(value)}
+            addonAfter="VNĐ/tháng"
+            style={{ width: "100%" }}
+            placeholder={`Giá hiện tại: ${(contract.monthlyRent || contract.rentPrice)?.toLocaleString('vi-VN') || 'N/A'} VNĐ`}
+            formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+            parser={(value) => Number(value?.replace(/\$\s?|(,*)/g, '') || 0)}
+          />
+        </Form.Item>
+
         {newEndDate && (
           <Alert
             message="Ngày kết thúc mới"
@@ -204,6 +226,11 @@ const ExtendContractModal: React.FC<ExtendContractModalProps> = ({
               <div key={idx} style={{ padding: "4px 0", borderBottom: "1px solid #f0f0f0" }}>
                 <strong>Lần {idx + 1}:</strong> {dayjs(ext.extendedAt).format("DD/MM/YYYY HH:mm")} - Gia hạn{" "}
                 {ext.extensionMonths} tháng
+                {ext.newRentPrice && ext.previousRentPrice && ext.newRentPrice !== ext.previousRentPrice && (
+                  <span style={{ color: "#1890ff", marginLeft: 8 }}>
+                    (Giá thuê: {ext.previousRentPrice?.toLocaleString('vi-VN')} → {ext.newRentPrice?.toLocaleString('vi-VN')} VNĐ)
+                  </span>
+                )}
               </div>
             ))}
           </div>

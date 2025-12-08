@@ -32,6 +32,9 @@ export interface FeeCalculation {
     }>;
     subtotal?: number;
     vat?: number;
+    costPrice?: number; // Giá gốc (chưa lãi) - chỉ cho electricity
+    profitMargin?: number; // Tỷ lệ lãi (0.05 = 5%)
+    profitAmount?: number; // Số tiền lãi
     total: number;
   }>;
   total: number;
