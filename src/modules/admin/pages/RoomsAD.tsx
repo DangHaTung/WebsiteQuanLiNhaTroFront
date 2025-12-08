@@ -99,11 +99,55 @@ const RoomsAD: React.FC = () => {
   const handleOk = async () => {
     try {
       const values = await form.validateFields();
+      console.log("🔍 [1] Form values:", values);
+      console.log("🔍 [2] editingRoom:", editingRoom);
+      
       const formData = new FormData();
 
-      Object.keys(values).forEach((key) => {
-        if (key !== "images") formData.append(key, (values as any)[key]);
+      // Khi edit, lấy tất cả giá trị từ form (bao gồm cả giá trị không thay đổi)
+      const allValues = editingRoom 
+        ? {
+            roomNumber: values.roomNumber,
+            type: values.type,
+            pricePerMonth: values.pricePerMonth,
+            areaM2: values.areaM2,
+            status: values.status,
+            floor: values.floor,
+            initialElectricReading: values.initialElectricReading !== undefined 
+              ? values.initialElectricReading 
+              : (editingRoom.initialElectricReading || 0),
+          }
+        : values;
+      
+      console.log("🔍 [3] allValues:", allValues);
+
+      // Append tất cả fields ngoại trừ images
+      Object.keys(allValues).forEach((key) => {
+        if (key !== "images") {
+          const value = (allValues as any)[key];
+          // Chỉ append nếu value không phải undefined/null
+          if (value !== undefined && value !== null) {
+            formData.append(key, value.toString());
+          }
+        }
       });
+
+      // Đảm bảo initialElectricReading luôn được gửi (mặc định 0 nếu không có)
+      const electricReading = allValues.initialElectricReading !== undefined 
+        ? allValues.initialElectricReading 
+        : 0;
+      
+      console.log("🔍 [4] electricReading value:", electricReading, typeof electricReading);
+      
+      if (formData.has("initialElectricReading")) {
+        formData.delete("initialElectricReading");
+      }
+      formData.append("initialElectricReading", electricReading.toString());
+      
+      console.log("🔍 [5] FormData entries:");
+      for (const [key, value] of formData.entries()) {
+        console.log(`     ${key}:`, value);
+      }
 
       // Khi edit room: LUÔN gửi existingImages (kể cả khi rỗng để xóa hết ảnh)
       if (editingRoom) {
@@ -155,6 +199,7 @@ const RoomsAD: React.FC = () => {
       areaM2: room.areaM2,
       status: room.status,
       floor: room.floor,
+      initialElectricReading: room.initialElectricReading || 0,
     });
     setIsModalOpen(true);
 
@@ -314,6 +359,17 @@ const RoomsAD: React.FC = () => {
       ),
     },
     {
+      title: "Số điện hiện tại (kWh)",
+      dataIndex: "initialElectricReading",
+      key: "initialElectricReading",
+      align: "center",
+      render: (reading: number) => (
+        <span style={{ color: "#722ed1", fontWeight: 600 }}>
+          {reading || 0}
+        </span>
+      ),
+    },
+    {
       title: "Tình trạng",
       dataIndex: "status",
       key: "status",
@@ -418,6 +474,9 @@ const RoomsAD: React.FC = () => {
               size="large"
               onClick={() => {
                 form.resetFields();
+                form.setFieldsValue({
+                  initialElectricReading: 0,
+                });
                 setSelectedFiles([]);
                 setPreviewUrls([]);
                 setEditingRoom(null);
@@ -598,7 +657,22 @@ const RoomsAD: React.FC = () => {
             </Col>
           </Row>
 
-        
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <Form.Item 
+                label="Số điện cũ (kWh)" 
+                name="initialElectricReading"
+                tooltip="Số điện hiện tại của phòng, dùng cho phiếu thu cọc"
+                initialValue={0}
+              >
+                <InputNumber 
+                  placeholder="VD: 1250" 
+                  style={{ width: "100%" }} 
+                  min={0}
+                />
+              </Form.Item>
+            </Col>
+          </Row>
 
           <Form.Item label="Ảnh phòng">
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>

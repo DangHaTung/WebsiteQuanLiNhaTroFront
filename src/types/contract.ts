@@ -36,6 +36,7 @@ export interface FileInfo {
 export interface TenantSnapshot {
   fullName?: string;
   phone?: string;
+  email?: string;
   identityNo?: string; // CCCD/CMND
   address?: string;
   note?: string;
@@ -146,6 +147,9 @@ export interface Contract {
   status?: ContractStatus;
   coTenants?: CoTenant[];
   pricingSnapshot?: PricingSnapshot;
+  tenantSnapshot?: TenantSnapshot;
+  originContractId?: string;
+  images?: FileInfo[];
   createdAt?: string;
   updatedAt?: string;
 }

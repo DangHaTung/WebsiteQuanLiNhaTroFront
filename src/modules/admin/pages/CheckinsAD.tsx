@@ -1149,7 +1149,20 @@ const CheckinsAD: React.FC = () => {
                   },
                 ]}
               >
-                <Select placeholder="Chọn phòng" showSearch optionFilterProp="children">
+                <Select 
+                  placeholder="Chọn phòng" 
+                  showSearch 
+                  optionFilterProp="children"
+                  onChange={(value) => {
+                    // Khi chọn phòng, tự động điền số điện hiện tại
+                    const selectedRoom = rooms.find((r) => r._id === value);
+                    if (selectedRoom && selectedRoom.initialElectricReading !== undefined) {
+                      form.setFieldsValue({
+                        initialElectricReading: selectedRoom.initialElectricReading,
+                      });
+                    }
+                  }}
+                >
                   {rooms
                     .filter((room) => room.status === "AVAILABLE" && !isRoomDeposited(room._id))
                     .map((room) => (
@@ -1279,8 +1292,41 @@ const CheckinsAD: React.FC = () => {
               <Form.Item 
                 label="Số điện hiện tại (kWh)"
                 name="initialElectricReading"
+                dependencies={["roomId"]}
                 rules={[
                   { required: true, message: "Nhập số điện hiện tại!" },
+                  {
+                    validator: (_, value) => {
+                      if (value === undefined || value === null) {
+                        return Promise.resolve();
+                      }
+                      
+                      // Lấy roomId đã chọn
+                      const roomId = form.getFieldValue("roomId");
+                      if (!roomId) {
+                        return Promise.resolve();
+                      }
+                      
+                      // Tìm phòng đã chọn
+                      const selectedRoom = rooms.find((r) => r._id === roomId);
+                      if (!selectedRoom) {
+                        return Promise.resolve();
+                      }
+                      
+                      // Lấy số điện hiện tại của phòng
+                      const currentReading = selectedRoom.initialElectricReading || 0;
+                      const newReading = Number(value);
+                      
+                      // Chỉ cho phép tăng hoặc giữ nguyên, không cho giảm
+                      if (newReading < currentReading) {
+                        return Promise.reject(
+                          new Error(`Số điện không được nhỏ hơn số điện hiện tại của phòng (${currentReading} kWh)`)
+                        );
+                      }
+                      
+                      return Promise.resolve();
+                    },
+                  },
                 ]}
               >
                 <InputNumber 

@@ -9,6 +9,7 @@ export interface User {
   phone?: string;
   passwordHash?: string;
   role: UserRole;
+  address?: string;
   createdAt?: string;
   isLocked?: boolean;
 }

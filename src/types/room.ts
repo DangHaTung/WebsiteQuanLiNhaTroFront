@@ -13,8 +13,10 @@ export interface Room {
   occupantCount?: number;
   image: string;
   images?: string[];
+  initialElectricReading?: number;
   createdAt: string;
   updatedAt: string;
+  activeContract?: any;
   currentContractSummary?: {
     contractId: string;
     tenantName: string;

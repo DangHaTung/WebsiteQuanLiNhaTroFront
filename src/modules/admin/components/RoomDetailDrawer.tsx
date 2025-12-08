@@ -333,6 +333,11 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
             </Descriptions.Item>
             <Descriptions.Item label="Diện tích">{room?.areaM2} m²</Descriptions.Item>
             <Descriptions.Item label="Tầng">{room?.floor}</Descriptions.Item>
+            <Descriptions.Item label="Số điện hiện tại">
+              <Text strong style={{ color: "#722ed1" }}>
+                {room?.initialElectricReading || 0} kWh
+              </Text>
+            </Descriptions.Item>
             <Descriptions.Item label="Trạng thái">
                       {room && room.status && statusConfig[room.status] ? (
                 <Tag
@@ -383,7 +388,7 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
                 <Descriptions.Item label="Email">
                   <Space>
                     <MailOutlined />
-                    {tenant?.email || tenantSnapshot?.email || "N/A"}
+                    {tenant?.email || "N/A"}
                   </Space>
                 </Descriptions.Item>
 

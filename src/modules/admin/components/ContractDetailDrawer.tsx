@@ -137,7 +137,7 @@ const ContractDetailDrawer: React.FC<ContractDetailDrawerProps> = ({
               </Text>
             </Descriptions.Item>
             <Descriptions.Item label="Trạng thái">
-              {contract && (
+              {contract && contract.status && (
                 <Tag
                   color={statusConfig[contract.status]?.color}
                   style={{
