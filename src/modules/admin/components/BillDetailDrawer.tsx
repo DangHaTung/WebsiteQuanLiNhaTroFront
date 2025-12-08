@@ -318,8 +318,14 @@ const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
                 columns={[
                   {
                     title: "Tên khoản",
-                    dataIndex: "description",
-                    key: "description",
+                    dataIndex: "item",
+                    key: "item",
+                  },
+                  {
+                    title: "Số lượng",
+                    dataIndex: "quantity",
+                    key: "quantity",
+                    align: "right" as const,
                   },
                   {
                     title: "Đơn giá (₫)",
@@ -337,6 +343,41 @@ const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
                   },
                 ]}
               />
+              
+              {/* Hiển thị lãi điện (chỉ ADMIN thấy) */}
+              {(bill as any).metadata?.breakdown?.electricity?.profitAmount && (
+                <div style={{ 
+                  marginTop: 16, 
+                  padding: 12, 
+                  background: "linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)",
+                  borderRadius: 8,
+                  border: "1px solid #ffb74d"
+                }}>
+                  <Space direction="vertical" size="small" style={{ width: "100%" }}>
+                    <Text strong style={{ color: "#e65100" }}>
+                      Thông tin lãi 
+                    </Text>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <Text>Chi phí điện gốc:</Text>
+                      <Text strong>
+                        {Number((bill as any).metadata.breakdown.electricity.costPrice || 0).toLocaleString("vi-VN")} ₫
+                      </Text>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <Text>Lãi điện (5%):</Text>
+                      <Text strong style={{ color: "#52c41a" }}>
+                        +{Number((bill as any).metadata.breakdown.electricity.profitAmount || 0).toLocaleString("vi-VN")} ₫
+                      </Text>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <Text>Tổng thu khách:</Text>
+                      <Text strong style={{ color: "#1890ff" }}>
+                        {Number((bill as any).metadata.breakdown.electricity.total || 0).toLocaleString("vi-VN")} ₫
+                      </Text>
+                    </div>
+                  </Space>
+                </div>
+              )}
             </>
           )}
 

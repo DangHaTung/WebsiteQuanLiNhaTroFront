@@ -192,11 +192,16 @@ export const adminFinalContractService = {
   /**
    * Gia hạn hợp đồng
    * extensionMonths: số tháng gia hạn thêm
+   * newRentPrice: giá thuê mới (tùy chọn)
    */
-  async extend(id: string, extensionMonths: number): Promise<{ finalContract: FinalContract; extension: any }> {
+  async extend(id: string, extensionMonths: number, newRentPrice?: number | null): Promise<{ finalContract: FinalContract; extension: any }> {
+    const payload: any = { extensionMonths };
+    if (newRentPrice !== null && newRentPrice !== undefined) {
+      payload.newRentPrice = newRentPrice;
+    }
     const res = await api.put<{ success: boolean; message: string; data: { finalContract: FinalContract; extension: any } }>(
       `/final-contracts/${id}/extend`,
-      { extensionMonths }
+      payload
     );
     return res.data.data;
   },
@@ -209,6 +214,24 @@ export const adminFinalContractService = {
       `/final-contracts/expiring-soon`,
       { params: { days } }
     );
+    return res.data.data;
+  },
+
+  /**
+   * Thuê thêm phòng cho tenant hiện tại
+   */
+  async rentAdditionalRoom(payload: {
+    tenantId: string;
+    roomId: string;
+    startDate: string;
+    endDate: string;
+    depositAmount?: number;
+  }): Promise<{ finalContract: FinalContract; contract: any; bill: any }> {
+    const res = await api.post<{
+      success: boolean;
+      message: string;
+      data: { finalContract: FinalContract; contract: any; bill: any };
+    }>(`/final-contracts/rent-additional-room`, payload);
     return res.data.data;
   },
 };

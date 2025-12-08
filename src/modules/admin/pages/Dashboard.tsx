@@ -42,7 +42,8 @@ const Dashboard: React.FC = () => {
   // Thống kê điện và doanh thu
   const [electricityStats, setElectricityStats] = useState<any[]>([]);
   const [yearlyRevenue, setYearlyRevenue] = useState(0);
-  const [lastMonthRevenue, setLastMonthRevenue] = useState(0);
+  const [monthlyProfit, setMonthlyProfit] = useState(0);
+  const [yearlyProfit, setYearlyProfit] = useState(0);
 
   const resolveTenantName = (c: any, tenantsList: any[]) => {
     if (c.tenant && typeof c.tenant === "object") {
@@ -116,13 +117,19 @@ const Dashboard: React.FC = () => {
         const weeklyTotals = [0, 0, 0, 0];
         let monthTotal = 0;
         let yearTotal = 0;
-        let lastMonthTotal = 0;
-
-        // Tính tháng trước
-        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
         // Thống kê điện: lọc bill MONTHLY, lấy số điện, sắp xếp giảm dần
         const electricityList: { roomNumber: string; electricity: number; amount: number }[] = [];
+        
+        // Tính chi phí điện/nước để tính lợi nhuận
+        // Lãi điện: 5%, lãi nước: 0% (bán giá gốc)
+        const ELECTRICITY_PROFIT_MARGIN = 0.05; // 5%
+        const WATER_PROFIT_MARGIN = 0; // 0%
+        
+        let monthElectricityRevenue = 0; // Tiền điện thu được
+        let monthWaterRevenue = 0; // Tiền nước thu được
+        let yearElectricityRevenue = 0;
+        let yearWaterRevenue = 0;
 
         bills.forEach((bill: Bill) => {
           const dateStr = bill.createdAt || bill.billingDate;
@@ -139,17 +146,33 @@ const Dashboard: React.FC = () => {
             const weekIndex = Math.min(Math.floor((date.getDate() - 1) / 7), 3);
             weeklyTotals[weekIndex] += amount;
             monthTotal += amount;
+
+            // Tính doanh thu điện/nước tháng này (chỉ bill đã thanh toán)
+            if (bill.status === 'PAID' && bill.lineItems) {
+              bill.lineItems.forEach((item: any) => {
+                if (item.item?.toLowerCase().includes('điện')) {
+                  monthElectricityRevenue += item.lineTotal || 0;
+                } else if (item.item?.toLowerCase().includes('nước')) {
+                  monthWaterRevenue += item.lineTotal || 0;
+                }
+              });
+            }
           }
 
           // Tính doanh thu năm nay
           if (date.getFullYear() === now.getFullYear()) {
             yearTotal += amount;
-          }
 
-          // Tính doanh thu tháng trước
-          const isLastMonth = date.getMonth() === lastMonth.getMonth() && date.getFullYear() === lastMonth.getFullYear();
-          if (isLastMonth) {
-            lastMonthTotal += amount;
+            // Tính doanh thu điện/nước năm nay
+            if (bill.status === 'PAID' && bill.lineItems) {
+              bill.lineItems.forEach((item: any) => {
+                if (item.item?.toLowerCase().includes('điện')) {
+                  yearElectricityRevenue += item.lineTotal || 0;
+                } else if (item.item?.toLowerCase().includes('nước')) {
+                  yearWaterRevenue += item.lineTotal || 0;
+                }
+              });
+            }
           }
 
           // Thống kê điện: lấy tất cả bill MONTHLY có số điện
@@ -184,10 +207,23 @@ const Dashboard: React.FC = () => {
           .sort((a, b) => b.electricity - a.electricity)
           .slice(0, 10);
 
+        // Tính chi phí gốc (cost) từ doanh thu (revenue)
+        // Chi phí điện gốc = Doanh thu điện / (1 + lãi) = Doanh thu / 1.05
+        // Chi phí nước gốc = Doanh thu nước (vì lãi = 0%)
+        const monthElectricityCost = monthElectricityRevenue / (1 + ELECTRICITY_PROFIT_MARGIN);
+        const monthWaterCost = monthWaterRevenue / (1 + WATER_PROFIT_MARGIN);
+        const yearElectricityCost = yearElectricityRevenue / (1 + ELECTRICITY_PROFIT_MARGIN);
+        const yearWaterCost = yearWaterRevenue / (1 + WATER_PROFIT_MARGIN);
+
+        // Tính lợi nhuận = Doanh thu - Chi phí điện gốc - Chi phí nước gốc
+        const monthProfit = monthTotal - monthElectricityCost - monthWaterCost;
+        const yearProfit = yearTotal - yearElectricityCost - yearWaterCost;
+
         setElectricityStats(electricityArray);
         setYearlyRevenue(yearTotal);
-        setLastMonthRevenue(lastMonthTotal);
         setTotalRevenue(monthTotal);
+        setMonthlyProfit(monthProfit);
+        setYearlyProfit(yearProfit);
       }
     } catch (error) {
       console.error(error);
@@ -405,7 +441,7 @@ const Dashboard: React.FC = () => {
 
         <Col xs={24} md={12}>
           <Card
-            title="Thống kê doanh thu"
+            title="Thống kê doanh thu & lợi nhuận"
             className="hover-glow-card"
             style={{ marginBottom: 24 }}
           >
@@ -418,9 +454,9 @@ const Dashboard: React.FC = () => {
                   color: "white",
                   textAlign: "center"
                 }}>
-                  <div style={{ fontSize: 14, marginBottom: 8, opacity: 0.9 }}>Doanh thu tháng trước</div>
+                  <div style={{ fontSize: 14, marginBottom: 8, opacity: 0.9 }}>Doanh thu tháng này</div>
                   <div style={{ fontSize: 24, fontWeight: "bold" }}>
-                    {lastMonthRevenue.toLocaleString("vi-VN")} ₫
+                    {totalRevenue.toLocaleString("vi-VN")} ₫
                   </div>
                 </div>
               </Col>
@@ -432,9 +468,37 @@ const Dashboard: React.FC = () => {
                   color: "white",
                   textAlign: "center"
                 }}>
+                  <div style={{ fontSize: 14, marginBottom: 8, opacity: 0.9 }}>Lợi nhuận tháng này</div>
+                  <div style={{ fontSize: 24, fontWeight: "bold" }}>
+                    {monthlyProfit.toLocaleString("vi-VN")} ₫
+                  </div>
+                </div>
+              </Col>
+              <Col span={12}>
+                <div style={{ 
+                  padding: 20, 
+                  background: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)", 
+                  borderRadius: 12,
+                  color: "white",
+                  textAlign: "center"
+                }}>
                   <div style={{ fontSize: 14, marginBottom: 8, opacity: 0.9 }}>Doanh thu năm nay</div>
                   <div style={{ fontSize: 24, fontWeight: "bold" }}>
                     {yearlyRevenue.toLocaleString("vi-VN")} ₫
+                  </div>
+                </div>
+              </Col>
+              <Col span={12}>
+                <div style={{ 
+                  padding: 20, 
+                  background: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)", 
+                  borderRadius: 12,
+                  color: "white",
+                  textAlign: "center"
+                }}>
+                  <div style={{ fontSize: 14, marginBottom: 8, opacity: 0.9 }}>Lợi nhuận năm nay</div>
+                  <div style={{ fontSize: 24, fontWeight: "bold" }}>
+                    {yearlyProfit.toLocaleString("vi-VN")} ₫
                   </div>
                 </div>
               </Col>
