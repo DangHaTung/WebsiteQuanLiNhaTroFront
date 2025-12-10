@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useMemo } from "react";
-import { Card, Col, Row, Table, Tag, Progress, Avatar, Button, message } from "antd";
+import { Card, Col, Row, Table, Tag, Progress, Button, message } from "antd";
 import { HomeOutlined, UserOutlined, DollarOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import { adminRoomService } from "../services/room";
 import { adminBillService } from "../services/bill";
 import "../../../assets/styles/dashboard.css";
 import { adminContractService } from "../services/contract";
 import { adminTenantService } from "../services/tenant";
+import { adminFinalContractService } from "../services/finalContract";
 
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
@@ -37,13 +38,19 @@ const Dashboard: React.FC = () => {
   const [rooms, setRooms] = useState<any[]>([]);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [recentRentals, setRecentRentals] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
 
   // Thống kê điện và doanh thu
   const [electricityStats, setElectricityStats] = useState<any[]>([]);
   const [yearlyRevenue, setYearlyRevenue] = useState(0);
   const [monthlyProfit, setMonthlyProfit] = useState(0);
   const [yearlyProfit, setYearlyProfit] = useState(0);
+  const [monthlyElectricityCost, setMonthlyElectricityCost] = useState(0);
+  const [yearlyElectricityCost, setYearlyElectricityCost] = useState(0);
+
+  // Thống kê hóa đơn chưa thanh toán và hợp đồng sắp hết hạn
+  const [unpaidBills, setUnpaidBills] = useState<{ count: number; total: number; overdue: number }>({ count: 0, total: 0, overdue: 0 });
+  const [expiringContracts, setExpiringContracts] = useState<any[]>([]);
 
   const resolveTenantName = (c: any, tenantsList: any[]) => {
     if (c.tenant && typeof c.tenant === "object") {
@@ -114,22 +121,26 @@ const Dashboard: React.FC = () => {
 
       if (bills.length > 0) {
         const now = new Date();
-        const weeklyTotals = [0, 0, 0, 0];
         let monthTotal = 0;
         let yearTotal = 0;
 
         // Thống kê điện: lọc bill MONTHLY, lấy số điện, sắp xếp giảm dần
         const electricityList: { roomNumber: string; electricity: number; amount: number }[] = [];
         
-        // Tính chi phí điện/nước để tính lợi nhuận
-        // Lãi điện: 5%, lãi nước: 0% (bán giá gốc)
+        // Tính chi phí điện/nước/internet/dọn dẹp để tính lợi nhuận
         const ELECTRICITY_PROFIT_MARGIN = 0.05; // 5%
         const WATER_PROFIT_MARGIN = 0; // 0%
+        const INTERNET_PROFIT_MARGIN = 0.5; // 50%
+        const CLEANING_PROFIT_MARGIN = 1/3; // 33.33%
         
         let monthElectricityRevenue = 0; // Tiền điện thu được
         let monthWaterRevenue = 0; // Tiền nước thu được
+        let monthInternetRevenue = 0; // Tiền internet thu được
+        let monthCleaningRevenue = 0; // Tiền dọn dẹp thu được
         let yearElectricityRevenue = 0;
         let yearWaterRevenue = 0;
+        let yearInternetRevenue = 0;
+        let yearCleaningRevenue = 0;
 
         bills.forEach((bill: Bill) => {
           const dateStr = bill.createdAt || bill.billingDate;
@@ -143,17 +154,20 @@ const Dashboard: React.FC = () => {
           // Tính doanh thu tháng này
           const sameMonth = date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
           if (sameMonth) {
-            const weekIndex = Math.min(Math.floor((date.getDate() - 1) / 7), 3);
-            weeklyTotals[weekIndex] += amount;
             monthTotal += amount;
 
-            // Tính doanh thu điện/nước tháng này (chỉ bill đã thanh toán)
+            // Tính doanh thu điện/nước/internet/dọn dẹp tháng này (chỉ bill đã thanh toán)
             if (bill.status === 'PAID' && bill.lineItems) {
               bill.lineItems.forEach((item: any) => {
-                if (item.item?.toLowerCase().includes('điện')) {
+                const itemName = item.item?.toLowerCase() || '';
+                if (itemName.includes('điện')) {
                   monthElectricityRevenue += item.lineTotal || 0;
-                } else if (item.item?.toLowerCase().includes('nước')) {
+                } else if (itemName.includes('nước')) {
                   monthWaterRevenue += item.lineTotal || 0;
+                } else if (itemName.includes('internet') || itemName.includes('mạng')) {
+                  monthInternetRevenue += item.lineTotal || 0;
+                } else if (itemName.includes('dọn dẹp') || itemName.includes('vệ sinh')) {
+                  monthCleaningRevenue += item.lineTotal || 0;
                 }
               });
             }
@@ -163,13 +177,18 @@ const Dashboard: React.FC = () => {
           if (date.getFullYear() === now.getFullYear()) {
             yearTotal += amount;
 
-            // Tính doanh thu điện/nước năm nay
+            // Tính doanh thu điện/nước/internet/dọn dẹp năm nay
             if (bill.status === 'PAID' && bill.lineItems) {
               bill.lineItems.forEach((item: any) => {
-                if (item.item?.toLowerCase().includes('điện')) {
+                const itemName = item.item?.toLowerCase() || '';
+                if (itemName.includes('điện')) {
                   yearElectricityRevenue += item.lineTotal || 0;
-                } else if (item.item?.toLowerCase().includes('nước')) {
+                } else if (itemName.includes('nước')) {
                   yearWaterRevenue += item.lineTotal || 0;
+                } else if (itemName.includes('internet') || itemName.includes('mạng')) {
+                  yearInternetRevenue += item.lineTotal || 0;
+                } else if (itemName.includes('dọn dẹp') || itemName.includes('vệ sinh')) {
+                  yearCleaningRevenue += item.lineTotal || 0;
                 }
               });
             }
@@ -208,23 +227,60 @@ const Dashboard: React.FC = () => {
           .slice(0, 10);
 
         // Tính chi phí gốc (cost) từ doanh thu (revenue)
-        // Chi phí điện gốc = Doanh thu điện / (1 + lãi) = Doanh thu / 1.05
-        // Chi phí nước gốc = Doanh thu nước (vì lãi = 0%)
         const monthElectricityCost = monthElectricityRevenue / (1 + ELECTRICITY_PROFIT_MARGIN);
         const monthWaterCost = monthWaterRevenue / (1 + WATER_PROFIT_MARGIN);
+        const monthInternetCost = monthInternetRevenue / (1 + INTERNET_PROFIT_MARGIN);
+        const monthCleaningCost = monthCleaningRevenue / (1 + CLEANING_PROFIT_MARGIN);
+        
         const yearElectricityCost = yearElectricityRevenue / (1 + ELECTRICITY_PROFIT_MARGIN);
         const yearWaterCost = yearWaterRevenue / (1 + WATER_PROFIT_MARGIN);
+        const yearInternetCost = yearInternetRevenue / (1 + INTERNET_PROFIT_MARGIN);
+        const yearCleaningCost = yearCleaningRevenue / (1 + CLEANING_PROFIT_MARGIN);
 
-        // Tính lợi nhuận = Doanh thu - Chi phí điện gốc - Chi phí nước gốc
-        const monthProfit = monthTotal - monthElectricityCost - monthWaterCost;
-        const yearProfit = yearTotal - yearElectricityCost - yearWaterCost;
+        // Tính lợi nhuận = Doanh thu - Tất cả chi phí gốc
+        const monthProfit = monthTotal - monthElectricityCost - monthWaterCost - monthInternetCost - monthCleaningCost;
+        const yearProfit = yearTotal - yearElectricityCost - yearWaterCost - yearInternetCost - yearCleaningCost;
 
         setElectricityStats(electricityArray);
         setYearlyRevenue(yearTotal);
         setTotalRevenue(monthTotal);
         setMonthlyProfit(monthProfit);
         setYearlyProfit(yearProfit);
+        
+        // Lưu chi phí điện để hiển thị
+        setMonthlyElectricityCost(monthElectricityCost);
+        setYearlyElectricityCost(yearElectricityCost);
+
+        // (Không hiển thị riêng chi phí internet/dọn dẹp trên UI ở phiên bản hiện tại)
+
+        // Thống kê hóa đơn chưa thanh toán
+        const unpaidBillsList = bills.filter((b: Bill) => 
+          b.status === 'UNPAID' || b.status === 'PARTIALLY_PAID'
+        );
+        const unpaidTotal = unpaidBillsList.reduce((sum: number, b: Bill) => {
+          const amountDue = b.amountDue ?? 0;
+          const amountPaid = b.amountPaid ?? 0;
+          return sum + (amountDue - amountPaid);
+        }, 0);
+        
+        // Đếm hóa đơn quá hạn (dueDate < now)
+        const currentDate = new Date();
+        const overdueBills = unpaidBillsList.filter((b: Bill) => {
+          if (!b.dueDate) return false;
+          return new Date(b.dueDate) < currentDate;
+        }).length;
+
+        setUnpaidBills({
+          count: unpaidBillsList.length,
+          total: unpaidTotal,
+          overdue: overdueBills,
+        });
       }
+
+      // Lấy hợp đồng sắp hết hạn (30 ngày)
+      const expiringData = await adminFinalContractService.getExpiringSoon(30);
+      setExpiringContracts(Array.isArray(expiringData) ? expiringData : []);
+
     } catch (error) {
       console.error(error);
       message.error("Không thể tải dữ liệu Dashboard!");
@@ -285,24 +341,6 @@ const Dashboard: React.FC = () => {
     1200
   );
 
-  const recentRooms = useMemo(() => {
-    const sortedRooms = [...rooms].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-
-    return sortedRooms.slice(0, 5).map((r, idx) => ({
-      key: r._id || idx,
-      name: r.roomNumber,
-      status: r.status === "OCCUPIED" ? "Đang thuê" : "Trống",
-      price: (r.pricePerMonth || 0).toLocaleString() + "₫",
-      type: r.type,
-      area: r.areaM2 + " m²",
-      maxPeople: r.maxPeople || 2,
-      img: r.images?.[0] || "",
-      amenities: r.amenities || [],
-    }));
-  }, [rooms]);
-
   const getStatusColor = (status: string): string => {
     switch (status) {
       case "Đã thuê":
@@ -314,26 +352,7 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const columns = [
-    {
-      title: "Ảnh",
-      dataIndex: "img",
-      key: "img",
-      render: (img: string) => <Avatar shape="square" size={60} src={img} />,
-    },
-    { title: "Tên phòng", dataIndex: "name", key: "name" },
-    {
-      title: "Trạng thái",
-      dataIndex: "status",
-      key: "status",
-      render: (status: string) => (
-        <Tag color={status === "Đang thuê" ? "green" : "orange"}>{status}</Tag>
-      ),
-    },
-    { title: "Giá", dataIndex: "price", key: "price" },
-    { title: "Loại phòng", dataIndex: "type", key: "type" },
-    { title: "Diện tích", dataIndex: "area", key: "area" },
-  ];
+  
 
   return (
     <div>
@@ -391,6 +410,135 @@ const Dashboard: React.FC = () => {
               format={(p) => `${p}% còn trống`}
               status="active"
             />
+          </Card>
+
+          {/* Hóa đơn chưa thanh toán */}
+          <Card
+            title="Hóa đơn chưa thanh toán"
+            className="hover-glow-card"
+            style={{ marginTop: 24 }}
+            extra={
+              <Button 
+                type="link" 
+                onClick={() => window.location.href = '/admin/bills'}
+              >
+                Xem tất cả
+              </Button>
+            }
+          >
+            <Row gutter={[16, 16]}>
+              <Col span={8}>
+                <div style={{ 
+                  padding: 16, 
+                  background: "linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)", 
+                  borderRadius: 12,
+                  color: "white",
+                  textAlign: "center"
+                }}>
+                  <div style={{ fontSize: 12, marginBottom: 4, opacity: 0.9 }}>Số hóa đơn</div>
+                  <div style={{ fontSize: 28, fontWeight: "bold" }}>
+                    {unpaidBills.count}
+                  </div>
+                </div>
+              </Col>
+              <Col span={8}>
+                <div style={{ 
+                  padding: 16, 
+                  background: "linear-gradient(135deg, #ffa502 0%, #ff6348 100%)", 
+                  borderRadius: 12,
+                  color: "white",
+                  textAlign: "center"
+                }}>
+                  <div style={{ fontSize: 12, marginBottom: 4, opacity: 0.9 }}>Quá hạn</div>
+                  <div style={{ fontSize: 28, fontWeight: "bold" }}>
+                    {unpaidBills.overdue}
+                  </div>
+                </div>
+              </Col>
+              <Col span={8}>
+                <div style={{ 
+                  padding: 16, 
+                  background: "linear-gradient(135deg, #ff4757 0%, #c23616 100%)", 
+                  borderRadius: 12,
+                  color: "white",
+                  textAlign: "center"
+                }}>
+                  <div style={{ fontSize: 12, marginBottom: 4, opacity: 0.9 }}>Tổng tiền</div>
+                  <div style={{ fontSize: 20, fontWeight: "bold" }}>
+                    {(unpaidBills.total / 1000000).toFixed(1)}M
+                  </div>
+                </div>
+              </Col>
+            </Row>
+          </Card>
+
+          {/* Hợp đồng sắp hết hạn */}
+          <Card
+            title="Hợp đồng sắp hết hạn (30 ngày)"
+            className="hover-glow-card"
+            style={{ marginTop: 24 }}
+            extra={
+              <Button 
+                type="link"
+                onClick={() => window.location.href = '/admin/final-contracts'}
+              >
+                Xem tất cả
+              </Button>
+            }
+          >
+            {expiringContracts.length > 0 ? (
+              <>
+                <div style={{ 
+                  padding: 16, 
+                  background: "linear-gradient(135deg, #feca57 0%, #ff9ff3 100%)", 
+                  borderRadius: 12,
+                  color: "white",
+                  textAlign: "center",
+                  marginBottom: 16
+                }}>
+                  <div style={{ fontSize: 14, marginBottom: 4, opacity: 0.9 }}>Số hợp đồng cần gia hạn</div>
+                  <div style={{ fontSize: 32, fontWeight: "bold" }}>
+                    {expiringContracts.length}
+                  </div>
+                </div>
+                <Table
+                  size="small"
+                  pagination={false}
+                  columns={[
+                    { 
+                      title: "Phòng", 
+                      dataIndex: ["roomId", "roomNumber"], 
+                      key: "room",
+                      render: (text: string) => <b>{text}</b>
+                    },
+                    { 
+                      title: "Khách thuê", 
+                      dataIndex: ["tenantId", "fullName"], 
+                      key: "tenant" 
+                    },
+                    { 
+                      title: "Hết hạn", 
+                      dataIndex: "endDate", 
+                      key: "endDate",
+                      render: (date: string) => {
+                        const daysLeft = Math.ceil((new Date(date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                        return (
+                          <Tag color={daysLeft <= 7 ? "red" : daysLeft <= 15 ? "orange" : "gold"}>
+                            {daysLeft} ngày
+                          </Tag>
+                        );
+                      }
+                    },
+                  ]}
+                  dataSource={expiringContracts.slice(0, 5).map((c, i) => ({ ...c, key: i }))}
+                  scroll={{ y: 200 }}
+                />
+              </>
+            ) : (
+              <p style={{ color: "#999", textAlign: "center", margin: 0 }}>
+                Không có hợp đồng nào sắp hết hạn
+              </p>
+            )}
           </Card>
 
           <Card
@@ -506,6 +654,51 @@ const Dashboard: React.FC = () => {
           </Card>
 
           <Card
+            title="Chi phí điện lực (95% tiền điện thu được)"
+            className="hover-glow-card"
+            style={{ marginBottom: 24 }}
+          >
+            <Row gutter={[16, 16]}>
+              <Col span={12}>
+                <div style={{ 
+                  padding: 20, 
+                  background: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)", 
+                  borderRadius: 12,
+                  color: "white",
+                  textAlign: "center"
+                }}>
+                  <div style={{ fontSize: 14, marginBottom: 8, opacity: 0.9 }}>Chi trả điện lực tháng này</div>
+                  <div style={{ fontSize: 24, fontWeight: "bold" }}>
+                    {monthlyElectricityCost.toLocaleString("vi-VN")} ₫
+                  </div>
+                  <div style={{ fontSize: 12, marginTop: 4, opacity: 0.8 }}>
+                    (95% của tiền điện thu được)
+                  </div>
+                </div>
+              </Col>
+              <Col span={12}>
+                <div style={{ 
+                  padding: 20, 
+                  background: "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)", 
+                  borderRadius: 12,
+                  color: "white",
+                  textAlign: "center"
+                }}>
+                  <div style={{ fontSize: 14, marginBottom: 8, opacity: 0.9 }}>Chi trả điện lực năm nay</div>
+                  <div style={{ fontSize: 24, fontWeight: "bold" }}>
+                    {yearlyElectricityCost.toLocaleString("vi-VN")} ₫
+                  </div>
+                  <div style={{ fontSize: 12, marginTop: 4, opacity: 0.8 }}>
+                    (95% của tiền điện thu được)
+                  </div>
+                </div>
+              </Col>
+            </Row>
+          </Card>
+
+          
+
+          <Card
             title="Top 10 phòng tiêu thụ điện nhiều nhất (Tháng trước)"
             className="hover-glow-card"
           >
@@ -526,24 +719,7 @@ const Dashboard: React.FC = () => {
         </Col>
       </Row>
 
-      {/* Danh sách phòng mới */}
-      <Card
-        title="Danh sách phòng mới"
-        className="hover-glow-card"
-        style={{ marginTop: 24, overflow: "hidden" }}
-      >
-        <Table
-          columns={columns}
-          dataSource={recentRooms}
-          pagination={{ pageSize: 5 }}
-          rowClassName={(record) =>
-            record.status === "Trống" ? "table-row-highlight" : ""
-          }
-          rowKey="key"
-          loading={loading}
-          bordered
-        />
-      </Card>
+
     </div>
   );
 };

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
-import { Drawer, Descriptions, Image, Divider, Tag, Typography, Row, Col, Space, message, Spin, Table, Tabs } from "antd";
-import { CheckCircleOutlined, ExclamationCircleOutlined, ToolOutlined, HomeOutlined, FileTextOutlined, PayCircleOutlined, DollarOutlined, InfoCircleOutlined, HistoryOutlined, UserOutlined, IdcardOutlined, MailOutlined, PhoneOutlined, TeamOutlined } from "@ant-design/icons";
+import React, { useEffect, useState, useMemo } from "react";
+import { Drawer, Descriptions, Image, Divider, Tag, Typography, Row, Col, Space, message, Spin, Table, Tabs, Timeline, Empty, Card, Statistic } from "antd";
+import { CheckCircleOutlined, ExclamationCircleOutlined, ToolOutlined, HomeOutlined, FileTextOutlined, PayCircleOutlined, DollarOutlined, InfoCircleOutlined, HistoryOutlined, UserOutlined, IdcardOutlined, MailOutlined, PhoneOutlined, TeamOutlined, EditOutlined, PlusOutlined, CloseCircleOutlined, SwapOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import type { Room } from "../../../types/room";
 import type { Checkin } from "../../../types/checkin";
@@ -74,42 +74,6 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
 
     fetchRoom();
   }, [roomId, open]);
-
-  if (!room && !loading) return null;
-
-  const statusConfig: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
-    AVAILABLE: { color: "#52c41a", label: "Còn trống", icon: <CheckCircleOutlined /> },
-    DEPOSITED: { color: "#ff4d4f", label: "Đã được cọc", icon: <ExclamationCircleOutlined /> },
-    OCCUPIED: { color: "#fa8c16", label: "Đang thuê", icon: <ExclamationCircleOutlined /> },
-    MAINTENANCE: { color: "#8c8c8c", label: "Bảo trì", icon: <ToolOutlined /> },
-  };
-
-  const processedImages = room?.images?.map(img =>
-    typeof img === "string" ? img : (img as any).url
-  );
-  // Lấy thông tin người thuê từ checkin đầu tiên (ưu tiên) hoặc contract
-  // Checkin có tenantSnapshot đầy đủ (bao gồm identityNo và address)
-  const firstCheckin = room?.checkins && room.checkins.length > 0 ? room.checkins[0] : null;
-  const firstContract = room?.contracts && room.contracts.length > 0 ? room.contracts[0] : null;
-  // Debug log
-  if (firstCheckin) {
-    console.log('[RoomDetailDrawer] First checkin tenantSnapshot:', firstCheckin.tenantSnapshot);
-  }
-  if (firstContract) {
-    console.log('[RoomDetailDrawer] First contract tenantSnapshot:', firstContract.tenantSnapshot);
-    console.log('[RoomDetailDrawer] First contract originContractId:', firstContract.originContractId);
-  }
-  // Ưu tiên lấy từ checkin (vì có tenantSnapshot đầy đủ), nếu không có thì lấy từ contract
-  const tenant = firstCheckin && typeof firstCheckin.tenantId === "object"
-    ? firstCheckin.tenantId
-    : (firstContract && typeof firstContract.tenantId === "object"
-      ? firstContract.tenantId
-      : null);
-  // Ưu tiên tenantSnapshot từ checkin (có đầy đủ identityNo và address)
-  // Nếu checkin không có, lấy từ contract (có thể từ originContractId)
-  const tenantSnapshot = firstCheckin?.tenantSnapshot || firstContract?.tenantSnapshot || null;
-  console.log('[RoomDetailDrawer] Final tenantSnapshot:', tenantSnapshot);
-  // Render the Drawer component with room details
 
   // Helper functions for status tags
 
@@ -207,6 +171,174 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
     }
     return 0;
   };
+
+  // Tạo timeline từ tất cả các sự kiện
+  const timelineEvents = useMemo(() => {
+    if (!room) return [];
+
+    const events: Array<{
+      date: Date;
+      type: 'CONTRACT' | 'CHECKIN' | 'BILL' | 'RECEIPT' | 'STATUS_CHANGE' | 'PRICE_CHANGE' | 'OTHER';
+      title: string;
+      description?: string;
+      data?: any;
+      icon?: React.ReactNode;
+      color?: string;
+    }> = [];
+
+    // 1. Thêm sự kiện từ hợp đồng
+    room.contracts?.forEach((contract: Contract) => {
+      // Ngày bắt đầu hợp đồng
+      if (contract.startDate) {
+        events.push({
+          date: new Date(contract.startDate),
+          type: 'CONTRACT',
+          title: 'Bắt đầu hợp đồng',
+          description: `Khách thuê: ${typeof contract.tenantId === 'object' ? contract.tenantId?.fullName : 'N/A'} - Giá: ${contract.monthlyRent?.toLocaleString()} VNĐ/tháng`,
+          data: contract,
+          icon: <FileTextOutlined />,
+          color: 'green',
+        });
+      }
+
+      // Ngày kết thúc hợp đồng
+      if (contract.endDate && (contract.status === 'EXPIRED' || new Date(contract.endDate) < new Date())) {
+        events.push({
+          date: new Date(contract.endDate),
+          type: 'CONTRACT',
+          title: 'Kết thúc hợp đồng',
+          description: `Khách thuê: ${typeof contract.tenantId === 'object' ? contract.tenantId?.fullName : 'N/A'}`,
+          data: contract,
+          icon: <CloseCircleOutlined />,
+          color: 'gray',
+        });
+      }
+    });
+
+    // 2. Thêm sự kiện từ checkin
+    room.checkins?.forEach((checkin: Checkin) => {
+      events.push({
+        date: new Date(checkin.checkinDate),
+        type: 'CHECKIN',
+        title: 'Checkin',
+        description: `${typeof checkin.tenantId === 'object' ? checkin.tenantId?.fullName : 'N/A'} - Tiền cọc: ${checkin.deposit?.toLocaleString()} VNĐ`,
+        data: checkin,
+        icon: <CheckCircleOutlined />,
+        color: 'blue',
+      });
+    });
+
+    // 3. Thêm sự kiện từ phiếu thu
+    room.receiptBills?.forEach((bill: any) => {
+      events.push({
+        date: new Date(bill.billingDate),
+        type: 'RECEIPT',
+        title: 'Phiếu thu',
+        description: `${bill.billType === 'CONTRACT' ? 'Tiền cọc hợp đồng' : 'Phiếu thu'} - ${convertToNumber(bill.amountPaid || bill.amountDue).toLocaleString()} VNĐ`,
+        data: bill,
+        icon: <PayCircleOutlined />,
+        color: 'purple',
+      });
+    });
+
+    // 4. Thêm sự kiện từ hóa đơn hàng tháng
+    room.bills?.filter((b: any) => b.billType === 'MONTHLY').forEach((bill: any) => {
+      const isPaid = bill.status === 'PAID';
+      events.push({
+        date: new Date(bill.billingDate),
+        type: 'BILL',
+        title: isPaid ? 'Thanh toán hóa đơn' : 'Hóa đơn hàng tháng',
+        description: `${dayjs(bill.billingDate).format('MM/YYYY')} - ${convertToNumber(bill.amountDue).toLocaleString()} VNĐ`,
+        data: bill,
+        icon: <DollarOutlined />,
+        color: isPaid ? 'green' : 'orange',
+      });
+    });
+
+    // 5. Thêm sự kiện từ logs
+    logs.forEach((log: any) => {
+      const message = log.message || '';
+      let type: any = 'OTHER';
+      let icon = <InfoCircleOutlined />;
+      let color = 'blue';
+
+      // Phân loại log theo message
+      if (message.includes('trạng thái') || message.includes('status')) {
+        type = 'STATUS_CHANGE';
+        icon = <SwapOutlined />;
+        color = 'cyan';
+      } else if (message.includes('giá') || message.includes('price')) {
+        type = 'PRICE_CHANGE';
+        icon = <DollarOutlined />;
+        color = 'gold';
+      } else if (message.includes('Cập nhật')) {
+        icon = <EditOutlined />;
+        color = 'blue';
+      } else if (message.includes('Tạo')) {
+        icon = <PlusOutlined />;
+        color = 'green';
+      }
+
+      events.push({
+        date: new Date(log.createdAt),
+        type,
+        title: message,
+        description: log.context?.actorId?.fullName ? `Bởi: ${log.context.actorId.fullName}` : undefined,
+        data: log,
+        icon,
+        color,
+      });
+    });
+
+    // Sắp xếp theo thời gian giảm dần (mới nhất trước)
+    return events.sort((a, b) => b.date.getTime() - a.date.getTime());
+  }, [room, logs]);
+
+  // Thống kê lịch sử
+  const historyStats = useMemo(() => {
+    return {
+      totalContracts: timelineEvents.filter(e => e.type === 'CONTRACT' && e.title.includes('Bắt đầu')).length,
+      totalPayments: timelineEvents.filter(e => e.type === 'BILL' && e.title.includes('Thanh toán')).length,
+      totalRevenue: room?.bills
+        ?.filter((b: any) => b.status === 'PAID')
+        .reduce((sum: number, b: any) => sum + convertToNumber(b.amountPaid), 0) || 0,
+    };
+  }, [timelineEvents, room]);
+
+  // Tính toán thông tin người thuê và ảnh
+  const { processedImages, firstCheckin, firstContract, tenant, tenantSnapshot } = useMemo(() => {
+    const images = room?.images?.map(img =>
+      typeof img === "string" ? img : (img as any).url
+    );
+    
+    const checkin = room?.checkins && room.checkins.length > 0 ? room.checkins[0] : null;
+    const contract = room?.contracts && room.contracts.length > 0 ? room.contracts[0] : null;
+    
+    const tenantData = checkin && typeof checkin.tenantId === "object"
+      ? checkin.tenantId
+      : (contract && typeof contract.tenantId === "object"
+        ? contract.tenantId
+        : null);
+    
+    const snapshot = checkin?.tenantSnapshot || null;
+    
+    return {
+      processedImages: images,
+      firstCheckin: checkin,
+      firstContract: contract,
+      tenant: tenantData,
+      tenantSnapshot: snapshot,
+    };
+  }, [room]);
+
+  const statusConfig: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
+    AVAILABLE: { color: "#52c41a", label: "Còn trống", icon: <CheckCircleOutlined /> },
+    DEPOSITED: { color: "#ff4d4f", label: "Đã được cọc", icon: <ExclamationCircleOutlined /> },
+    OCCUPIED: { color: "#fa8c16", label: "Đang thuê", icon: <ExclamationCircleOutlined /> },
+    MAINTENANCE: { color: "#8c8c8c", label: "Bảo trì", icon: <ToolOutlined /> },
+  };
+
+  if (!room && !loading) return null;
 
   // Table columns for receipts (Phiếu thu) - không có cột "Đã thanh toán"
   const receiptColumns = [
@@ -383,7 +515,7 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
                 <Descriptions.Item label="Email">
                   <Space>
                     <MailOutlined />
-                    {tenant?.email || tenantSnapshot?.email || "N/A"}
+                    {tenant?.email || "N/A"}
                   </Space>
                 </Descriptions.Item>
 
@@ -395,7 +527,7 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
                 </Descriptions.Item>
 
                 <Descriptions.Item label="Địa chỉ">
-                  {tenantSnapshot?.address || tenant?.address || "N/A"}
+                  {tenantSnapshot?.address || "N/A"}
                 </Descriptions.Item>
 
                 <Descriptions.Item label="Ghi chú">
@@ -406,7 +538,7 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
           )}
 
           {/* Thông tin người ở cùng */}
-          {room?.activeContract?.coTenants && room.activeContract.coTenants.length > 0 && (
+          {firstContract?.coTenants && firstContract.coTenants.length > 0 && (
             <>
               <Divider orientation="left" style={{ marginTop: 24 }}>
                 <TeamOutlined /> Người ở cùng
@@ -420,7 +552,7 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
                   content: { background: "#fff" },
                 }}
               >
-                {room.activeContract.coTenants
+                {firstContract.coTenants
                   .filter((ct: any) => ct.status === "ACTIVE")
                   .map((ct: any, idx: number) => (
                     <Descriptions.Item key={idx} label={`Người ở cùng ${idx + 1}`}>
@@ -638,7 +770,7 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
               key: "5",
               label: (
                 <span>
-                  <HistoryOutlined /> Lịch sử ({logs.length})
+                  <HistoryOutlined /> Lịch sử ({timelineEvents.length})
                 </span>
               ),
               children: (
@@ -647,49 +779,121 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
                     <div style={{ textAlign: "center", padding: "40px 0" }}>
                       <Spin />
                     </div>
-                  ) : logs.length > 0 ? (
-                    <Table
-                      columns={[
-                        {
-                          title: "Thời gian",
-                          dataIndex: "createdAt",
-                          key: "createdAt",
-                          width: 150,
-                          render: (date: string) => dayjs(date).format("DD/MM/YYYY HH:mm"),
-                        },
-                        {
-                          title: "Level",
-                          dataIndex: "level",
-                          key: "level",
-                          width: 80,
-                          render: (level: string) => (
-                            <Tag color={level === 'ERROR' ? 'red' : level === 'WARN' ? 'orange' : 'blue'}>
-                              {level}
-                            </Tag>
-                          ),
-                        },
-                        {
-                          title: "Hành động",
-                          dataIndex: "message",
-                          key: "message",
-                        },
-                        {
-                          title: "Người thực hiện",
-                          dataIndex: ["context", "actorId"],
-                          key: "actor",
-                          width: 150,
-                          render: (actor: any) => actor?.fullName || <Text type="secondary">System</Text>,
-                        },
-                      ]}
-                      dataSource={logs}
-                      rowKey="_id"
-                      size="small"
-                      pagination={{ pageSize: 10 }}
-                    />
                   ) : (
-                    <div style={{ textAlign: "center", padding: "40px 0" }}>
-                      <Text type="secondary">Chưa có lịch sử</Text>
-                    </div>
+                    <>
+                      {/* Thống kê tổng quan */}
+                      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+                        <Col span={8}>
+                          <Card size="small" bordered={false} style={{ background: '#f0f5ff' }}>
+                            <Statistic
+                              title="Số lần cho thuê"
+                              value={historyStats.totalContracts}
+                              prefix={<FileTextOutlined />}
+                              valueStyle={{ color: '#1890ff' }}
+                            />
+                          </Card>
+                        </Col>
+                        <Col span={8}>
+                          <Card size="small" bordered={false} style={{ background: '#f6ffed' }}>
+                            <Statistic
+                              title="Lần thanh toán"
+                              value={historyStats.totalPayments}
+                              prefix={<CheckCircleOutlined />}
+                              valueStyle={{ color: '#52c41a' }}
+                            />
+                          </Card>
+                        </Col>
+                        <Col span={8}>
+                          <Card size="small" bordered={false} style={{ background: '#fff7e6' }}>
+                            <Statistic
+                              title="Tổng doanh thu"
+                              value={historyStats.totalRevenue}
+                              prefix={<DollarOutlined />}
+                              valueStyle={{ color: '#fa8c16' }}
+                              suffix="VNĐ"
+                            />
+                          </Card>
+                        </Col>
+                      </Row>
+
+                      {/* Timeline */}
+                      {timelineEvents.length > 0 ? (
+                        <div style={{ maxHeight: 600, overflowY: 'auto', paddingRight: 8 }}>
+                          <Timeline
+                            mode="left"
+                            items={timelineEvents.map((event, idx) => ({
+                              key: idx,
+                              color: event.color,
+                              dot: event.icon,
+                              label: (
+                                <Text type="secondary" style={{ fontSize: 12 }}>
+                                  {dayjs(event.date).format('DD/MM/YYYY HH:mm')}
+                                </Text>
+                              ),
+                              children: (
+                                <Card
+                                  size="small"
+                                  bordered={false}
+                                  style={{
+                                    background: '#fafafa',
+                                    cursor: event.type === 'CONTRACT' || event.type === 'BILL' || event.type === 'RECEIPT' || event.type === 'CHECKIN' ? 'pointer' : 'default',
+                                  }}
+                                  onClick={() => {
+                                    if (event.type === 'CONTRACT' && event.data?._id) {
+                                      onClose();
+                                      navigate(`/admin/final-contracts`, { state: { contractId: event.data._id } });
+                                    } else if (event.type === 'BILL' && event.data?._id) {
+                                      onClose();
+                                      navigate(`/admin/bills?billId=${event.data._id}`);
+                                    } else if (event.type === 'RECEIPT' && event.data?._id) {
+                                      // Tìm checkin liên quan
+                                      const checkin = room?.checkins?.find((c: Checkin) => {
+                                        const cReceiptBillId = typeof c.receiptBillId === 'string'
+                                          ? c.receiptBillId
+                                          : (c.receiptBillId as any)?._id;
+                                        return cReceiptBillId === event.data._id;
+                                      });
+                                      if (checkin?._id) {
+                                        onClose();
+                                        navigate(`/admin/checkins`, { state: { checkinId: checkin._id } });
+                                      }
+                                    } else if (event.type === 'CHECKIN' && event.data?._id) {
+                                      onClose();
+                                      navigate(`/admin/checkins`, { state: { checkinId: event.data._id } });
+                                    }
+                                  }}
+                                >
+                                  <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                                    <Text strong style={{ fontSize: 14 }}>
+                                      {event.title}
+                                    </Text>
+                                    {event.description && (
+                                      <Text type="secondary" style={{ fontSize: 13 }}>
+                                        {event.description}
+                                      </Text>
+                                    )}
+                                    <Tag color={event.color} style={{ marginTop: 4 }}>
+                                      {event.type === 'CONTRACT' && 'Hợp đồng'}
+                                      {event.type === 'CHECKIN' && 'Checkin'}
+                                      {event.type === 'RECEIPT' && 'Phiếu thu'}
+                                      {event.type === 'BILL' && 'Hóa đơn'}
+                                      {event.type === 'STATUS_CHANGE' && 'Trạng thái'}
+                                      {event.type === 'PRICE_CHANGE' && 'Giá phòng'}
+                                      {event.type === 'OTHER' && 'Khác'}
+                                    </Tag>
+                                  </Space>
+                                </Card>
+                              ),
+                            }))}
+                          />
+                        </div>
+                      ) : (
+                        <Empty
+                          description={<Text type="secondary">Chưa có lịch sử</Text>}
+                          image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        />
+                      )}
+                    </>
                   )}
                 </>
               ),

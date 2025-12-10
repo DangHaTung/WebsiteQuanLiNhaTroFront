@@ -1171,7 +1171,7 @@ const DraftBills: React.FC = () => {
                         }}>
                           <Space direction="vertical" size={2} style={{ width: "100%" }}>
                             <Text strong style={{ color: "#e65100", fontSize: 12 }}>
-                              💰 Thông tin lãi (Chỉ ADMIN)
+                              💰 Thông tin lãi điện (Chỉ ADMIN)
                             </Text>
                             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                               <Text>Chi phí gốc:</Text>
@@ -1179,6 +1179,60 @@ const DraftBills: React.FC = () => {
                             </div>
                             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
                               <Text>Lãi ({((item as any).profitMargin * 100).toFixed(0)}%):</Text>
+                              <Text strong style={{ color: "#52c41a" }}>
+                                +{((item as any).profitAmount).toLocaleString("vi-VN")} ₫
+                              </Text>
+                            </div>
+                          </Space>
+                        </div>
+                      )}
+
+                      {/* Hiển thị lãi internet (chỉ ADMIN thấy) */}
+                      {item.type === 'internet' && (item as any).costPrice !== undefined && (item as any).profitAmount !== undefined && (
+                        <div style={{ 
+                          marginTop: 8, 
+                          padding: 8, 
+                          background: "linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%)",
+                          borderRadius: 4,
+                          border: "1px solid #42a5f5"
+                        }}>
+                          <Space direction="vertical" size={2} style={{ width: "100%" }}>
+                            <Text strong style={{ color: "#1565c0", fontSize: 12 }}>
+                              📡 Thông tin lãi internet (Chỉ ADMIN)
+                            </Text>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                              <Text>Chi phí gốc:</Text>
+                              <Text>{((item as any).costPrice).toLocaleString("vi-VN")} ₫</Text>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                              <Text>Lãi ({((item as any).profitMargin * 100).toFixed(0)}%):</Text>
+                              <Text strong style={{ color: "#52c41a" }}>
+                                +{((item as any).profitAmount).toLocaleString("vi-VN")} ₫
+                              </Text>
+                            </div>
+                          </Space>
+                        </div>
+                      )}
+
+                      {/* Hiển thị lãi phí dọn dẹp (chỉ ADMIN thấy) */}
+                      {item.type === 'cleaning' && (item as any).costPrice !== undefined && (item as any).profitAmount !== undefined && (
+                        <div style={{ 
+                          marginTop: 8, 
+                          padding: 8, 
+                          background: "linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%)",
+                          borderRadius: 4,
+                          border: "1px solid #ab47bc"
+                        }}>
+                          <Space direction="vertical" size={2} style={{ width: "100%" }}>
+                            <Text strong style={{ color: "#6a1b9a", fontSize: 12 }}>
+                              🧹 Thông tin lãi dọn dẹp (Chỉ ADMIN)
+                            </Text>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                              <Text>Chi phí gốc:</Text>
+                              <Text>{((item as any).costPrice).toLocaleString("vi-VN")} ₫</Text>
+                            </div>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                              <Text>Lãi ({((item as any).profitMargin * 100).toFixed(1)}%):</Text>
                               <Text strong style={{ color: "#52c41a" }}>
                                 +{((item as any).profitAmount).toLocaleString("vi-VN")} ₫
                               </Text>
