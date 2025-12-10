@@ -1,17 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { message as antMessage } from 'antd';
-
-interface Notification {
-  _id: string;
-  type: string;
-  title: string;
-  message: string;
-  priority: string;
-  metadata: any;
-  actionUrl?: string;
-  createdAt: string;
-}
+import type { Notification } from '../modules/client/services/notification';
 
 interface SocketContextType {
   socket: Socket | null;
@@ -54,7 +44,7 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
 
   useEffect(() => {
     // Lấy token từ localStorage
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('admin_token') || localStorage.getItem('token');
     
     if (!token) {
       console.log('⚠️ No token found, skipping socket connection');
@@ -67,10 +57,11 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
     console.log('🔌 Connecting to Socket.IO:', SOCKET_URL);
     
     const newSocket = io(SOCKET_URL, {
-      auth: {
-        token,
-      },
-      transports: ['websocket', 'polling'],
+      auth: { token },
+      path: '/socket.io',
+      // Ưu tiên polling để tránh lỗi upgrade websocket trong môi trường dev/HMR
+      transports: ['polling'],
+      upgrade: false,
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 5,
@@ -136,6 +127,54 @@ export const SocketProvider: React.FC<SocketProviderProps> = ({ children }) => {
           cursor: notification.actionUrl ? 'pointer' : 'default',
         },
       });
+    });
+
+    // Fallback: Event 'upcoming-bill' (legacy real-time before DB notification)
+    newSocket.on('upcoming-bill', (data: any) => {
+      try {
+        const billingDate = data?.billingDate ? new Date(data.billingDate) : null;
+        const days = typeof data?.daysUntilBilling === 'number' ? data.daysUntilBilling : undefined;
+
+        const notification: Notification = {
+          _id: `temp-${Date.now()}`,
+          userId: '',
+          type: 'UPCOMING_BILL',
+          title: days === 0 ? 'Hóa đơn sẽ được tạo hôm nay' : 'Hóa đơn sắp được tạo',
+          message: days === 0
+            ? `Hôm nay sẽ tạo hóa đơn cho phòng ${data?.roomNumber || ''}.`
+            : `Hóa đơn sẽ được tạo vào ${billingDate ? billingDate.toLocaleDateString('vi-VN') : ''} (còn ${days} ngày).`,
+          isRead: false,
+          metadata: {
+            roomNumber: data?.roomNumber,
+            daysUntilBilling: days,
+            billingDate,
+            estimatedAmount: data?.estimatedAmount,
+          },
+          priority: days !== undefined && days <= 2 ? 'HIGH' : 'MEDIUM',
+          actionUrl: '/invoices',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        // Add to context so bell shows immediately
+        addNotification(notification);
+
+        // Toast
+        antMessage.open({
+          type: days !== undefined && days <= 2 ? 'warning' : 'info',
+          content: (
+            <div>
+              <strong>{notification.title}</strong>
+              <div style={{ fontSize: '12px', marginTop: '4px' }}>{notification.message}</div>
+            </div>
+          ),
+          duration: days !== undefined && days <= 2 ? 6 : 4,
+          onClick: () => { window.location.href = '/invoices'; },
+          style: { cursor: 'pointer' },
+        });
+      } catch (err) {
+        console.error('❌ Error handling upcoming-bill event:', err);
+      }
     });
 
     // Event: Pong (response to ping)

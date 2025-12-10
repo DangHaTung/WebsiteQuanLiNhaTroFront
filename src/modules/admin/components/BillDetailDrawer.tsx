@@ -381,6 +381,34 @@ const BillDetailDrawer: React.FC<BillDetailDrawerProps> = ({
             </>
           )}
 
+          {/* Ảnh bill chuyển khoản do khách hàng upload (nếu có) */}
+          {bill && (bill as any).metadata?.cashPaymentRequest?.receiptImage && (
+            <>
+              <Divider orientation="left">Ảnh bill chuyển khoản</Divider>
+              <Descriptions bordered column={1} size="small">
+                {(bill as any).metadata?.cashPaymentRequest?.requestedAt && (
+                  <Descriptions.Item label="Thời điểm yêu cầu">
+                    {dayjs((bill as any).metadata.cashPaymentRequest.requestedAt).format("DD/MM/YYYY HH:mm")}
+                  </Descriptions.Item>
+                )}
+                {(bill as any).metadata?.cashPaymentRequest?.requestedAmount !== undefined && (
+                  <Descriptions.Item label="Số tiền yêu cầu">
+                    <Text strong style={{ color: "#1890ff" }}>
+                      {Number((bill as any).metadata.cashPaymentRequest.requestedAmount || 0).toLocaleString("vi-VN")} ₫
+                    </Text>
+                  </Descriptions.Item>
+                )}
+              </Descriptions>
+              <div style={{ marginTop: 12 }}>
+                <img
+                  src={(bill as any).metadata.cashPaymentRequest.receiptImage.secure_url || (bill as any).metadata.cashPaymentRequest.receiptImage.url}
+                  alt="Bill chuyển khoản"
+                  style={{ width: "100%", maxHeight: 400, objectFit: "contain", borderRadius: 8, border: "1px solid #e8e8e8" }}
+                />
+              </div>
+            </>
+          )}
+
           {/* Lịch sử thanh toán */}
           {/* {bill.payments?.length > 0 && (
             <>
