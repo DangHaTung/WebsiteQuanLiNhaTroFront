@@ -132,6 +132,7 @@ const NotificationBell: React.FC = () => {
       PAYMENT_SUCCESS: '✅',
       CONTRACT_SIGNED: '📝',
       BILL_DUE_SOON: '⏰',
+      UPCOMING_BILL: '📅',
       SYSTEM: '🔔',
     };
     return icons[type] || '📬';

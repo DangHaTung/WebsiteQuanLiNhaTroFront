@@ -151,14 +151,12 @@ const BillsAD: React.FC = () => {
   };
 
   const handleOpenConfirmModal = async (billId: string, bill: any) => {
-    // Nếu bill chưa có metadata, load lại từ API
-    if (!bill?.metadata) {
-      try {
-        const freshBill = await adminBillService.getById(billId);
-        bill = freshBill;
-      } catch (error) {
-        console.error("Error loading bill:", error);
-      }
+    // Luôn load bản mới nhất từ API để đảm bảo thấy ảnh vừa upload
+    try {
+      const freshBill = await adminBillService.getById(billId);
+      bill = freshBill || bill;
+    } catch (error) {
+      console.error("Error loading bill:", error);
     }
     
     // Lấy ảnh từ metadata

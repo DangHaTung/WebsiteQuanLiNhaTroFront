@@ -7,6 +7,7 @@ import { jwtDecode } from "jwt-decode";
 import { clientBillService, type Bill } from "../services/bill";
 import type { IUserToken } from "../../../types/user";
 import type { UploadFile } from "antd/es/upload/interface";
+import { useSocket } from "../../../contexts/SocketContext";
 
 const Invoices: React.FC = () => {
   const navigate = useNavigate();
@@ -95,6 +96,37 @@ const Invoices: React.FC = () => {
       }, 1000);
     }
   }, []);
+
+  // Realtime: refresh bills when receiving BILL_CREATED or new-bill events
+  const { socket } = useSocket();
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewNotification = (data: any) => {
+      try {
+        const n = data?.notification;
+        if (n?.type === "BILL_CREATED") {
+          message.info("Có hóa đơn mới, đang cập nhật...");
+          loadBills();
+        }
+      } catch (err) {
+        console.error("[Invoices] handleNewNotification error:", err);
+      }
+    };
+
+    const handleNewBill = (_data: any) => {
+      message.info("Có hóa đơn mới được phát hành.");
+      loadBills();
+    };
+
+    socket.on("new-notification", handleNewNotification);
+    socket.on("new-bill", handleNewBill);
+
+    return () => {
+      socket.off("new-notification", handleNewNotification);
+      socket.off("new-bill", handleNewBill);
+    };
+  }, [socket]);
 
   const loadBills = async () => {
     try {

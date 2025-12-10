@@ -6,6 +6,8 @@ import {
   Menu,
   type MenuProps,
   Tooltip,
+  Button,
+  message,
 } from "antd";
 import { Outlet, useNavigate } from "react-router-dom";
 import {
@@ -27,6 +29,7 @@ import {
 import "../../assets/styles/layoutAd.css";
 import { adminAuthService } from "../../modules/admin/services/auth";
 import api from "../../modules/admin/services/api.tsx";
+import NotificationBell from "../../components/NotificationBell";
 
 // Interface cho pending counts
 interface PendingCounts {
@@ -201,6 +204,12 @@ const AdminLayout: React.FC = () => {
             className: "trigger hover-animate", onClick: toggleCollapsed, style: { fontSize: 22, cursor: "pointer" }
           })}
           <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+            {isAuthenticated && currentUser?.role === 'ADMIN' && (
+              <Button type="primary" onClick={handlePingReminder}>
+                Ping nhắc hạn
+              </Button>
+            )}
+            <NotificationBell />
             <Dropdown menu={{
               onClick: handleMenuClick,
               items: isAuthenticated
@@ -223,3 +232,14 @@ const AdminLayout: React.FC = () => {
 };
 
 export default AdminLayout;
+  const handlePingReminder = async () => {
+    try {
+      const res = await api.post('/notifications/upcoming-bill/scan', {});
+      const days = res?.data?.data?.daysUntilBilling;
+      const billingDate = res?.data?.data?.billingDate;
+      message.success(`Đã ping nhắc hạn: còn ${days} ngày (ngày tạo hóa đơn: ${billingDate})`);
+    } catch (error: any) {
+      console.error('Ping nhắc hạn lỗi:', error);
+      message.error(error?.response?.data?.message || 'Không thể gửi nhắc hạn');
+    }
+  };
