@@ -372,10 +372,35 @@ const Invoices: React.FC = () => {
   
   // Tính tổng "Đã thanh toán": tính tất cả bills đã thanh toán (bao gồm cả RECEIPT, CONTRACT, MONTHLY)
   const totalPaid = paidBills.reduce((sum, bill) => {
-    // Tính amountPaid, nếu không có thì dùng amountDue
-    const paidAmount = bill.amountPaid || bill.amountDue || 0;
+    // Với bill đã thanh toán (PAID):
+    // - Ưu tiên lấy amountPaid (số tiền đã thanh toán thực tế)
+    // - Nếu amountPaid = 0 hoặc không có, lấy từ lineItems
+    // - Nếu vẫn không có, lấy amountDue
+    let paidAmount = bill.amountPaid || 0;
+    
+    // Nếu amountPaid = 0, tính từ lineItems
+    if (paidAmount === 0 && bill.lineItems && bill.lineItems.length > 0) {
+      paidAmount = bill.lineItems.reduce((itemSum: number, item: any) => {
+        return itemSum + (item.lineTotal || 0);
+      }, 0);
+    }
+    
+    // Nếu vẫn = 0, lấy amountDue
+    if (paidAmount === 0) {
+      paidAmount = bill.amountDue || 0;
+    }
+    
+    console.log(`[Invoices] Bill ${bill.billType} (${bill._id}): amountPaid=${bill.amountPaid}, amountDue=${bill.amountDue}, calculated=${paidAmount}`);
+    
     return sum + paidAmount;
   }, 0);
+  
+  console.log(`[Invoices] Total Paid: ${totalPaid}, Paid Bills Count: ${paidBills.length}`);
+  
+  // Debug: Log khi totalPaid thay đổi
+  useEffect(() => {
+    console.log(`[Invoices] useEffect - totalPaid changed to: ${totalPaid}`);
+  }, [totalPaid]);
 
   const getStatusTag = (status: string) => {
     const map: Record<string, { color: string; text: string; icon: React.ReactNode }> = {
@@ -594,13 +619,17 @@ const Invoices: React.FC = () => {
           </Col>
           <Col xs={24} sm={12}>
             <Card>
-              <Statistic
-                title="Đã thanh toán"
-                value={totalPaid}
-                suffix="₫"
-                valueStyle={{ color: "#52c41a" }}
-                prefix={<CheckCircleOutlined />}
-              />
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <CheckCircleOutlined style={{ fontSize: 24, color: "#52c41a" }} />
+                <div>
+                  <div style={{ fontSize: 14, color: "#666", marginBottom: 4 }}>Đã thanh toán</div>
+                  <div style={{ fontSize: 24, fontWeight: "bold", color: "#52c41a" }}>
+                    {totalPaid.toLocaleString("vi-VN")} ₫
+                  </div>
+                </div>
+              </div>
+              {/* Debug */}
+       
             </Card>
           </Col>
         </Row>

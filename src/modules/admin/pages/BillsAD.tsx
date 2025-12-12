@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Table, Tag, Typography, message, Row, Col, Statistic, Button, Modal, Image, Alert, Space, Input } from "antd";
+import { Table, Tag, Typography, message, Row, Col, Statistic, Button, Modal, Image, Alert, Input } from "antd";
 import { FileTextOutlined, DollarOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { Bill, BillStatus, BillType } from "../../../types/bill";
@@ -159,8 +159,8 @@ const BillsAD: React.FC = () => {
       console.error("Error loading bill:", error);
     }
     
-    // Lấy ảnh từ metadata
-    const receiptImage = bill?.metadata?.cashPaymentRequest?.receiptImage;
+    // Lấy ảnh từ metadata (type assertion vì Bill type chưa có metadata)
+    const receiptImage = (bill as any)?.metadata?.cashPaymentRequest?.receiptImage;
     const imageUrl = receiptImage?.secure_url || receiptImage?.url || null;
     
     setConfirmingBillId(billId);
@@ -366,7 +366,7 @@ const BillsAD: React.FC = () => {
       width: 150,
       render: (_: any, record: Bill) => {
         // Hiển thị nút xác nhận cho bills chờ xác nhận hoặc chưa thanh toán (nếu có ảnh)
-        const hasReceiptImage = record.metadata?.cashPaymentRequest?.receiptImage;
+        const hasReceiptImage = (record as any)?.metadata?.cashPaymentRequest?.receiptImage;
         const canConfirm = record.status === "PENDING_CASH_CONFIRM" || 
                           (record.status === "UNPAID" && hasReceiptImage);
         
@@ -582,7 +582,7 @@ const BillsAD: React.FC = () => {
         open={detailVisible}
         onClose={closeDetail}
         billId={selectedBillId ?? null}
-        contracts={contracts}
+        contracts={contracts as any}
         tenants={tenants}
         rooms={rooms}
       />

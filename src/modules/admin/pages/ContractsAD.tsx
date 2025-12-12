@@ -81,8 +81,12 @@ const ContractsAD: React.FC = () => {
   };
 
   const handleViewDetail = (contract: Contract) => {
+    const roomNumber = typeof contract.roomId === "object" && contract.roomId?.roomNumber 
+      ? contract.roomId.roomNumber 
+      : "N/A";
+    
     Modal.info({
-      title: `Chi tiết hợp đồng - Phòng ${contract.roomId.roomNumber}`,
+      title: `Chi tiết hợp đồng - Phòng ${roomNumber}`,
       width: 700,
       content: (
         <div style={{ marginTop: 16 }}>
@@ -297,7 +301,11 @@ const ContractsAD: React.FC = () => {
             loadContracts();
           }}
           contractId={selectedContract._id}
-          roomNumber={selectedContract.roomId.roomNumber}
+          roomNumber={
+            typeof selectedContract.roomId === "object" && selectedContract.roomId?.roomNumber
+              ? selectedContract.roomId.roomNumber
+              : "N/A"
+          }
         />
       )}
     </div>
