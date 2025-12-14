@@ -306,13 +306,16 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
   }, [timelineEvents, room]);
 
   // Tính toán thông tin người thuê và ảnh
-  const { processedImages, firstCheckin, firstContract, tenant, tenantSnapshot } = useMemo(() => {
+  const { processedImages, firstCheckin, firstContract, tenant, tenantSnapshot, activeContract } = useMemo(() => {
     const images = room?.images?.map(img =>
       typeof img === "string" ? img : (img as any).url
     );
     
     const checkin = room?.checkins && room.checkins.length > 0 ? room.checkins[0] : null;
     const contract = room?.contracts && room.contracts.length > 0 ? room.contracts[0] : null;
+    
+    // Lấy activeContract (chứa coTenants) từ room
+    const activeContractData = (room as any)?.activeContract || null;
     
     const tenantData = checkin && typeof checkin.tenantId === "object"
       ? checkin.tenantId
@@ -322,12 +325,21 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
     
     const snapshot = checkin?.tenantSnapshot || null;
     
+    // Debug: Log contract data
+    console.log("[RoomDetailDrawer] FinalContract:", contract);
+    console.log("[RoomDetailDrawer] ActiveContract:", activeContractData);
+    console.log("[RoomDetailDrawer] coTenants:", activeContractData?.coTenants);
+    console.log("[RoomDetailDrawer] Checkin:", checkin);
+    console.log("[RoomDetailDrawer] tenantSnapshot:", snapshot);
+    console.log("[RoomDetailDrawer] tenant:", tenantData);
+    
     return {
       processedImages: images,
       firstCheckin: checkin,
       firstContract: contract,
       tenant: tenantData,
       tenantSnapshot: snapshot,
+      activeContract: activeContractData,
     };
   }, [room]);
 
@@ -522,12 +534,12 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
                 <Descriptions.Item label="CMND/CCCD">
                   <Space>
                     <IdcardOutlined />
-                    {tenantSnapshot?.identityNo || "N/A"}
+                    {tenantSnapshot?.identityNo || (tenant as any)?.identityNo || activeContract?.coTenants?.[0]?.identityNo || "Không có"}
                   </Space>
                 </Descriptions.Item>
 
                 <Descriptions.Item label="Địa chỉ">
-                  {tenantSnapshot?.address || "N/A"}
+                  {tenantSnapshot?.address || (tenant as any)?.address || activeContract?.coTenants?.[0]?.address || "Không có"}
                 </Descriptions.Item>
 
                 <Descriptions.Item label="Ghi chú">
@@ -538,7 +550,7 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
           )}
 
           {/* Thông tin người ở cùng */}
-          {firstContract?.coTenants && firstContract.coTenants.length > 0 && (
+          {activeContract?.coTenants && activeContract.coTenants.length > 0 && (
             <>
               <Divider orientation="left" style={{ marginTop: 24 }}>
                 <TeamOutlined /> Người ở cùng
@@ -552,7 +564,7 @@ const RoomDetailDrawer: React.FC<RoomDetailDrawerProps> = ({ open, onClose, room
                   content: { background: "#fff" },
                 }}
               >
-                {firstContract.coTenants
+                {activeContract.coTenants
                   .filter((ct: any) => ct.status === "ACTIVE")
                   .map((ct: any, idx: number) => (
                     <Descriptions.Item key={idx} label={`Người ở cùng ${idx + 1}`}>

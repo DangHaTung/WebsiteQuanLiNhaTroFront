@@ -105,10 +105,13 @@ const AdminLayout: React.FC = () => {
           ).length;
         }
 
-        // Checkins
+        // Checkins - Chỉ đếm checkin thông thường (không phải từ rentAdditionalRoom)
+        // Checkin từ rentAdditionalRoom có finalContractId ngay từ đầu và không cần xử lý
         if (checkinsRes.status === "fulfilled" && checkinsRes.value.data?.data) {
           const checkins = checkinsRes.value.data.data;
-          counts.pendingCheckins = checkins.filter((c: any) => c.status === "CREATED").length;
+          counts.pendingCheckins = checkins.filter((c: any) => 
+            c.status === "CREATED" && !c.finalContractId
+          ).length;
         }
 
         // Move-out requests

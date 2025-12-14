@@ -23,12 +23,37 @@ const RentAdditionalRoomModal: React.FC<RentAdditionalRoomModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [rooms, setRooms] = useState<any[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
+  const [existingContract, setExistingContract] = useState<any>(null);
 
   useEffect(() => {
-    if (visible) {
+    if (visible && tenantId) {
       loadAvailableRooms();
+      loadExistingContract();
     }
-  }, [visible]);
+  }, [visible, tenantId]);
+
+  const loadExistingContract = async () => {
+    try {
+      // Lấy hợp đồng chính thức (FinalContract) để lấy thời gian
+      const finalContractResponse = await api.get("/final-contracts", { 
+        params: { tenantId, status: "SIGNED" } 
+      });
+      const finalContracts = finalContractResponse.data.data || [];
+      
+      if (finalContracts.length > 0) {
+        const firstFinalContract = finalContracts[0];
+        setExistingContract(firstFinalContract);
+        
+        // Auto-fill thời gian giống hợp đồng đầu tiên
+        form.setFieldsValue({
+          startDate: dayjs(firstFinalContract.startDate),
+          endDate: dayjs(firstFinalContract.endDate),
+        });
+      }
+    } catch (error) {
+      console.error("Load existing contract error:", error);
+    }
+  };
 
   const loadAvailableRooms = async () => {
     try {
@@ -97,6 +122,11 @@ const RentAdditionalRoomModal: React.FC<RentAdditionalRoomModalProps> = ({
     >
       <div style={{ marginBottom: 16, padding: 12, background: "#f0f2f5", borderRadius: 8 }}>
         <strong>Khách hàng:</strong> {tenantName}
+        {existingContract && (
+          <div style={{ marginTop: 8, fontSize: 12, color: "#666" }}>
+            Thời gian hợp đồng hiện tại: {dayjs(existingContract.startDate).format("DD/MM/YYYY")} → {dayjs(existingContract.endDate).format("DD/MM/YYYY")}
+          </div>
+        )}
       </div>
 
       <Form form={form} layout="vertical">
@@ -131,7 +161,7 @@ const RentAdditionalRoomModal: React.FC<RentAdditionalRoomModalProps> = ({
           label="Ngày bắt đầu"
           name="startDate"
           rules={[{ required: true, message: "Vui lòng chọn ngày bắt đầu" }]}
-          initialValue={dayjs()}
+          tooltip="Tự động điền theo hợp đồng hiện tại"
         >
           <DatePicker
             style={{ width: "100%" }}
@@ -157,7 +187,7 @@ const RentAdditionalRoomModal: React.FC<RentAdditionalRoomModalProps> = ({
               },
             }),
           ]}
-          initialValue={dayjs().add(12, "month")}
+          tooltip="Tự động điền theo hợp đồng hiện tại"
         >
           <DatePicker
             style={{ width: "100%" }}
