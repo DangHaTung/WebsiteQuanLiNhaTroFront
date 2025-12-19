@@ -240,10 +240,12 @@ const Checkin: React.FC = () => {
             </Title>
             <Space direction="vertical" size="middle">
               <Text style={{ color: "white", fontSize: 16 }}>
-                <strong>Thứ 2 - Thứ 7:</strong> 8:00 - 20:00
+                <span className="checkin-worktime-label">Thứ 2 - Thứ 7:</span>{" "}
+                <span className="checkin-worktime-value">8:00 - 20:00</span>
               </Text>
               <Text style={{ color: "white", fontSize: 16 }}>
-                <strong>Chủ nhật:</strong> 9:00 - 18:00
+                <span className="checkin-worktime-label">Chủ nhật:</span>{" "}
+                <span className="checkin-worktime-value">9:00 - 18:00</span>
               </Text>
               <Divider style={{ borderColor: "rgba(255,255,255,0.3)", margin: "16px 0" }} />
               <Text style={{ color: "white", fontSize: 14, opacity: 0.9 }}>

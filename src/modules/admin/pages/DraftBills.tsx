@@ -294,8 +294,28 @@ const DraftBills: React.FC = () => {
       const data = await response.json();
       
       if (data.success) {
-        const created = data.data?.summary?.created || data.data?.created || 0;
-        message.success(`Đã tạo ${created} hóa đơn nháp thành công!`);
+        const summary = data.data?.summary || {};
+        const created = summary.created || 0;
+        const skipped = summary.skipped || 0;
+        const errors = summary.errors || 0;
+        const total = summary.total || 0;
+        
+        if (created > 0) {
+          message.success(`Đã tạo ${created} hóa đơn nháp thành công!`);
+        } else {
+          // Không tạo được bill nào
+          let errorMsg = "Không tạo được hóa đơn nháp nào. ";
+          if (skipped > 0) {
+            errorMsg += `${skipped} hợp đồng bị bỏ qua (chưa có FinalContract SIGNED hoặc bill CONTRACT chưa thanh toán). `;
+          }
+          if (errors > 0) {
+            errorMsg += `${errors} lỗi xảy ra. `;
+          }
+          if (total === 0) {
+            errorMsg += "Không có hợp đồng ACTIVE nào.";
+          }
+          message.warning(errorMsg.trim());
+        }
         loadDraftBills();
       } else {
         message.error(data.message || "Lỗi khi tạo hóa đơn nháp");
@@ -869,7 +889,7 @@ const DraftBills: React.FC = () => {
       title: "Hành động",
       key: "actions",
       align: "center",
-      width: 200,
+      width: 240,
       render: (_: any, record: DraftBillWithElectricity) => (
         <Space>
           <Button
@@ -891,6 +911,28 @@ const DraftBills: React.FC = () => {
           >
             Phát hành
           </Button>
+          <Popconfirm
+            title="Xóa vĩnh viễn hóa đơn nháp này?"
+            description="Hành động không thể hoàn tác."
+            okText="Xóa"
+            cancelText="Không"
+            okButtonProps={{ danger: true }}
+            onConfirm={async () => {
+              try {
+                await adminBillService.remove(record._id);
+                message.success("Đã xóa hóa đơn nháp");
+                // Nếu bill đang được chọn thì bỏ chọn
+                setSelectedBills((prev) => prev.filter((id) => id !== record._id));
+                loadDraftBills();
+              } catch (error: any) {
+                message.error(error?.response?.data?.message || "Lỗi khi xóa hóa đơn nháp");
+              }
+            }}
+          >
+            <Button size="small" type="default" icon={<DeleteOutlined />}>
+              Xóa
+            </Button>
+          </Popconfirm>
         </Space>
       ),
     },

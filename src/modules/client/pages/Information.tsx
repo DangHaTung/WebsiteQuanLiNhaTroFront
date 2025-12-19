@@ -41,7 +41,7 @@ const Information: React.FC = () => {
     {
       icon: <MailOutlined />,
       title: 'Email',
-      value: 'tro360@example.com',
+      value: 'admin@tro360.io.vn',
       color: '#ff4d4f'
     },
     {
@@ -136,7 +136,7 @@ const Information: React.FC = () => {
             <Button 
               type="primary" 
               size="large"
-              href="mailto:tro360@example.com"
+              href="mailto:admin@tro360.io.vn"
               icon={<MailOutlined />}
             >
               Liên hệ hỗ trợ

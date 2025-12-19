@@ -80,7 +80,7 @@ const RoomsDetail: React.FC = () => {
   const goNext = () => setCurrentImage((i) => (i + 1) % gallery.length);
 
   const handleBook = () => {
-    if (room) navigate(`/checkin/${room._id}`);
+    if (room) navigate(`/contact?roomId=${encodeURIComponent(room._id)}`);
   };
 
   const price = room ? new Intl.NumberFormat("vi-VN").format(room.pricePerMonth) : "";

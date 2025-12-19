@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { Card, Descriptions, Button, message, Space, Tag, Modal, Spin, Alert, Typography } from "antd";
-import { CreditCardOutlined, DollarOutlined, CheckCircleOutlined, HomeOutlined } from "@ant-design/icons";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { Card, Descriptions, Button, message, Space, Tag, Modal, Spin, Alert, Typography, Upload } from "antd";
+import { CreditCardOutlined, DollarOutlined, CheckCircleOutlined, HomeOutlined, UploadOutlined } from "@ant-design/icons";
+import type { UploadFile } from "antd/es/upload/interface";
 import dayjs from "dayjs";
 // Trang thanh toán công khai cho khách hàng
 const { Title, Text } = Typography;
@@ -15,6 +16,14 @@ interface BillInfo {
     amountDue: number;
     amountPaid: number;
     billingDate: string;
+    metadata?: {
+      cashPaymentRequest?: {
+        receiptImage?: {
+          url?: string;
+          secure_url?: string;
+        };
+      };
+    };
   };
   // Thông tin hợp đồng và phòng liên quan
   contract: {
@@ -36,16 +45,22 @@ interface BillInfo {
 const PublicPayment: React.FC = () => {
   const { billId, token } = useParams<{ billId: string; token: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [billInfo, setBillInfo] = useState<BillInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [isSuccessPage, setIsSuccessPage] = useState(false);
+  const [isUploadPage, setIsUploadPage] = useState(false);
+  const [uploadFileList, setUploadFileList] = useState<UploadFile[]>([]);
+  const [uploading, setUploading] = useState(false);
 // Load thông tin hóa đơn khi component mount
   useEffect(() => {
-    // Check if this is success page
+    // Check if this is success page or upload page
     const isSuccess = window.location.pathname.includes("/success");
+    const isUpload = location.pathname.includes("/upload-receipt");
     setIsSuccessPage(isSuccess);
+    setIsUploadPage(isUpload);
 
     if (billId && token) {
       if (isSuccess) {
@@ -58,7 +73,7 @@ const PublicPayment: React.FC = () => {
       setError("Thiếu thông tin billId hoặc token");
       setLoading(false);
     }
-  }, [billId, token]);
+  }, [billId, token, location.pathname]);
 // Xác thực token và tải thông tin hóa đơn
   const verifyTokenAndLoadBill = async () => {
     // Xác thực token và tải thông tin hóa đơn
@@ -271,10 +286,57 @@ const PublicPayment: React.FC = () => {
       </div>
     );
   }
-// Hiển thị thông tin hóa đơn và nút thanh toán
+  // Handle upload receipt
+  const handleUploadReceipt = async () => {
+    if (!billId || !token || !billInfo) return;
+
+    if (uploadFileList.length === 0) {
+      message.error("Vui lòng chọn ảnh bill chuyển khoản");
+      return;
+    }
+
+    try {
+      setUploading(true);
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
+      
+      const formData = new FormData();
+      formData.append("amount", (billInfo.bill.amountDue - billInfo.bill.amountPaid).toString());
+      if (uploadFileList[0].originFileObj) {
+        formData.append("receiptImage", uploadFileList[0].originFileObj);
+      }
+
+      const response = await fetch(`${apiUrl}/api/public/payment/${billId}/${token}/upload-receipt`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Lỗi khi upload ảnh bill");
+      }
+
+      message.success("Đã gửi yêu cầu xác nhận thanh toán thành công! Admin sẽ xem xét và xác nhận trong thời gian sớm nhất.");
+      
+      // Reload bill info
+      setTimeout(() => {
+        verifyTokenAndLoadBill();
+        setIsUploadPage(false);
+        navigate(`/public/payment/${billId}/${token}`);
+      }, 2000);
+    } catch (error: any) {
+      console.error("Upload receipt error:", error);
+      message.error(error.message || "Lỗi khi upload ảnh bill");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Hiển thị thông tin hóa đơn và nút thanh toán
   const { bill, contract, room } = billInfo;
   const amountToPay = bill.amountDue - bill.amountPaid;
   const isPaid = bill.status === "PAID";
+  const isPendingConfirm = bill.status === "PENDING_CASH_CONFIRM";
 // Giao diện trang thanh toán công khai
   return (
     <div style={{ padding: 24, maxWidth: 900, margin: "0 auto", minHeight: "100vh" }}>
@@ -317,6 +379,10 @@ const PublicPayment: React.FC = () => {
               <Tag color="success" icon={<CheckCircleOutlined />}>
                 Đã thanh toán
               </Tag>
+            ) : isPendingConfirm ? (
+              <Tag color="processing" icon={<UploadOutlined />}>
+                Đang chờ xác nhận
+              </Tag>
             ) : (
               <Tag color="warning">Chưa thanh toán</Tag>
             )}
@@ -324,7 +390,85 @@ const PublicPayment: React.FC = () => {
         </Descriptions>
 
         <div style={{ marginTop: 32, textAlign: "center" }}>
-          {isPaid || isSuccessPage ? (
+          {isUploadPage ? (
+            // Kiểm tra nếu đã gửi yêu cầu rồi (PENDING_CASH_CONFIRM)
+            isPendingConfirm ? (
+              <div style={{ maxWidth: 500, margin: "0 auto" }}>
+                <Title level={3}>⏳ Đang chờ admin xác nhận</Title>
+                <Alert
+                  message="Yêu cầu xác nhận thanh toán đã được gửi"
+                  description="Bạn đã gửi yêu cầu xác nhận thanh toán. Admin sẽ xem xét và xác nhận trong thời gian sớm nhất. Vui lòng chờ xử lý."
+                  type="warning"
+                  showIcon
+                  style={{ marginBottom: 24 }}
+                />
+                {billInfo?.bill?.metadata?.cashPaymentRequest?.receiptImage && (
+                  <div style={{ marginBottom: 24 }}>
+                    <Text strong>Ảnh bill đã upload:</Text>
+                    <div style={{ marginTop: 12 }}>
+                      <img
+                        src={billInfo.bill.metadata.cashPaymentRequest.receiptImage.secure_url || billInfo.bill.metadata.cashPaymentRequest.receiptImage.url}
+                        alt="Receipt"
+                        style={{ maxWidth: "100%", borderRadius: 8, border: "1px solid #d9d9d9" }}
+                      />
+                    </div>
+                  </div>
+                )}
+                <Button onClick={() => {
+                  setIsUploadPage(false);
+                  navigate(`/public/payment/${billId}/${token}`);
+                }}>
+                  Quay lại trang thanh toán
+                </Button>
+              </div>
+            ) : (
+              <div style={{ maxWidth: 500, margin: "0 auto" }}>
+                <Title level={3}>📤 Xác nhận đã chuyển khoản</Title>
+                <Alert
+                  message="Vui lòng upload ảnh bill chuyển khoản"
+                  description="Sau khi upload, admin sẽ xem xét và xác nhận thanh toán của bạn."
+                  type="info"
+                  showIcon
+                  style={{ marginBottom: 24 }}
+                />
+                <Upload
+                  listType="picture-card"
+                  fileList={uploadFileList}
+                  onChange={({ fileList }) => setUploadFileList(fileList)}
+                  beforeUpload={() => false}
+                  maxCount={1}
+                  accept="image/*"
+                >
+                  {uploadFileList.length < 1 && (
+                    <div>
+                      <UploadOutlined style={{ fontSize: 24 }} />
+                      <div style={{ marginTop: 8 }}>Upload ảnh</div>
+                    </div>
+                  )}
+                </Upload>
+                <div style={{ marginTop: 24 }}>
+                  <Space>
+                    <Button
+                      type="primary"
+                      size="large"
+                      icon={<UploadOutlined />}
+                      onClick={handleUploadReceipt}
+                      loading={uploading}
+                      disabled={uploadFileList.length === 0}
+                    >
+                      Gửi yêu cầu xác nhận
+                    </Button>
+                    <Button onClick={() => {
+                      setIsUploadPage(false);
+                      navigate(`/public/payment/${billId}/${token}`);
+                    }}>
+                      Hủy
+                    </Button>
+                  </Space>
+                </div>
+              </div>
+            )
+          ) : isPaid || isSuccessPage ? (
             <Alert
               message={isSuccessPage ? "Thanh toán thành công!" : "Hóa đơn đã được thanh toán"}
               description={
@@ -337,17 +481,38 @@ const PublicPayment: React.FC = () => {
               icon={<CheckCircleOutlined />}
               style={{ marginBottom: 16 }}
             />
+          ) : isPendingConfirm ? (
+            <Alert
+              message="Đang chờ admin xác nhận"
+              description="Yêu cầu thanh toán của bạn đang được admin xem xét. Vui lòng chờ xác nhận."
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+            />
           ) : (
-            <Button
-              type="primary"
-              size="large"
-              icon={<CreditCardOutlined />}
-              onClick={showPaymentModal}
-              loading={paymentLoading}
-              style={{ minWidth: 200 }}
-            >
-              Thanh toán ngay
-            </Button>
+            <>
+              <Button
+                type="primary"
+                size="large"
+                icon={<CreditCardOutlined />}
+                onClick={showPaymentModal}
+                loading={paymentLoading}
+                style={{ minWidth: 200, marginBottom: 16 }}
+              >
+                Thanh toán ngay
+              </Button>
+              <div>
+                <Button
+                  type="default"
+                  size="large"
+                  icon={<UploadOutlined />}
+                  onClick={() => navigate(`/public/payment/${billId}/${token}/upload-receipt`)}
+                  style={{ minWidth: 200 }}
+                >
+                  Tôi đã chuyển khoản
+                </Button>
+              </div>
+            </>
           )}
           <div style={{ marginTop: 16 }}>
             <Button icon={<HomeOutlined />} onClick={() => navigate("/")}>

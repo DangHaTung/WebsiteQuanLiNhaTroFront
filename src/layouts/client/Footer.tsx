@@ -1,9 +1,10 @@
 import React from "react";
+import { Link as RouterLink } from "react-router-dom";
 import { Layout, Row, Col, Typography, Input, Button, Space } from "antd";
 import { FacebookOutlined, InstagramOutlined, TwitterOutlined, EnvironmentOutlined, PhoneOutlined, MailOutlined } from "@ant-design/icons";
 
 const { Footer: AntFooter } = Layout;
-const { Title, Text, Link } = Typography;
+const { Title, Text } = Typography;
 
 const Footer: React.FC = () => {
     return (
@@ -73,26 +74,22 @@ const Footer: React.FC = () => {
                             Liên kết nhanh
                         </Title>
                         <Space direction="vertical">
-                            {["Trang chủ", "Danh sách phòng", "Tin tức", "Liên hệ"].map(
-                                (text, index) => (
-                                    <Link
-                                        key={index}
-                                        href="#"
-                                        style={{
-                                            color: "#ccc",
-                                            transition: "color 0.3s ease",
-                                        }}
-                                        onMouseEnter={(e) =>
-                                            (e.currentTarget.style.color = "#3B82F6")
-                                        }
-                                        onMouseLeave={(e) =>
-                                            (e.currentTarget.style.color = "#ccc")
-                                        }
-                                    >
-                                        {text}
-                                    </Link>
-                                )
-                            )}
+                            {[
+                                { text: "Trang chủ", to: "/" },
+                                { text: "Danh sách phòng", to: "/rooms" },
+                                { text: "Liên hệ", to: "/contact" },
+                                { text: "Điều khoản dịch vụ", to: "/terms" },
+                            ].map((item, index) => (
+                                <RouterLink
+                                    key={index}
+                                    to={item.to}
+                                    style={{ color: "#ccc", transition: "color 0.3s ease", textDecoration: "none" }}
+                                    onMouseEnter={(e) => (e.currentTarget.style.color = "#3B82F6")}
+                                    onMouseLeave={(e) => (e.currentTarget.style.color = "#ccc")}
+                                >
+                                    {item.text}
+                                </RouterLink>
+                            ))}
                         </Space>
                     </Col>
 
@@ -109,7 +106,7 @@ const Footer: React.FC = () => {
                                 <PhoneOutlined style={{ color: "#3B82F6" }} /> 0842 346 871
                             </Text>
                             <Text style={{ display: "flex", alignItems: "center", color: "#ccc", gap: 8 }}>
-                                <MailOutlined style={{ color: "#3B82F6" }} /> tro360@example.com
+                                <MailOutlined style={{ color: "#3B82F6" }} /> admin@tro360.io.vn
                             </Text>
                         </Space>
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Table, Card, Tag, Button, Space, message, Modal, Descriptions } from "antd";
+import { Table, Card, Tag, Button, Space, message, Modal, Descriptions, Popconfirm, Divider } from "antd";
 import { UserAddOutlined, EyeOutlined, TeamOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import AddCoTenantModal from "../components/AddCoTenantModal";
@@ -39,6 +39,10 @@ interface Contract {
   monthlyRent: number;
   status: "ACTIVE" | "ENDED" | "CANCELED";
   canceledAt?: string; // Ngày hủy hợp đồng (nếu hủy trước hạn)
+  depositRefunded?: boolean;
+  depositRefund?: {
+    refundedAt?: string;
+  };
   coTenants?: CoTenant[];
   createdAt: string;
 }
@@ -48,6 +52,9 @@ const ContractsAD: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [addCoTenantVisible, setAddCoTenantVisible] = useState(false);
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
+  const [detailVisible, setDetailVisible] = useState(false);
+  const [detailContract, setDetailContract] = useState<Contract | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
     loadContracts();
@@ -80,83 +87,41 @@ const ContractsAD: React.FC = () => {
     setAddCoTenantVisible(true);
   };
 
-  const handleViewDetail = (contract: Contract) => {
-    Modal.info({
-      title: `Chi tiết hợp đồng - Phòng ${contract.roomId.roomNumber}`,
-      width: 700,
-      content: (
-        <div style={{ marginTop: 16 }}>
-          <Descriptions column={1} bordered size="small">
-            <Descriptions.Item label="Người thuê chính">
-              {typeof contract.tenantId === "object" && contract.tenantId?.fullName 
-                ? contract.tenantId.fullName 
-                : contract.tenantSnapshot?.fullName || "N/A"}
-              <br />
-              <small style={{ color: "#666" }}>
-                {typeof contract.tenantId === "object" && contract.tenantId?.phone ? contract.tenantId.phone : (contract.tenantSnapshot?.phone || "N/A")}
-                {((typeof contract.tenantId === "object" && contract.tenantId?.email) || contract.tenantSnapshot?.email) && 
-                  ` | ${(typeof contract.tenantId === "object" && contract.tenantId?.email) || contract.tenantSnapshot?.email}`}
-              </small>
-            </Descriptions.Item>
-            <Descriptions.Item label="Phòng">
-              {typeof contract.roomId === "object" && contract.roomId?.roomNumber 
-                ? `${contract.roomId.roomNumber} - ${(contract.roomId.pricePerMonth || 0).toLocaleString("vi-VN")} đ/tháng`
-                : "N/A"}
-            </Descriptions.Item>
-            <Descriptions.Item label="Thời hạn">
-              {dayjs(contract.startDate).format("DD/MM/YYYY")} - {dayjs(contract.endDate).format("DD/MM/YYYY")}
-              {contract.status === "CANCELED" && contract.canceledAt && (
-                <div style={{ marginTop: 4 }}>
-                  <small style={{ color: "#ff4d4f", fontWeight: 500 }}>
-                    Hủy ngày: {dayjs(contract.canceledAt).format("DD/MM/YYYY HH:mm")}
-                  </small>
-                </div>
-              )}
-            </Descriptions.Item>
-            <Descriptions.Item label="Tiền cọc">
-              {contract.deposit.toLocaleString("vi-VN")} đ
-            </Descriptions.Item>
-            <Descriptions.Item label="Tiền phòng/tháng">
-              {contract.monthlyRent.toLocaleString("vi-VN")} đ
-            </Descriptions.Item>
-            <Descriptions.Item label="Người ở cùng">
-              {contract.coTenants && contract.coTenants.length > 0 ? (
-                <div>
-                  {contract.coTenants
-                    .filter(ct => ct.status === "ACTIVE") // Chỉ hiển thị những người đang hoạt động
-                    .map((ct, idx) => (
-                      <div key={idx} style={{ marginBottom: 8 }}>
-                        <strong>{ct.fullName}</strong>
-                        <br />
-                        <small style={{ color: "#666" }}>
-                          {ct.phone} {ct.email && `| ${ct.email}`}
-                          <br />
-                          Tham gia: {dayjs(ct.joinedAt).format("DD/MM/YYYY")}
-                        </small>
-                      </div>
-                    ))}
-                  {contract.coTenants.filter(ct => ct.status === "EXPIRED").length > 0 && (
-                    <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #eee" }}>
-                      <small style={{ color: "#999" }}>
-                        Hết hiệu lực: {contract.coTenants.filter(ct => ct.status === "EXPIRED").length} người
-                      </small>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <span style={{ color: "#999" }}>Chưa có</span>
-              )}
-            </Descriptions.Item>
-          </Descriptions>
-        </div>
-      ),
-    });
+  const handleViewDetail = async (contract: Contract) => {
+    try {
+      setDetailVisible(true);
+      setDetailLoading(true);
+      const { adminContractService } = await import("../services/contract");
+      const fresh = await adminContractService.getById(contract._id);
+      setDetailContract(fresh);
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || "Lỗi khi tải chi tiết hợp đồng");
+      setDetailVisible(false);
+      setDetailContract(null);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const handleRemoveCoTenant = async (contractId: string, userId: string) => {
+    try {
+      const { adminContractService } = await import("../services/contract");
+      await adminContractService.removeCoTenant(contractId, userId);
+      message.success("Đã gỡ người ở cùng khỏi phòng");
+      // Reload detail + list
+      const fresh = await adminContractService.getById(contractId);
+      setDetailContract(fresh);
+      await loadContracts();
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || "Lỗi khi gỡ người ở cùng");
+    }
   };
 
   const getStatusTag = (status: string) => {
     const map: Record<string, { color: string; text: string }> = {
       ACTIVE: { color: "success", text: "Đang hoạt động" },
-      ENDED: { color: "default", text: "Hết hiệu lực" },
+      // ✅ UX: "Hết hiệu lực" hiển thị đồng bộ màu đỏ
+      ENDED: { color: "error", text: "Hết hiệu lực" },
       CANCELED: { color: "error", text: "Hết hiệu lực" },
     };
     const m = map[status] || { color: "default", text: status };
@@ -212,19 +177,22 @@ const ContractsAD: React.FC = () => {
     {
       title: "Thời hạn",
       key: "duration",
-      render: (_: any, record: Contract) => (
-        <div>
-          <div>{dayjs(record.startDate).format("DD/MM/YYYY")}</div>
-          <small style={{ color: "#666" }}>đến {dayjs(record.endDate).format("DD/MM/YYYY")}</small>
-          {record.status === "CANCELED" && record.canceledAt && (
-            <div style={{ marginTop: 4 }}>
-              <small style={{ color: "#ff4d4f", fontWeight: 500 }}>
-                Hủy: {dayjs(record.canceledAt).format("DD/MM/YYYY")}
-              </small>
-            </div>
-          )}
-        </div>
-      ),
+      render: (_: any, record: Contract) => {
+        const inactiveAt = record.canceledAt || record.depositRefund?.refundedAt;
+        return (
+          <div>
+            <div>{dayjs(record.startDate).format("DD/MM/YYYY")}</div>
+            <small style={{ color: "#666" }}>đến {dayjs(record.endDate).format("DD/MM/YYYY")}</small>
+            {record.status !== "ACTIVE" && inactiveAt && (
+              <div style={{ marginTop: 4 }}>
+                <small style={{ color: "#ff4d4f", fontWeight: 500 }}>
+                  {record.status === "CANCELED" ? "Hủy" : "Hết hiệu lực"}: {dayjs(inactiveAt).format("DD/MM/YYYY")}
+                </small>
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       title: "Tiền phòng",
@@ -283,6 +251,101 @@ const ContractsAD: React.FC = () => {
           }}
         />
       </Card>
+
+      {/* Modal chi tiết hợp đồng (có thể gỡ co-tenant) */}
+      <Modal
+        open={detailVisible}
+        title={
+          detailContract && typeof detailContract.roomId === "object"
+            ? `Chi tiết hợp đồng - Phòng ${detailContract.roomId.roomNumber}`
+            : "Chi tiết hợp đồng"
+        }
+        width={760}
+        onCancel={() => {
+          setDetailVisible(false);
+          setDetailContract(null);
+        }}
+        footer={null}
+        confirmLoading={detailLoading}
+      >
+        {detailContract && (
+          <div style={{ marginTop: 8 }}>
+            <Descriptions column={1} bordered size="small">
+              <Descriptions.Item label="Người thuê chính">
+                {typeof detailContract.tenantId === "object" && detailContract.tenantId?.fullName
+                  ? detailContract.tenantId.fullName
+                  : detailContract.tenantSnapshot?.fullName || "N/A"}
+                <br />
+                <small style={{ color: "#666" }}>
+                  {typeof detailContract.tenantId === "object" && detailContract.tenantId?.phone
+                    ? detailContract.tenantId.phone
+                    : (detailContract.tenantSnapshot?.phone || "N/A")}
+                  {((typeof detailContract.tenantId === "object" && detailContract.tenantId?.email) || detailContract.tenantSnapshot?.email) &&
+                    ` | ${(typeof detailContract.tenantId === "object" && detailContract.tenantId?.email) || detailContract.tenantSnapshot?.email}`}
+                </small>
+              </Descriptions.Item>
+
+              <Descriptions.Item label="Phòng">
+                {typeof detailContract.roomId === "object" && detailContract.roomId?.roomNumber
+                  ? `${detailContract.roomId.roomNumber} - ${(detailContract.roomId.pricePerMonth || 0).toLocaleString("vi-VN")} đ/tháng`
+                  : "N/A"}
+              </Descriptions.Item>
+
+              <Descriptions.Item label="Thời hạn">
+                {dayjs(detailContract.startDate).format("DD/MM/YYYY")} - {dayjs(detailContract.endDate).format("DD/MM/YYYY")}
+              </Descriptions.Item>
+
+              <Descriptions.Item label="Người ở cùng">
+                {detailContract.coTenants && detailContract.coTenants.length > 0 ? (
+                  <div>
+                    {detailContract.coTenants
+                      .filter(ct => ct.status === "ACTIVE")
+                      .map((ct, idx) => (
+                        <div key={idx} style={{ marginBottom: 10 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                            <div>
+                              <strong>{ct.fullName}</strong>
+                              <div style={{ color: "#666", fontSize: 12 }}>
+                                {ct.phone} {ct.email && `| ${ct.email}`}
+                                <br />
+                                Tham gia: {dayjs(ct.joinedAt).format("DD/MM/YYYY")}
+                              </div>
+                            </div>
+                            {ct.userId && (
+                              <Popconfirm
+                                title="Gỡ người này khỏi phòng?"
+                                okText="Gỡ"
+                                cancelText="Không"
+                                onConfirm={() => handleRemoveCoTenant(detailContract._id, ct.userId!)}
+                              >
+                                <Button danger size="small">
+                                  Gỡ
+                                </Button>
+                              </Popconfirm>
+                            )}
+                          </div>
+                          <Divider style={{ margin: "10px 0" }} />
+                        </div>
+                      ))}
+                    {detailContract.coTenants.filter(ct => ct.status === "EXPIRED").length > 0 && (
+                      <div style={{ marginTop: 8 }}>
+                        <small style={{ color: "#999" }}>
+                          Hết hiệu lực: {detailContract.coTenants.filter(ct => ct.status === "EXPIRED").length} người
+                        </small>
+                      </div>
+                    )}
+                    {detailContract.coTenants.filter(ct => ct.status === "ACTIVE").length === 0 && (
+                      <span style={{ color: "#999" }}>Chưa có</span>
+                    )}
+                  </div>
+                ) : (
+                  <span style={{ color: "#999" }}>Chưa có</span>
+                )}
+              </Descriptions.Item>
+            </Descriptions>
+          </div>
+        )}
+      </Modal>
 
       {selectedContract && (
         <AddCoTenantModal

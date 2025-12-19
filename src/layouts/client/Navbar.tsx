@@ -126,7 +126,7 @@ const Navbar: React.FC = () => {
               <PhoneOutlined /> <strong>0842 346 871</strong>
             </span>
             <span>
-              <MailOutlined /> tro360@example.com
+              <MailOutlined /> admin@tro360.io.vn
             </span>
           </div>
 
@@ -213,6 +213,12 @@ const Navbar: React.FC = () => {
           <Link className="nav-link" to="/rooms">
             Danh sách phòng
           </Link>
+          <Link className="nav-link" to="/contact">
+            Liên hệ
+          </Link>
+          <Link className="nav-link" to="/terms">
+            Điều khoản dịch vụ
+          </Link>
         </div>
       </div>
 
@@ -239,6 +245,9 @@ const Navbar: React.FC = () => {
           </Link>
           <Link to="/contact" onClick={() => setOpenDrawer(false)}>
             Liên hệ
+          </Link>
+          <Link to="/terms" onClick={() => setOpenDrawer(false)}>
+            Điều khoản dịch vụ
           </Link>
           <Link to="/complaint" onClick={() => setOpenDrawer(false)}>
             Khiếu nại

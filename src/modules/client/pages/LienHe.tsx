@@ -367,7 +367,7 @@ const LienHe: React.FC = () => {
         textAlign: 'center'
       }}>
         <p style={{ margin: 0, opacity: 0.8 }}>
-          © 2024 Hệ Thống Quản Lý Phòng Trọ - Liên hệ hỗ trợ 24/7
+          © 2024 Ban Quản Lý Phòng Tro360 - Liên hệ hỗ trợ 24/7
         </p>
       </footer>
     </div>

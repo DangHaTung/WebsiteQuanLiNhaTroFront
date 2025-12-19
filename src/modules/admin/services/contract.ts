@@ -103,6 +103,17 @@ export const adminContractService = {
     );
     return res.data.data;
   },
+
+  /**
+   * Gỡ người ở cùng khỏi phòng (không xóa tài khoản)
+   */
+  async removeCoTenant(contractId: string, userId: string): Promise<any> {
+    const res = await api.post<SingleContractResponse>(
+      `/contracts/${contractId}/remove-cotenant/${userId}`,
+      {}
+    );
+    return res.data.data;
+  },
 };
 
 export default adminContractService;
