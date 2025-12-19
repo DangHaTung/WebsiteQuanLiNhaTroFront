@@ -17,6 +17,7 @@ import MyMoveOutRequests from "../modules/client/pages/MyMoveOutRequests";
 import ProtectedRoute from "../components/ProtectedRoute";
 import Information from "../modules/client/pages/Information";
 import Notifications from "../modules/client/pages/Notifications";
+import TermsOfService from "../modules/client/pages/TermsOfService";
 
 const clientRoutes = [
   // Public routes
@@ -27,10 +28,15 @@ const clientRoutes = [
   { path: "register", element: <Register /> },
   { path: "support", element: <Support /> },
   { path: "information", element: <Information/> },
+  // Trang liên hệ (public)
+  { path: "contact", element: <Checkin /> },
+  // Điều khoản dịch vụ (public)
+  { path: "terms", element: <TermsOfService /> },
   
   // Protected routes - cần đăng nhập
-  { path: "checkin", element: <ProtectedRoute><Checkin /></ProtectedRoute> },
-  { path: "checkin/:roomId", element: <ProtectedRoute><Checkin /></ProtectedRoute> },
+  // NOTE: "checkin" hiện đang dùng như trang liên hệ -> cho phép public để khách xem thông tin liên hệ
+  { path: "checkin", element: <Checkin /> },
+  { path: "checkin/:roomId", element: <Checkin /> },
   { path: "contracts", element: <ProtectedRoute><Contracts /></ProtectedRoute> },
   { path: "contracts/:roomId", element: <ProtectedRoute><Contracts /></ProtectedRoute> },
   { path: "profile", element: <ProtectedRoute><Profile /></ProtectedRoute> },

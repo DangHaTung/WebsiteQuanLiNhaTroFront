@@ -268,15 +268,34 @@ const FinalContracts = () => {
       });
       
       // Lọc chỉ lấy checkins COMPLETED
-      // Logic: Hiển thị tất cả checkin COMPLETED, backend sẽ validate khi tạo
-      // (Backend sẽ kiểm tra xem có FinalContract nào với bill CONTRACT đã thanh toán không)
-      const completedCheckins = checkinsData.filter((checkin: any) => {
+      // ✅ Validate chỉ cho phép chọn "phiếu thu còn hiệu lực":
+      // - status = COMPLETED (đã thanh toán)
+      // - có receiptPaidAt và còn trong 3 ngày đếm ngược
+      // - CHƯA từng tạo FinalContract (không có finalContractId)
+      // - không bị hoàn cọc / xử lý mất cọc
+      const now = dayjs();
+      const validCheckins = checkinsData.filter((checkin: any) => {
         const contractId = typeof checkin.contractId === 'string' 
           ? checkin.contractId 
           : checkin.contractId?._id;
+        const finalContractId = typeof checkin.finalContractId === 'string'
+          ? checkin.finalContractId
+          : checkin.finalContractId?._id;
         
-        // Chỉ hiển thị checkin COMPLETED và có contractId
-        const isValid = checkin.status === "COMPLETED" && contractId;
+        const receiptPaidAt = checkin.receiptPaidAt ? dayjs(checkin.receiptPaidAt) : null;
+        const expiresAt = receiptPaidAt ? receiptPaidAt.add(3, "day") : null;
+        const isInCountdown = !!expiresAt && expiresAt.isAfter(now);
+        const isRefundedOrForfeit = checkin.depositDisposition === "REFUNDED" || checkin.depositDisposition === "FORFEIT";
+        
+        // Chỉ hiển thị checkin còn hiệu lực và chưa tạo final contract
+        const isValid =
+          checkin.status === "COMPLETED" &&
+          !!contractId &&
+          !finalContractId &&
+          !!receiptPaidAt &&
+          isInCountdown &&
+          !isRefundedOrForfeit;
+
         if (!isValid) {
           const roomNumber = checkin.roomId?.roomNumber || "N/A";
           console.log(`  ⚠️ Filtered out Room ${roomNumber}: status=${checkin.status}, contractId=${contractId || "MISSING"}`);
@@ -284,10 +303,10 @@ const FinalContracts = () => {
         return isValid;
       });
       
-      console.log("✅ Completed checkins:", completedCheckins.length);
+      console.log("✅ Valid checkins (countdown + not created FinalContract):", validCheckins.length);
       
       // Convert checkins sang format Contract để UI không cần đổi nhiều
-      const contractsFromCheckins = completedCheckins.map((checkin: any) => {
+      const contractsFromCheckins = validCheckins.map((checkin: any) => {
         const contractId = typeof checkin.contractId === 'string' 
           ? checkin.contractId 
           : checkin.contractId?._id;
@@ -303,9 +322,14 @@ const FinalContracts = () => {
           durationMonths: checkin.durationMonths,
         };
       });
+
+      // ✅ Deduplicate theo contractId để tránh hiển thị trùng
+      const uniqueContractsFromCheckins = Array.from(
+        new Map(contractsFromCheckins.map((c: any) => [String(c._id), c])).values()
+      );
       
-      console.log("🎯 Final contracts from checkins:", contractsFromCheckins.length);
-      setAvailableContracts(contractsFromCheckins);
+      console.log("🎯 Final contracts from checkins (dedup):", uniqueContractsFromCheckins.length);
+      setAvailableContracts(uniqueContractsFromCheckins);
     } catch (error: any) {
       console.error("Load checkins error:", error);
       message.error(error.response?.data?.message || "Lỗi khi tải danh sách check-in");
@@ -1509,25 +1533,43 @@ const FinalContracts = () => {
                     return 0;
                   };
 
-                  // Tìm RECEIPT bill và CONTRACT bill
-                  const receiptBill = contractBills.find((b: any) => b.billType === "RECEIPT");
+                  // Tìm tất cả RECEIPT bills và CONTRACT bill
+                  // QUAN TRỌNG: Tính tổng tất cả RECEIPT bills đã PAID, không chỉ lấy 1 bill
+                  const receiptBills = contractBills.filter((b: any) => b.billType === "RECEIPT");
                   const contractBill = contractBills.find((b: any) => b.billType === "CONTRACT");
                   
                   // Tính toán các khoản
                   let receiptAmount = 0;
                   let receiptStatus = "Chưa thanh toán";
-                  if (receiptBill) {
-                    if (receiptBill.status === "PAID") {
-                      receiptAmount = convertToNumber(receiptBill.amountPaid);
-                      if (receiptAmount === 0 && receiptBill.lineItems && receiptBill.lineItems.length > 0) {
-                        receiptAmount = convertToNumber(receiptBill.lineItems[0]?.lineTotal);
-                      }
+                  
+                  // Tính tổng tất cả RECEIPT bills đã PAID
+                  if (receiptBills && receiptBills.length > 0) {
+                    const paidReceiptBills = receiptBills.filter((b: any) => b.status === "PAID");
+                    if (paidReceiptBills.length > 0) {
+                      // Tính tổng amountPaid từ tất cả RECEIPT bills đã PAID
+                      receiptAmount = paidReceiptBills.reduce((sum: number, bill: any) => {
+                        const amountPaid = convertToNumber(bill.amountPaid);
+                        if (amountPaid > 0) {
+                          return sum + amountPaid;
+                        } else if (bill.lineItems && bill.lineItems.length > 0) {
+                          // Fallback: lấy từ lineItems nếu amountPaid = 0
+                          return sum + convertToNumber(bill.lineItems[0]?.lineTotal);
+                        }
+                        return sum;
+                      }, 0);
                       receiptStatus = "Đã thanh toán";
                     } else {
-                      receiptAmount = convertToNumber(receiptBill.amountDue);
-                      receiptStatus = receiptBill.status === "PENDING_CASH_CONFIRM" ? "Chờ xác nhận" : "Chờ thanh toán";
+                      // Nếu không có bill nào đã PAID, lấy tổng amountDue của các bills chưa thanh toán
+                      receiptAmount = receiptBills.reduce((sum: number, bill: any) => {
+                        return sum + convertToNumber(bill.amountDue);
+                      }, 0);
+                      const hasPendingConfirm = receiptBills.some((b: any) => b.status === "PENDING_CASH_CONFIRM");
+                      receiptStatus = hasPendingConfirm ? "Chờ xác nhận" : "Chờ thanh toán";
                     }
                   }
+                  
+                  // Lấy receiptBill đầu tiên để hiển thị status (nếu cần)
+                  const receiptBill = receiptBills.length > 0 ? receiptBills[0] : null;
 
                   // Lấy từ lineItems của CONTRACT bill
                   let depositRemaining = 0; // Cọc còn lại

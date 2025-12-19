@@ -22,6 +22,7 @@ const App = () => {
       {/* Public Payment Route - không cần layout */}
       <Route path="/public/payment/:billId/:token" element={<PublicPayment />} />
       <Route path="/public/payment/:billId/:token/success" element={<PublicPayment />} />
+      <Route path="/public/payment/:billId/:token/upload-receipt" element={<PublicPayment />} />
 
       {/* Authentication Routes */}
       <Route path="/login" element={<Login />} />

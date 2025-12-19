@@ -141,7 +141,7 @@ const Seoo: React.FC = () => {
 
         {/* Footer */}
         <footer style={{ marginTop: '60px', padding: '40px 20px', borderTop: '1px solid #ddd', textAlign: 'center', color: '#666' }}>
-          <p>&copy; 2024 Hệ Thống Quản Lý Phòng Trọ. All rights reserved.</p>
+          <p>&copy; 2024 Ban Quản Lý Phòng Tro360. All rights reserved.</p>
           <div style={{ marginTop: '20px' }}>
             <a href="#" style={{ margin: '0 15px', color: '#667eea', textDecoration: 'none' }}>Về Chúng Tôi</a>
             <a href="#" style={{ margin: '0 15px', color: '#667eea', textDecoration: 'none' }}>Liên Hệ</a>

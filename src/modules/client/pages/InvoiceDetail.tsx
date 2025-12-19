@@ -17,6 +17,7 @@ const InvoiceDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [bill, setBill] = useState<Bill | null>(null);
   const [receiptBill, setReceiptBill] = useState<Bill | null>(null);
+  const [allReceiptBills, setAllReceiptBills] = useState<Bill[]>([]); // Lưu tất cả RECEIPT bills
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -110,23 +111,28 @@ const InvoiceDetail: React.FC = () => {
           const billsData = await response.json();
           const allBills = billsData.data || [];
           
-          // Tìm RECEIPT bill có cùng contractId (RECEIPT bill được tạo cùng contract với CONTRACT bill)
+          // Tìm TẤT CẢ RECEIPT bills có cùng contractId (có thể có nhiều bills khi gia hạn)
+          // QUAN TRỌNG: Tính tổng tất cả RECEIPT bills đã PAID, không chỉ lấy 1 bill
           const contractIdStr = typeof data.contractId === 'object' && (data.contractId as any)?._id 
             ? (data.contractId as any)._id 
             : data.contractId;
           
-          const relatedReceipt = allBills.find((b: Bill) => {
+          const relatedReceipts = allBills.filter((b: Bill) => {
             const bContractId = typeof b.contractId === 'object' && (b.contractId as any)?._id 
               ? (b.contractId as any)._id 
               : b.contractId;
             return b.billType === "RECEIPT" && bContractId === contractIdStr;
           });
           
-          if (relatedReceipt) {
-            setReceiptBill(relatedReceipt);
+          if (relatedReceipts && relatedReceipts.length > 0) {
+            // Lưu tất cả RECEIPT bills để tính tổng
+            setAllReceiptBills(relatedReceipts);
+            // Lấy receipt bill đầu tiên để setReceiptBill (cho backward compatible)
+            setReceiptBill(relatedReceipts[0]);
           } else {
             // Nếu không tìm thấy, log để debug
             console.log("⚠️ RECEIPT bill not found for contractId:", data.contractId);
+            setAllReceiptBills([]);
           }
         } catch (err) {
           console.error("Error loading receipt bill:", err);
@@ -602,27 +608,37 @@ const InvoiceDetail: React.FC = () => {
                 return 0;
               };
 
-              // Tính toán các khoản từ RECEIPT bill
-              // Nếu có receiptBill, dùng dữ liệu từ đó
-              // Nếu không có receiptBill nhưng bill.amountPaid > 0, dùng amountPaid làm fallback
+              // Tính toán các khoản từ TẤT CẢ RECEIPT bills
+              // QUAN TRỌNG: Tính tổng tất cả RECEIPT bills đã PAID, không chỉ lấy 1 bill
               let receiptAmount = 0;
               let receiptStatus = "Chưa thanh toán";
-              if (receiptBill) {
-                if (receiptBill.status === "PAID") {
-                  receiptAmount = convertToNumber(receiptBill.amountPaid);
-                  if (receiptAmount === 0 && receiptBill.lineItems && receiptBill.lineItems.length > 0) {
-                    receiptAmount = convertToNumber(receiptBill.lineItems[0]?.lineTotal);
-                  }
+              
+              // Sử dụng allReceiptBills nếu có, nếu không thì dùng receiptBill (backward compatible)
+              const receiptsToCalculate = allReceiptBills.length > 0 ? allReceiptBills : (receiptBill ? [receiptBill] : []);
+              
+              if (receiptsToCalculate.length > 0) {
+                // Tính tổng tất cả RECEIPT bills đã PAID
+                const paidReceiptBills = receiptsToCalculate.filter((b: Bill) => b.status === "PAID");
+                if (paidReceiptBills.length > 0) {
+                  receiptAmount = paidReceiptBills.reduce((sum: number, b: Bill) => {
+                    const amountPaid = convertToNumber(b.amountPaid);
+                    if (amountPaid > 0) {
+                      return sum + amountPaid;
+                    } else if (b.lineItems && b.lineItems.length > 0) {
+                      // Fallback: lấy từ lineItems nếu amountPaid = 0
+                      return sum + convertToNumber(b.lineItems[0]?.lineTotal);
+                    }
+                    return sum;
+                  }, 0);
                   receiptStatus = "Đã thanh toán";
                 } else {
-                  receiptAmount = convertToNumber(receiptBill.amountDue);
-                  receiptStatus = receiptBill.status === "PENDING_CASH_CONFIRM" ? "Chờ xác nhận tiền mặt" : "Chờ thanh toán";
+                  // Nếu không có bill nào đã PAID, lấy tổng amountDue của các bills chưa thanh toán
+                  receiptAmount = receiptsToCalculate.reduce((sum: number, b: Bill) => {
+                    return sum + convertToNumber(b.amountDue);
+                  }, 0);
+                  const hasPendingConfirm = receiptsToCalculate.some((b: Bill) => b.status === "PENDING_CASH_CONFIRM");
+                  receiptStatus = hasPendingConfirm ? "Chờ xác nhận tiền mặt" : "Chờ thanh toán";
                 }
-              } else {
-                // Nếu không có receiptBill, không hiển thị khoản "Cọc giữ phòng"
-                // (Không dùng bill.amountPaid vì đó là số tiền đã thanh toán của CONTRACT bill, không phải RECEIPT bill)
-                receiptAmount = 0;
-                receiptStatus = "Chưa thanh toán";
               }
 
               // Lấy từ lineItems của CONTRACT bill

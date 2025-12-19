@@ -520,7 +520,7 @@ const GioiThieu: React.FC = () => {
         textAlign: 'center'
       }}>
         <p style={{ margin: 0, opacity: 0.8, fontSize: '1.05rem' }}>
-          © 2024 Hệ Thống Quản Lý Phòng Trọ - Kết nối niềm tin, xây dựng tương lai
+          © 2024 Ban Quản Lý Phòng Tro360 - Kết nối niềm tin, xây dựng tương lai
         </p>
       </footer>
     </div>

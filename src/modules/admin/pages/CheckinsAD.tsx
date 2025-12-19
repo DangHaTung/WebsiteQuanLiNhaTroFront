@@ -390,27 +390,23 @@ const CheckinsAD: React.FC = () => {
         continue;
       }
 
-      // Kiểm tra xem Contract có bị hủy không
-      const contractId = (checkin as any).contractId;
-      if (contractId) {
-        const cId = typeof contractId === 'string' ? contractId : contractId._id;
-        const contract = contractsMap.get(cId);
-        if (contract && contract.status === "CANCELED") {
-          continue; // Contract đã hủy, không tính là đang được cọc
-        }
-      }
-
       // Kiểm tra xem FinalContract có bị hủy không và đã có bill CONTRACT đã thanh toán chưa
       const finalContractId = (checkin as any).finalContractId;
       if (finalContractId) {
         const fcId = typeof finalContractId === 'string' ? finalContractId : finalContractId._id;
         const finalContract = finalContractsMap.get(fcId);
+        const contractBill = contractBillsMap.get(fcId);
+        
+        // Chỉ không tính là đang được cọc khi FinalContract bị hủy VÀ bill CONTRACT đã thanh toán
+        // Nếu hủy trước khi thanh toán, vẫn tính là đang được cọc (thời hạn vẫn đang đếm ngược)
         if (finalContract && finalContract.status === "CANCELED") {
-          continue; // FinalContract đã hủy, không tính là đang được cọc
+          if (contractBill && contractBill.status === "PAID") {
+            continue; // FinalContract đã hủy và đã thanh toán, không tính là đang được cọc
+          }
+          // Nếu chưa thanh toán, tiếp tục kiểm tra receiptPaidAt (vẫn tính là đang được cọc)
         }
         
         // Kiểm tra xem đã có bill CONTRACT đã thanh toán chưa (đã làm hợp đồng chính thức)
-        const contractBill = contractBillsMap.get(fcId);
         // Nếu đã có bill CONTRACT đã thanh toán, có nghĩa là đã làm hợp đồng chính thức
         // Phòng không còn "được cọc" nữa, đã được thuê chính thức
         if (contractBill && contractBill.status === "PAID") {
@@ -858,16 +854,6 @@ const CheckinsAD: React.FC = () => {
       key: "expiration",
       align: "center",
       render: (_: any, record: Checkin) => {
-        // Kiểm tra xem Contract có bị hủy không (ưu tiên kiểm tra Contract trước)
-        const contractId = (record as any).contractId;
-        if (contractId) {
-          const cId = typeof contractId === 'string' ? contractId : contractId._id;
-          const contract = contractsMap.get(cId);
-          if (contract && contract.status === "CANCELED") {
-            return <Tag color="error">Hợp đồng đã hủy</Tag>;
-          }
-        }
-        
         // Kiểm tra xem có finalContractId và bill CONTRACT đã thanh toán chưa
         const finalContractId = (record as any).finalContractId;
         if (finalContractId) {
@@ -875,13 +861,19 @@ const CheckinsAD: React.FC = () => {
           const contractBill = contractBillsMap.get(fcId);
           const finalContract = finalContractsMap.get(fcId);
          
-          // Kiểm tra xem FinalContract có bị hủy không
+          // Chỉ hiển thị "Hợp đồng đã hủy" khi FinalContract bị hủy VÀ bill CONTRACT đã thanh toán
+          // Nếu hủy trước khi thanh toán, vẫn hiển thị đếm ngược như cũ
           if (finalContract && finalContract.status === "CANCELED") {
-            return <Tag color="error">Hợp đồng đã hủy</Tag>;
+            // Kiểm tra xem bill CONTRACT đã thanh toán chưa
+            if (contractBill && contractBill.status === "PAID") {
+              return <Tag color="error">Hợp đồng đã hủy</Tag>;
+            }
+            // Nếu chưa thanh toán, bỏ qua và tiếp tục hiển thị đếm ngược
           }
          
           // Nếu bill CONTRACT đã thanh toán (PAID)
           if (contractBill && contractBill.status === "PAID") {
+            // Kiểm tra xem FinalContract có bị hủy không (nếu đã hủy thì đã return ở trên)
             // Kiểm tra xem FinalContract có file upload chưa
             const hasImages = finalContract && finalContract.images && Array.isArray(finalContract.images) && finalContract.images.length > 0;
            
@@ -1002,18 +994,25 @@ const CheckinsAD: React.FC = () => {
         }
         
         // Kiểm tra xem FinalContract có bị hủy không
+        // Chỉ coi là bị hủy khi FinalContract bị CANCELED VÀ bill CONTRACT đã thanh toán
+        // Nếu hủy trước khi thanh toán, vẫn có thể gia hạn (thời hạn vẫn đang đếm ngược)
         let isFinalContractCanceled = false;
         if (finalContractId) {
           const fcId = typeof finalContractId === 'string' ? finalContractId : finalContractId._id;
           const finalContract = finalContractsMap.get(fcId);
+          const contractBill = contractBillsMap.get(fcId);
           if (finalContract && finalContract.status === "CANCELED") {
-            isFinalContractCanceled = true;
+            // Chỉ coi là bị hủy nếu bill CONTRACT đã thanh toán
+            if (contractBill && contractBill.status === "PAID") {
+              isFinalContractCanceled = true;
+            }
+            // Nếu chưa thanh toán, không set isFinalContractCanceled = true (vẫn có thể gia hạn)
           }
         }
         
         // Có thể gia hạn nếu: có receiptPaidAt (đang đếm ngược HOẶC đã hết hạn) và chưa bị hủy
         // VÀ hợp đồng chưa được ký (status !== "SIGNED")
-        // VÀ hợp đồng chưa bị hủy (Contract hoặc FinalContract không bị CANCELED)
+        // VÀ hợp đồng chưa bị hủy (Contract hoặc FinalContract không bị CANCELED sau khi đã thanh toán)
         // Cho phép gia hạn ngay cả khi status = "COMPLETED" nếu vẫn còn đếm ngược hoặc đã hết hạn
         // Note: record.status đã được narrow sau check "CANCELED" ở trên, nên luôn true ở đây
         const canExtend = hasReceiptPaidAt && !isContractSigned && !isContractCanceled && !isFinalContractCanceled;

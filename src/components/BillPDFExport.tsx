@@ -304,7 +304,7 @@ const BillPDFExport: React.FC = () => {
               color: '#1890ff',
               marginBottom: '10px'
             }}>
-              HỆ THỐNG QUẢN LÝ PHÒNG TRỌ TRO360
+              BAN QUẢN LÝ PHÒNG TRO360
             </div>
             <div style={{ color: '#666', marginBottom: '5px' }}>
               Địa chỉ: Số 123, Đường ABC, Quận XYZ, Hà Nội

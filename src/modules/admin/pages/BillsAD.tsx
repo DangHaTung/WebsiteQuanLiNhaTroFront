@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Table, Tag, Typography, message, Row, Col, Statistic, Button, Modal, Image, Alert, Space, Input } from "antd";
-import { FileTextOutlined, DollarOutlined } from "@ant-design/icons";
+import { Table, Tag, Typography, message, Row, Col, Statistic, Button, Modal, Image, Alert, Space, Input, Popconfirm, Tooltip } from "antd";
+import { FileTextOutlined, DollarOutlined, DeleteOutlined } from "@ant-design/icons";
 import type { ColumnsType } from "antd/es/table";
 import type { Bill, BillStatus, BillType } from "../../../types/bill";
 import type { Tenant } from "../../../types/tenant";
@@ -303,7 +303,7 @@ const BillsAD: React.FC = () => {
           PAID: { color: "green", text: "Đã thanh toán" },
           UNPAID: { color: "red", text: "Chưa thanh toán" },
           PARTIALLY_PAID: { color: "orange", text: "Một phần" },
-          VOID: { color: "default", text: "Đã hủy" },
+          VOID: { color: "error", text: "Đã hủy" },
           PENDING_CASH_CONFIRM: {
             color: "gold",
             text: "Chờ xác nhận",
@@ -363,29 +363,62 @@ const BillsAD: React.FC = () => {
       title: "Thao tác",
       key: "actions",
       align: "center",
-      width: 150,
+      width: 240,
       render: (_: any, record: Bill) => {
         // Hiển thị nút xác nhận cho bills chờ xác nhận hoặc chưa thanh toán (nếu có ảnh)
         const hasReceiptImage = record.metadata?.cashPaymentRequest?.receiptImage;
         const canConfirm = record.status === "PENDING_CASH_CONFIRM" || 
                           (record.status === "UNPAID" && hasReceiptImage);
-        
-        if (canConfirm) {
-          return (
-            <Button
-              type="primary"
-              icon={<DollarOutlined />}
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenConfirmModal(record._id, record);
-              }}
-            >
-              Xác nhận
-            </Button>
-          );
-        }
-        return null;
+
+        return (
+          <Space size="small">
+            {canConfirm && (
+              <Button
+                type="primary"
+                icon={<DollarOutlined />}
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenConfirmModal(record._id, record);
+                }}
+              >
+                Xác nhận
+              </Button>
+            )}
+
+            {/* ✅ Hủy hóa đơn MONTHLY: chỉ cho phép khi chưa thanh toán */}
+            {record.status === "UNPAID" && (
+              <Popconfirm
+                title="Hủy hóa đơn này?"
+                okText="Hủy hóa đơn"
+                cancelText="Không"
+                onConfirm={async (e) => {
+                  // antd forwards event sometimes
+                  // @ts-ignore
+                  e?.stopPropagation?.();
+                  try {
+                    await adminBillService.cancel(record._id);
+                    message.success("Đã hủy hóa đơn");
+                    await loadBills();
+                  } catch (error: any) {
+                    message.error(error?.response?.data?.message || "Lỗi khi hủy hóa đơn");
+                  }
+                }}
+              >
+                <Tooltip title="Hủy (chỉ khi chưa thanh toán)">
+                  <Button
+                    danger
+                    size="small"
+                    icon={<DeleteOutlined />}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Hủy
+                  </Button>
+                </Tooltip>
+              </Popconfirm>
+            )}
+          </Space>
+        );
       },
     },
   ];

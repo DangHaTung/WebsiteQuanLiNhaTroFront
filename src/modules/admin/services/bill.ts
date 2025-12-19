@@ -45,6 +45,11 @@ export const adminBillService = {
     return res.data.data;
   },
 
+  async cancel(id: string): Promise<Bill> {
+    const res = await api.put<SingleBillResponse>(`/bills/${id}/cancel`, {});
+    return res.data.data;
+  },
+
   async publishDraft(id: string, payload: { 
     electricityKwh: number; 
     waterM3?: number; 
