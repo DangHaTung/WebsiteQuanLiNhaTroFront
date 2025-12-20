@@ -84,6 +84,7 @@ const FinalContracts = () => {
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [viewModalVisible, setViewModalVisible] = useState(false);
   const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [uploadingContract, setUploadingContract] = useState(false);
   const [contractBills, setContractBills] = useState<any[]>([]);
   // Map để lưu bills của từng contract (key: contractId, value: bills[])
   const [contractBillsMap, setContractBillsMap] = useState<Map<string, any[]>>(new Map());
@@ -921,6 +922,7 @@ const FinalContracts = () => {
     }
 
     try {
+      setUploadingContract(true);
       const files = fileList.map((f) => f.originFileObj as File);
       await adminFinalContractService.uploadFiles(selectedContract._id, files);
       message.success("Upload hợp đồng thành công");
@@ -931,6 +933,8 @@ const FinalContracts = () => {
       const errorMsg = error.response?.data?.message || "Lỗi khi upload hợp đồng";
       message.error(errorMsg);
       console.error("Upload error:", error);
+    } finally {
+      setUploadingContract(false);
     }
   };
 
@@ -1152,10 +1156,12 @@ const FinalContracts = () => {
             const contractBill = bills.find((bill: any) => bill.billType === "CONTRACT");
             const isContractBillPaid = contractBill?.status === "PAID";
             
-            // Chỉ hiển thị nút khi bill CONTRACT đã thanh toán và status chưa SIGNED
-            if (isContractBillPaid && record.status !== "SIGNED") {
+            // ✅ Cho phép upload lại nếu đã thanh toán bill CONTRACT nhưng hiện không còn file hợp đồng
+            // (ví dụ admin đã xóa file đã upload để upload lại bản đúng)
+            const hasFiles = (record.images?.length || 0) > 0;
+            if (isContractBillPaid && record.status !== "CANCELED" && !hasFiles) {
               return (
-                <Tooltip title="Upload hợp đồng đã ký">
+                <Tooltip title={record.status === "SIGNED" ? "Upload lại hợp đồng" : "Upload hợp đồng đã ký"}>
                   <Button
                     size="small"
                     icon={<UploadOutlined />}
@@ -1164,7 +1170,7 @@ const FinalContracts = () => {
                       setUploadModalVisible(true);
                     }}
                   >
-                    Upload HĐ
+                    {record.status === "SIGNED" ? "Upload lại" : "Upload HĐ"}
                   </Button>
                 </Tooltip>
               );
@@ -1227,11 +1233,14 @@ const FinalContracts = () => {
         open={uploadModalVisible}
         onOk={handleUploadContract}
         onCancel={() => {
+          if (uploadingContract) return;
           setUploadModalVisible(false);
           setFileList([]);
         }}
         okText="Upload hợp đồng"
-        okButtonProps={{ disabled: fileList.length === 0 }}
+        confirmLoading={uploadingContract}
+        okButtonProps={{ disabled: fileList.length === 0 || uploadingContract }}
+        cancelButtonProps={{ disabled: uploadingContract }}
       >
         <p style={{ marginBottom: 16 }}>
           Phòng: <strong>{selectedContract?.roomId?.roomNumber}</strong>
@@ -1244,8 +1253,11 @@ const FinalContracts = () => {
           beforeUpload={() => false}
           accept="image/*,.pdf"
           multiple
+          disabled={uploadingContract}
         >
-          <Button icon={<UploadOutlined />}>Chọn file (ảnh hoặc PDF)</Button>
+          <Button icon={<UploadOutlined />} loading={uploadingContract} disabled={uploadingContract}>
+            Chọn file (ảnh hoặc PDF)
+          </Button>
         </Upload>
       </Modal>
 
@@ -1768,7 +1780,26 @@ const FinalContracts = () => {
                 })}
               </Space>
             ) : (
-              <p style={{ color: "#999", textAlign: "center" }}>Chưa có file hợp đồng</p>
+              <div style={{ textAlign: "center" }}>
+                <p style={{ color: "#999" }}>Chưa có file hợp đồng</p>
+                {(() => {
+                  const bills = contractBillsMap.get(selectedContract._id) || [];
+                  const contractBill = bills.find((bill: any) => bill.billType === "CONTRACT");
+                  const isContractBillPaid = contractBill?.status === "PAID";
+                  if (!isContractBillPaid || selectedContract.status === "CANCELED") return null;
+                  return (
+                    <Button
+                      type="primary"
+                      icon={<UploadOutlined />}
+                      onClick={() => {
+                        setUploadModalVisible(true);
+                      }}
+                    >
+                      Upload lại hợp đồng
+                    </Button>
+                  );
+                })()}
+              </div>
             )}
 
           </div>

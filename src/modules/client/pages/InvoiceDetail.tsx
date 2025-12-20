@@ -9,6 +9,7 @@ import jsPDF from "jspdf";
 import { clientBillService, type Bill } from "../services/bill";
 import type { IUserToken } from "../../../types/user";
 import type { UploadFile } from "antd/es/upload/interface";
+import Tro360Logo from "../../../assets/images/logo.png";
 
 const { Text } = Typography;
 
@@ -22,6 +23,7 @@ const InvoiceDetail: React.FC = () => {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const invoiceRef = useRef<HTMLDivElement>(null);
+  const pdfRef = useRef<HTMLDivElement>(null);
   const [cashPaymentModalVisible, setCashPaymentModalVisible] = useState(false);
   const [uploadFileList, setUploadFileList] = useState<UploadFile[]>([]);
   const [form] = Form.useForm();
@@ -150,11 +152,34 @@ const InvoiceDetail: React.FC = () => {
   // Helper function để tính số tiền còn lại phải thanh toán
   const getRemainingAmount = (bill: Bill | null): number => {
     if (!bill) return 0;
+    // ✅ Nếu đã thanh toán xong thì "Còn lại" luôn = 0
+    if (bill.status === "PAID") return 0;
+
     // Với CONTRACT bill: amountDue đã là tổng tiền cần thanh toán (đã trừ tiền cọc), nên không trừ amountPaid
-    // Với các bill khác: trừ đi amountPaid
-    return bill.billType === "CONTRACT" 
-      ? bill.amountDue 
-      : bill.amountDue - (bill.amountPaid || 0);
+    if (bill.billType === "CONTRACT") return bill.amountDue || 0;
+
+    const amountPaid = Number(bill.amountPaid || 0);
+    const totalFromLineItems =
+      bill.lineItems?.reduce((sum: number, item: any) => {
+        const v =
+          typeof item?.lineTotal === "number"
+            ? item.lineTotal
+            : parseFloat(item?.lineTotal?.toString?.() || "0") || 0;
+        return sum + v;
+      }, 0) || 0;
+
+    // Một số flow backend có thể set amountDue=0 sau khi thanh toán/điều chỉnh.
+    // Tính "tổng gốc" theo trạng thái:
+    // - PARTIALLY_PAID: tổng gốc = amountPaid + amountDue (amountDue thường là phần còn lại)
+    // - Các trạng thái khác: ưu tiên amountDue, nếu 0 thì fallback tổng lineItems
+    const totalOriginal =
+      bill.status === "PARTIALLY_PAID"
+        ? amountPaid + Number(bill.amountDue || 0)
+        : Number(bill.amountDue || 0) > 0
+          ? Number(bill.amountDue || 0)
+          : totalFromLineItems;
+
+    return Math.max(0, totalOriginal - amountPaid);
   };
 
   const handlePayment = () => {
@@ -381,15 +406,89 @@ const InvoiceDetail: React.FC = () => {
     return <Tag color={m.color} icon={m.icon}>{m.text}</Tag>;
   };
 
+  const getStatusText = (status: string) => {
+    const map: Record<string, string> = {
+      PAID: "Đã thanh toán",
+      UNPAID: "Chưa thanh toán",
+      PENDING_CASH_CONFIRM: "Chờ xác nhận",
+      PARTIALLY_PAID: "Thanh toán 1 phần",
+    };
+    return map[status] || status;
+  };
+
+  const formatMoney = (n: any) => {
+    const num = typeof n === "number" ? n : parseFloat(n?.toString?.() || "0") || 0;
+    return `${num.toLocaleString("vi-VN")} ₫`;
+  };
+
+  const getRoomNumberFromBill = (b: Bill | null) => {
+    if (!b) return "N/A";
+    try {
+      const contract = b.contractId && typeof b.contractId === "object" ? (b.contractId as any) : null;
+      const room = contract?.roomId && typeof contract.roomId === "object" ? contract.roomId : null;
+      return room?.roomNumber || room?.name || "N/A";
+    } catch {
+      return "N/A";
+    }
+  };
+
+  const getTenantNameFromBill = (b: Bill | null) => {
+    if (!b) return "N/A";
+    // Ưu tiên bill.tenantId
+    const tn =
+      b.tenantId && typeof b.tenantId === "object"
+        ? (b.tenantId as any)?.fullName
+        : undefined;
+    if (tn) return tn;
+    // Fallback contract.tenantId
+    const contract = b.contractId && typeof b.contractId === "object" ? (b.contractId as any) : null;
+    const ctn =
+      contract?.tenantId && typeof contract.tenantId === "object"
+        ? contract.tenantId?.fullName
+        : undefined;
+    return ctn || "N/A";
+  };
+
+  const getPaymentMethodText = (b: any) => {
+    const payments = Array.isArray(b?.payments) ? b.payments : [];
+    const last = payments.length ? payments[payments.length - 1] : null;
+    const method = (last?.method || "").toString().toUpperCase();
+    const hasCashPaymentRequest = !!b?.metadata?.cashPaymentRequest;
+    const map: Record<string, string> = {
+      CASH: "Tiền mặt",
+      BANK: "Chuyển khoản ngân hàng",
+      MOMO: "MoMo",
+      VNPAY: "VNPAY",
+      ZALOPAY: "ZaloPay",
+      OTHER: "Khác",
+      REDIRECT: "Thanh toán online",
+    };
+    // Nếu tenant gửi ảnh bill chuyển khoản (cashPaymentRequest) thì hiển thị là chuyển khoản
+    // (backend hiện đang dùng endpoint pay-cash cho cả chuyển khoản/tiền mặt)
+    if (hasCashPaymentRequest) {
+      // Nếu đang chờ xác nhận
+      if (b?.status === "PENDING_CASH_CONFIRM") return "Chuyển khoản ngân hàng (chờ xác nhận)";
+      // Nếu đã PAID, coi như đã xác nhận chuyển khoản
+      if (b?.status === "PAID") return "Chuyển khoản ngân hàng";
+    }
+
+    if (method && map[method]) return map[method];
+
+    // Fallback dựa trên status
+    if (b?.status === "PENDING_CASH_CONFIRM") return "Chuyển khoản (chờ xác nhận)";
+    if (b?.status === "PAID") return "Đã thanh toán (không có dữ liệu phương thức)";
+    return "Chưa thanh toán";
+  };
+
   // Export PDF function
   const handleExportPDF = async () => {
-    if (!invoiceRef.current || !bill) return;
+    if (!pdfRef.current || !bill) return;
     
     try {
       setExporting(true);
       message.loading({ content: "Đang tạo PDF...", key: "export-pdf" });
       
-      const canvas = await html2canvas(invoiceRef.current, {
+      const canvas = await html2canvas(pdfRef.current, {
         scale: 2,
         useCORS: true,
         logging: false,
@@ -405,13 +504,23 @@ const InvoiceDetail: React.FC = () => {
       
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight);
-      const imgX = (pdfWidth - imgWidth * ratio) / 2;
-      const imgY = 10;
-      
-      pdf.addImage(imgData, "PNG", imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+      const margin = 10;
+      const renderWidth = pdfWidth - margin * 2;
+      const imgHeightMm = (canvas.height * renderWidth) / canvas.width;
+
+      // Multi-page support
+      let heightLeft = imgHeightMm;
+      let position = margin;
+
+      pdf.addImage(imgData, "PNG", margin, position, renderWidth, imgHeightMm);
+      heightLeft -= pdfHeight - margin * 2;
+
+      while (heightLeft > 0) {
+        pdf.addPage();
+        position = margin - (imgHeightMm - heightLeft);
+        pdf.addImage(imgData, "PNG", margin, position, renderWidth, imgHeightMm);
+        heightLeft -= pdfHeight - margin * 2;
+      }
       
       // Tạo tên file
       const billingMonth = dayjs(bill.billingDate).subtract(1, "month");
@@ -427,7 +536,8 @@ const InvoiceDetail: React.FC = () => {
         }
       }
       const roomStr = roomName ? `_${roomName.replace(/\s+/g, "")}` : "";
-      const fileName = `HoaDon_${billTypeStr}${roomStr}_T${monthStr}.pdf`;
+      const invoiceNo = bill._id ? bill._id.slice(-6).toUpperCase() : "HOADON";
+      const fileName = `HoaDon_${billTypeStr}${roomStr}_${invoiceNo}_T${monthStr}.pdf`;
       
       pdf.save(fileName);
       message.success({ content: "Xuất PDF thành công!", key: "export-pdf" });
@@ -519,6 +629,20 @@ const InvoiceDetail: React.FC = () => {
     },
   ];
 
+  const totalFromLineItems =
+    bill.lineItems?.reduce((sum: number, item: any) => {
+      const v =
+        typeof item?.lineTotal === "number"
+          ? item.lineTotal
+          : parseFloat(item?.lineTotal?.toString?.() || "0") || 0;
+      return sum + v;
+    }, 0) || 0;
+
+  const paidForDisplay =
+    bill.status === "PAID" && (!bill.amountPaid || Number(bill.amountPaid) === 0)
+      ? totalFromLineItems
+      : Number(bill.amountPaid || 0);
+
   return (
     <div style={{ padding: 24 }}>
       <Card>
@@ -536,7 +660,7 @@ const InvoiceDetail: React.FC = () => {
           </Button>
         </Space>
 
-        {/* Phần nội dung hóa đơn để export PDF */}
+        {/* Phần nội dung hóa đơn (UI) */}
         <div ref={invoiceRef} style={{ backgroundColor: "#fff", padding: 16 }}>
           <div style={{ marginBottom: 24 }}>
             <h2 style={{ margin: 0 }}>
@@ -851,6 +975,177 @@ const InvoiceDetail: React.FC = () => {
         )}
         </div>
         {/* Kết thúc phần nội dung export PDF */}
+
+        {/* ===== PDF TEMPLATE (ẩn) ===== */}
+        <div style={{ position: "absolute", left: -10000, top: 0, width: 0, height: 0, overflow: "hidden" }}>
+          <div
+            ref={pdfRef}
+            style={{
+              width: 794, // gần khổ A4 khi render canvas
+              background: "#fff",
+              color: "#000",
+              fontFamily: "Arial, Helvetica, sans-serif",
+              padding: 32,
+              boxSizing: "border-box",
+            }}
+          >
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+              <div style={{ width: 120 }}>
+                <img
+                  src={Tro360Logo}
+                  alt="Tro360"
+                  style={{ width: "120px", height: "auto", display: "block" }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, textTransform: "uppercase" }}>
+                  Hệ thống Trọ 360
+                </div>
+                <div style={{ fontSize: 12, marginTop: 6, lineHeight: 1.45 }}>
+                  Website: tro360.io.vn
+                  <br />
+                  Địa chỉ: 39 Ngõ 113 Yên Hoà - Cầu Giấy, Hà Nội
+                  <br />
+                  Hotline: 0842 346 871 — Email: admin@tro360.io.vn
+                </div>
+              </div>
+              <div style={{ width: 210, textAlign: "right" }}>
+                <div style={{ fontSize: 12, fontWeight: 700 }}>
+                  Trạng thái:{" "}
+                  <span style={{ color: bill.status === "PAID" ? "#16a34a" : "#dc2626" }}>
+                    {getStatusText(bill.status)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ borderTop: "1px solid #999", marginTop: 16 }} />
+
+            {/* Title */}
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 18 }}>
+              <div>
+                <div style={{ fontSize: 26, fontWeight: 800 }}>
+                  HÓA ĐƠN {bill._id ? bill._id.slice(-6).toUpperCase() : ""}
+                </div>
+                <div style={{ fontSize: 12, marginTop: 6 }}>
+                  Hóa đơn ngày (Date invoice): <strong>{dayjs(bill.billingDate).format("DD/MM/YYYY")}</strong>
+                </div>
+                <div style={{ fontSize: 12, marginTop: 4 }}>
+                  Ngày đến hạn (Due date):{" "}
+                  <strong>{dayjs((bill as any).dueDate || bill.billingDate).format("DD/MM/YYYY")}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ borderTop: "1px solid #999", marginTop: 16 }} />
+
+            {/* Buyer info */}
+            <div style={{ marginTop: 14, fontSize: 12, lineHeight: 1.6 }}>
+              <div>
+                Họ tên người mua hàng (Buyer): <strong>{getTenantNameFromBill(bill)}</strong>
+              </div>
+              <div>
+                Phòng (Room): <strong>{getRoomNumberFromBill(bill)}</strong>
+              </div>
+              <div>
+                Hình thức thanh toán (Payment method): <strong>{getPaymentMethodText(bill as any)}</strong>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div style={{ marginTop: 16 }}>
+              <table
+                style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  fontSize: 12,
+                }}
+              >
+                <thead>
+                  <tr>
+                    <th style={{ border: "1px solid #333", padding: "8px 6px", width: 48 }}>STT</th>
+                    <th style={{ border: "1px solid #333", padding: "8px 6px" }}>
+                      Tên hàng hóa, dịch vụ
+                      <div style={{ fontSize: 11, fontStyle: "italic", fontWeight: 500 }}>
+                        (Name of goods and services)
+                      </div>
+                    </th>
+                    <th style={{ border: "1px solid #333", padding: "8px 6px", width: 80 }}>Số lượng</th>
+                    <th style={{ border: "1px solid #333", padding: "8px 6px", width: 120 }}>Đơn giá</th>
+                    <th style={{ border: "1px solid #333", padding: "8px 6px", width: 130 }}>Thành tiền</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(bill.lineItems || []).map((it: any, idx: number) => (
+                    <tr key={idx}>
+                      <td style={{ border: "1px solid #333", padding: "8px 6px", textAlign: "center" }}>
+                        {idx + 1}
+                      </td>
+                      <td style={{ border: "1px solid #333", padding: "8px 6px" }}>
+                        {it.item || "N/A"}
+                        {/* Hiển thị số điện cũ/mới nếu có */}
+                        {String(it.item || "").toLowerCase().includes("tiền điện") && (bill as any).electricityReading ? (
+                          <div style={{ fontSize: 11, color: "#111", marginTop: 4 }}>
+                            Số cũ: {(bill as any).electricityReading?.previous ?? 0} → Số mới:{" "}
+                            {(bill as any).electricityReading?.current ?? 0}
+                          </div>
+                        ) : null}
+                      </td>
+                      <td style={{ border: "1px solid #333", padding: "8px 6px", textAlign: "right" }}>
+                        {Number(it.quantity || 0).toLocaleString("vi-VN")}
+                      </td>
+                      <td style={{ border: "1px solid #333", padding: "8px 6px", textAlign: "right" }}>
+                        {formatMoney(it.unitPrice)}
+                      </td>
+                      <td style={{ border: "1px solid #333", padding: "8px 6px", textAlign: "right" }}>
+                        {formatMoney(it.lineTotal)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Totals */}
+            <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
+              <table style={{ borderCollapse: "collapse", fontSize: 12, minWidth: 320 }}>
+                <tbody>
+                  <tr>
+                    <td style={{ padding: "8px 10px", border: "1px solid #333", fontWeight: 700 }}>
+                      Tổng (Total)
+                    </td>
+                    <td style={{ padding: "8px 10px", border: "1px solid #333", textAlign: "right", fontWeight: 700 }}>
+                      {formatMoney(totalFromLineItems)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: "8px 10px", border: "1px solid #333", fontWeight: 700 }}>
+                      Đã thanh toán
+                    </td>
+                    <td style={{ padding: "8px 10px", border: "1px solid #333", textAlign: "right", color: "#16a34a", fontWeight: 700 }}>
+                      {formatMoney(paidForDisplay)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style={{ padding: "8px 10px", border: "1px solid #333", fontWeight: 800, color: "#dc2626" }}>
+                      Còn lại
+                    </td>
+                    <td style={{ padding: "8px 10px", border: "1px solid #333", textAlign: "right", fontWeight: 800, color: "#dc2626" }}>
+                      {formatMoney(getRemainingAmount(bill))}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Note + signature */}
+            <div style={{ marginTop: 18, fontSize: 12 }}>
+              <div style={{ fontWeight: 700 }}>Ghi chú</div>
+              <div style={{ marginTop: 6 }}>{bill.note || "-"}</div>
+            </div>
+          </div>
+        </div>
 
         {bill.status !== "PAID" && !isCoTenant(bill) && (
           <div style={{ marginTop: 24, textAlign: "right" }}>

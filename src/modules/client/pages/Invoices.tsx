@@ -151,12 +151,8 @@ const Invoices: React.FC = () => {
       return;
     }
     
-    // Tính số tiền còn lại phải thanh toán
-    // Với CONTRACT bill: amountDue đã là tổng tiền cần thanh toán (đã trừ tiền cọc), nên không trừ amountPaid
-    // Với các bill khác: trừ đi amountPaid
-    const remainingAmount = bill.billType === "CONTRACT" 
-      ? bill.amountDue 
-      : bill.amountDue - (bill.amountPaid || 0);
+    // Tính số tiền còn lại phải thanh toán (dùng helper để tránh âm/khác flow)
+    const remainingAmount = getRemainingAmount(bill);
     
     Modal.confirm({
       title: "Chọn phương thức thanh toán",
@@ -177,12 +173,8 @@ const Invoices: React.FC = () => {
   };
 
   const handleOnlinePayment = async (bill: Bill) => {
-    // Tính số tiền còn lại phải thanh toán (dùng chung cho cả modal và payment)
-    // Với CONTRACT bill: amountDue đã là tổng tiền cần thanh toán (đã trừ tiền cọc), nên không trừ amountPaid
-    // Với các bill khác: trừ đi amountPaid
-    const remainingAmount = bill.billType === "CONTRACT" 
-      ? bill.amountDue 
-      : bill.amountDue - (bill.amountPaid || 0);
+    // Tính số tiền còn lại phải thanh toán (dùng helper để tránh âm/khác flow)
+    const remainingAmount = getRemainingAmount(bill);
 
     const createPayment = async (provider: "vnpay" | "momo" | "zalopay") => {
       try {
@@ -300,11 +292,24 @@ const Invoices: React.FC = () => {
   // Helper function để tính số tiền còn lại phải thanh toán (giống InvoiceDetail.tsx)
   const getRemainingAmount = (bill: Bill | null): number => {
     if (!bill) return 0;
+    // ✅ Nếu đã thanh toán xong thì "Còn lại" luôn = 0
+    if (bill.status === "PAID") return 0;
+
     // Với CONTRACT bill: amountDue đã là tổng tiền cần thanh toán (đã trừ tiền cọc), nên không trừ amountPaid
-    // Với các bill khác: trừ đi amountPaid
-    return bill.billType === "CONTRACT" 
-      ? bill.amountDue 
-      : bill.amountDue - (bill.amountPaid || 0);
+    if (bill.billType === "CONTRACT") return bill.amountDue || 0;
+
+    const amountPaid = Number(bill.amountPaid || 0);
+    const totalFromLineItems =
+      bill.lineItems?.reduce((sum: number, item: any) => sum + (item?.lineTotal || 0), 0) || 0;
+
+    const totalOriginal =
+      bill.status === "PARTIALLY_PAID"
+        ? amountPaid + Number(bill.amountDue || 0)
+        : Number(bill.amountDue || 0) > 0
+          ? Number(bill.amountDue || 0)
+          : totalFromLineItems;
+
+    return Math.max(0, totalOriginal - amountPaid);
   };
 
   const handleCashPayment = async () => {
