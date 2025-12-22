@@ -372,14 +372,30 @@ const Invoices: React.FC = () => {
   const unpaidBills = bills.filter(b => b.status === "UNPAID" || b.status === "PENDING_CASH_CONFIRM" || b.status === "PARTIALLY_PAID");
   const paidBills = bills.filter(b => b.status === "PAID");
   
+  // Tổng tiền của 1 bill (để tính thống kê). Tránh dùng amountPaid vì có thể bị "double count"
+  // (đặc biệt CONTRACT bill đôi khi amountPaid bao gồm cả tiền cọc từ RECEIPT).
+  const getBillTotal = (bill: Bill): number => {
+    const lineItemsTotal =
+      bill.lineItems?.reduce((sum: number, item: any) => {
+        const v =
+          typeof item?.lineTotal === "number"
+            ? item.lineTotal
+            : parseFloat(item?.lineTotal?.toString?.() || "0") || 0;
+        return sum + v;
+      }, 0) || 0;
+
+    const due = Number(bill.amountDue || 0);
+    // Ưu tiên amountDue nếu có (thường đúng với cột "Tổng tiền"); nếu không thì fallback lineItems
+    return due > 0 ? due : lineItemsTotal;
+  };
+
   // Tính tổng amountDue của các bill chưa thanh toán (không trừ amountPaid)
   const totalUnpaid = unpaidBills.reduce((sum, bill) => sum + bill.amountDue, 0);
   
   // Tính tổng "Đã thanh toán": tính tất cả bills đã thanh toán (bao gồm cả RECEIPT, CONTRACT, MONTHLY)
   const totalPaid = paidBills.reduce((sum, bill) => {
-    // Tính amountPaid, nếu không có thì dùng amountDue
-    const paidAmount = bill.amountPaid || bill.amountDue || 0;
-    return sum + paidAmount;
+    // ✅ Với bill PAID: lấy "tổng bill" thay vì amountPaid để tránh cộng dư
+    return sum + getBillTotal(bill);
   }, 0);
 
   const getStatusTag = (status: string) => {
