@@ -7,6 +7,7 @@ import { clientNotificationService, type Notification } from '../modules/client/
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/vi';
+import '../assets/styles/notification-bell.css';
 
 dayjs.extend(relativeTime);
 dayjs.locale('vi');
@@ -244,11 +245,12 @@ const NotificationBell: React.FC = () => {
       trigger={['click']}
       placement="bottomRight"
     >
-      <Badge count={unreadCount} offset={[-5, 5]} size="small">
+      <Badge className="notification-bell-badge" count={unreadCount} offset={[-5, 5]} size="small">
         <Button
           type="text"
+          aria-label="Thông báo"
+          className="notification-bell-btn"
           icon={<BellOutlined style={{ fontSize: 20 }} />}
-          style={{ border: 'none' }}
         />
       </Badge>
     </Dropdown>

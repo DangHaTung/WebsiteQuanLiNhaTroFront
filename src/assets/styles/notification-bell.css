@@ -1,0 +1,38 @@
+.notification-bell-badge {
+  display: inline-flex;
+}
+
+/* Make the bell visible on light headers (admin/client) */
+.notification-bell-btn.ant-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  color: #0d2a5c; /* not transparent */
+  background: rgba(22, 119, 255, 0.10);
+  border: 1px solid rgba(22, 119, 255, 0.18);
+}
+
+.notification-bell-btn.ant-btn:hover {
+  color: #1677ff;
+  background: rgba(22, 119, 255, 0.16);
+  border-color: rgba(22, 119, 255, 0.28);
+}
+
+.notification-bell-btn.ant-btn:active {
+  transform: translateY(0);
+}
+
+.notification-bell-btn.ant-btn .anticon {
+  opacity: 1; /* guard against accidental opacity rules */
+}
+
+/* Badge count legibility */
+.notification-bell-badge .ant-badge-count {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95);
+}
+
