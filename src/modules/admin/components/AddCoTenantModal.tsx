@@ -9,6 +9,8 @@ interface AddCoTenantModalProps {
   onSuccess: () => void;          // Hàm callback khi thêm thành công
   contractId: string;             // ID hợp đồng để thêm người ở cùng
   roomNumber: string;             // Số phòng hiển thị trên modal
+  // ✅ Không cho chọn trùng tài khoản (người thuê chính / co-tenant đang ACTIVE)
+  excludeUserIds?: string[];
 }
 
 // Dữ liệu form người ở cùng
@@ -27,6 +29,7 @@ const AddCoTenantModal: React.FC<AddCoTenantModalProps> = ({
   onSuccess,
   contractId,
   roomNumber,
+  excludeUserIds = [],
 }) => {
   const [form] = Form.useForm<CoTenantFormData>();   // Form instance
   const [loading, setLoading] = useState(false);      // Loading khi submit
@@ -48,10 +51,12 @@ const AddCoTenantModal: React.FC<AddCoTenantModalProps> = ({
   const loadUsers = async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
-      const token = localStorage.getItem("token");
+      // Admin page: ưu tiên admin_token
+      const token = localStorage.getItem("admin_token") || localStorage.getItem("token");
 
       console.log("[AddCoTenantModal] Loading users from API...");
-      const response = await fetch(`${apiUrl}/api/users?limit=100`, {
+      // ✅ Chỉ load user role=TENANT để tránh chọn nhầm account ADMIN (chủ trọ/chủ phòng)
+      const response = await fetch(`${apiUrl}/api/users?limit=100&role=TENANT`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -61,7 +66,11 @@ const AddCoTenantModal: React.FC<AddCoTenantModalProps> = ({
       console.log("[AddCoTenantModal] Users response:", data);
       
       if (data.success) {
-        const userList = data.data || [];
+        // Fallback filter phía FE (phòng trường hợp backend không filter)
+        const userList = (data.data || [])
+          .filter((u: any) => (u?.role || "").toUpperCase() === "TENANT")
+          // ✅ Filter out excluded IDs (main tenant + active co-tenants)
+          .filter((u: any) => !excludeUserIds.includes(String(u?._id)));
         console.log(`[AddCoTenantModal] Loaded ${userList.length} users`);
         setUsers(userList);
       } else {
@@ -109,7 +118,7 @@ const AddCoTenantModal: React.FC<AddCoTenantModalProps> = ({
       setLoading(true);
 
       const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
-      const token = localStorage.getItem("token");   // Lấy token người dùng
+      const token = localStorage.getItem("admin_token") || localStorage.getItem("token");   // Admin token
 
       // Nếu chọn user có sẵn, gửi existingUserId
       // Nếu không, gửi thông tin mới để tạo tài khoản

@@ -361,6 +361,20 @@ const ContractsAD: React.FC = () => {
           }}
           contractId={selectedContract._id}
           roomNumber={selectedContract.roomId.roomNumber}
+          excludeUserIds={[
+            // ✅ Exclude người thuê chính
+            ...(selectedContract.tenantId
+              ? [
+                  typeof selectedContract.tenantId === "object"
+                    ? selectedContract.tenantId._id
+                    : selectedContract.tenantId,
+                ]
+              : []),
+            // ✅ Exclude co-tenant đang ACTIVE (tránh chọn trùng)
+            ...((selectedContract.coTenants || [])
+              .filter((ct) => ct.status === "ACTIVE" && !!ct.userId)
+              .map((ct) => String(ct.userId))),
+          ].filter(Boolean) as string[]}
         />
       )}
     </div>
