@@ -226,6 +226,7 @@ export const adminFinalContractService = {
     startDate: string;
     endDate: string;
     depositAmount?: number;
+    initialElectricReading?: number;
   }): Promise<{ finalContract: FinalContract; contract: any; bill: any }> {
     const res = await api.post<{
       success: boolean;

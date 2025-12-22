@@ -1,4 +1,4 @@
-import { Modal, Form, Select, DatePicker, InputNumber, message } from "antd";
+import { Modal, Form, Select, DatePicker, InputNumber, message, Row, Col } from "antd";
 import { useState, useEffect } from "react";
 import dayjs from "dayjs";
 import { adminFinalContractService } from "../services/finalContract";
@@ -89,6 +89,7 @@ const RentAdditionalRoomModal: React.FC<RentAdditionalRoomModalProps> = ({
         startDate: values.startDate.toISOString(),
         endDate: values.endDate.toISOString(),
         depositAmount: values.depositAmount,
+        initialElectricReading: values.initialElectricReading,
       });
 
       message.success("Tạo hợp đồng thuê thêm phòng thành công!");
@@ -213,6 +214,26 @@ const RentAdditionalRoomModal: React.FC<RentAdditionalRoomModalProps> = ({
             addonAfter="VNĐ"
           />
         </Form.Item>
+
+        {/* ✅ Số điện hiện tại (kWh) - giống logic tạo phiếu thu */}
+        <Row gutter={16}>
+          <Col xs={24} md={12}>
+            <Form.Item
+              label="Số điện hiện tại (kWh)"
+              name="initialElectricReading"
+              rules={[
+                { required: true, message: "Nhập số điện hiện tại!" },
+              ]}
+              tooltip="Dùng làm số điện chốt ban đầu để tính hóa đơn hàng tháng"
+            >
+              <InputNumber
+                min={0}
+                style={{ width: "100%" }}
+                placeholder="Nhập số điện hiện tại"
+              />
+            </Form.Item>
+          </Col>
+        </Row>
       </Form>
 
       <div style={{ marginTop: 16, padding: 12, background: "#fff7e6", borderRadius: 8, fontSize: 12 }}>
