@@ -175,9 +175,11 @@ const DraftBills: React.FC = () => {
             console.log(`[getElectricReadings] Contract ${contractId}: Found ${previousBills.length} MONTHLY bills`);
             
             for (const prevBill of previousBills) {
-              // Bỏ qua DRAFT bills
-              if (prevBill.status === "DRAFT") {
-                console.log(`[getElectricReadings] Skipping DRAFT bill ${prevBill._id}`);
+              // Bỏ qua DRAFT/VOID bills (VOID = đã hủy, không được tính vào chỉ số hiện tại)
+              if (prevBill.status === "DRAFT" || prevBill.status === "VOID") {
+                console.log(
+                  `[getElectricReadings] Skipping ${prevBill.status} bill ${prevBill._id}`
+                );
                 continue;
               }
               
