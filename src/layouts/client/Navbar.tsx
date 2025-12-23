@@ -1,133 +1,309 @@
-import React from "react";
-import { Link } from "react-router-dom";
-import { Input, Badge } from "antd";
+import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { Input, Drawer, Button, Dropdown, Avatar, Typography, message } from "antd";
+import { PhoneOutlined, MailOutlined, BellOutlined, SearchOutlined, UserOutlined, MenuOutlined, CloseOutlined, SettingOutlined, LogoutOutlined, UserSwitchOutlined, MessageOutlined } from "@ant-design/icons";
 import Logo from "../../assets/images/logo.png";
 import "../../assets/styles/nav.css";
-import {
-  PhoneOutlined,
-  MailOutlined,
-  ShoppingCartOutlined,
-  SearchOutlined,
-} from "@ant-design/icons";
+import NotificationBell from "../../components/NotificationBell";
 
 const { Search } = Input;
+const { Text } = Typography;
 
 const Navbar: React.FC = () => {
+  const [openDrawer, setOpenDrawer] = useState(false);
+  const [isActive, setIsActive] = useState(false);
+  const navigate = useNavigate();
+  // Mock trạng thái đăng nhập - trong thực tế sẽ lấy từ context/auth
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userName, setUserName] = useState("");
+
+  // Kiểm tra trạng thái đăng nhập khi component mount
+  useEffect(() => {
+    const currentUser = localStorage.getItem("currentUser");
+    if (currentUser) {
+      const user = JSON.parse(currentUser);
+      setIsLoggedIn(true);
+      setUserName(user.fullName);
+    }
+  }, []);
+
+  // Lắng nghe sự kiện đăng nhập từ các component khác
+  useEffect(() => {
+    const handleLoginEvent = (event: any) => {
+      const { username } = event.detail;
+      handleLoginSuccess(username); // gọi hàm đã có sẵn
+    };
+
+    window.addEventListener("login-success", handleLoginEvent);
+
+    return () => {
+      window.removeEventListener("login-success", handleLoginEvent);
+    };
+  }, []);
+
+  // Hàm xử lý đăng nhập thành công
+  const handleLoginSuccess = (username: string) => {
+    setIsLoggedIn(true);
+    setUserName(username);
+    // Chuyển hướng về trang chủ sau khi đăng nhập thành công
+    navigate("/");
+  };
+
+  // Menu dropdown cho tài khoản
+  const userMenuItems = [
+    {
+      key: "profile",
+      icon: <UserOutlined />,
+      label: "Thông tin cá nhân",
+    },
+    {
+      key: "my-contracts",
+      icon: <UserOutlined />,
+      label: "Hợp đồng của tôi",
+    },
+    {
+      key: "invoices",
+      icon: <UserOutlined />,
+      label: "Hóa đơn của tôi",
+    },
+    {
+      key: "my-move-out-requests",
+      icon: <LogoutOutlined />,
+      label: "Yêu cầu hoàn cọc",
+    },
+    {
+      key: "settings",
+      icon: <SettingOutlined />,
+      label: "Cài đặt",
+    },
+    {
+      key: "logout",
+      icon: <LogoutOutlined />,
+      label: "Đăng xuất",
+      danger: true,
+    },
+  ];
+
+  const handleUserMenuClick = (e: any) => {
+    switch (e.key) {
+      case "profile":
+        navigate("/profile");
+        break;
+      case "my-contracts":
+        navigate("/my-contracts");
+        break;
+      case "invoices":
+        navigate("/invoices");
+        break;
+      case "my-move-out-requests":
+        navigate("/my-move-out-requests");
+        break;
+      case "settings":
+        navigate("/settings");
+        break;
+      case "logout":
+        setIsLoggedIn(false);
+        setUserName("");
+        localStorage.removeItem("currentUser");
+        localStorage.removeItem("token");
+        message.success("Đăng xuất thành công!");
+        navigate("/");
+        break;
+    }
+  };
+
   return (
-    <div className="navbar-wrapper">
+    // Sticky navbar: luôn hiển thị khi cuộn trang
+    <div
+      className="navbar-wrapper"
+      style={{ position: "sticky", top: 0, zIndex: 1000, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
+    >
       {/* Top bar */}
-      <div
-        style={{
-          background: "#0D2A5C",
-          color: "#fff",
-          fontSize: "14px",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: "1200px",
-            margin: "0 auto",
-            padding: "4px 20px",
-            display: "flex",
-            justifyContent: "space-between",
-          }}
-        >
-          {/* Liên hệ */}
-          <div style={{ display: "flex", gap: "16px" }}>
+      <div className="nav-top">
+        <div className="nav-container nav-top-inner">
+          <div className="nav-top-contact">
             <span>
-              <PhoneOutlined /> 0123 456 789
+              <PhoneOutlined /> <strong>0842 346 871</strong>
             </span>
             <span>
-              <MailOutlined /> support@tro360.com
+              <MailOutlined /> admin@tro360.io.vn
             </span>
           </div>
 
-          {/* Menu nhỏ */}
-          <div style={{ display: "flex", gap: "16px" }}>
-            <Link to="/orders" style={{ color: "#fff" }}>
-              Theo dõi đơn hàng
+          <div className="nav-top-menu">
+            <Link to="/complaint" className="nav-top-link highlight">
+              <MessageOutlined /> Khiếu nại
             </Link>
-            <Link to="/store" style={{ color: "#fff" }}>
-              Cửa hàng
-            </Link>
-            <Link to="/contact" style={{ color: "#fff" }}>
-              Liên hệ
-            </Link>
+
+
           </div>
         </div>
       </div>
 
       {/* Main navbar */}
-      <div
-        style={{
-          background: "#fff",
-          borderBottom: "1px solid #eee",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: "1200px",
-            margin: "0 auto",
-            padding: "12px 20px",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "20px",
-            }}
-          >
-            {/* Logo */}
-            <div style={{ fontSize: "22px", fontWeight: "bold" }}>
-              <Link to="/">
-                <img src={Logo} alt="Tro360 Logo" style={{ height: "80px", width: "auto", objectFit: "contain" }} />
-              </Link>
-            </div>
-
-            {/* Ô tìm kiếm */}
-            <div style={{ flex: 1, maxWidth: "500px" }}>
-              <Search
-                placeholder="Tìm kiếm sản phẩm thời trang nam..."
-                enterButton={<SearchOutlined />}
-                size="large"
-                onSearch={(value) => console.log("Search:", value)}
-              />
-            </div>
-
-            {/* Giỏ hàng + Đăng nhập */}
-            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              <Badge count={0} size="small">
-                <ShoppingCartOutlined style={{ fontSize: "22px" }} />
-              </Badge>
-              <div>
-                <Link to="/login">Đăng nhập</Link> /{" "}
-                <Link to="/register">Đăng ký</Link>
-              </div>
-            </div>
+      <div className="nav-main">
+        <div className="nav-container nav-main-inner">
+          {/* Logo */}
+          <div className="nav-logo">
+            <Link to="/">
+              <img src={Logo} alt="Tro360 Logo" className="logo-hover" />
+            </Link>
           </div>
 
-          {/* Menu danh mục */}
-          <div
-            className="nav-menu"
-            style={{
-              marginTop: "12px",
-              padding: "12px 0",
-              background: "#f9f9f9",
-              borderTop: "1px solid #eee",
-              display: "flex",
-              gap: "32px",
-              justifyContent: "center",
-              fontSize: "16px",
-              fontWeight: 500,
-            }}
-          >
-            <Link to="/">Trang chủ</Link>
-            <Link to="/rooms">Danh sách phòng</Link>
+          {/* Ô tìm kiếm */}
+          <div className={`nav-search ${isActive ? "active" : ""}`}>
+            <Search
+              placeholder="Tìm phòng trọ, căn hộ, nhà nguyên căn..."
+              enterButton={<SearchOutlined />}
+              size="large"
+              allowClear
+              onFocus={() => setIsActive(true)}
+              onBlur={(e) => {
+                if (!e.target.value.trim()) setIsActive(false);
+              }}
+              onSearch={(value) => {
+                if (value.trim()) navigate(`/rooms?q=${encodeURIComponent(value)}`);
+                else navigate("/rooms");
+              }}
+            />
+          </div>
+
+          {/* Wishlist + User */}
+          <div className="nav-actions">
+            {/* Notification Bell - Chỉ hiển thị khi đã đăng nhập */}
+            {isLoggedIn && <NotificationBell />}
+
+            {/* User account section */}
+            {isLoggedIn ? (
+              <Dropdown
+                menu={{
+                  items: userMenuItems,
+                  onClick: handleUserMenuClick,
+                }}
+                placement="bottomRight"
+                trigger={["click"]}
+              >
+                <div className="nav-user-logged">
+                  <Avatar size="small" icon={<UserOutlined />} style={{ marginRight: 8 }} />
+                  <Text strong style={{ color: "#1677ff", cursor: "pointer" }}>
+                    {userName}
+                  </Text>
+                </div>
+              </Dropdown>
+            ) : (
+              <div className="nav-user">
+                <UserOutlined />
+                <Link to="/login">Đăng nhập</Link>
+              </div>
+            )}
+
+            <Button
+              className="menu-btn"
+              type="text"
+              icon={<MenuOutlined />}
+              onClick={() => setOpenDrawer(true)}
+            />
           </div>
         </div>
+        {/* Menu danh mục */}
+        <div className="nav-menu">
+          <Link className="nav-link" to="/">
+            Trang chủ
+          </Link>
+          <Link className="nav-link" to="/rooms">
+            Danh sách phòng
+          </Link>
+          <Link className="nav-link" to="/contact">
+            Liên hệ
+          </Link>
+          <Link className="nav-link" to="/terms">
+            Điều khoản dịch vụ
+          </Link>
+        </div>
       </div>
+
+      {/* Drawer Mobile */}
+      <Drawer
+        placement="right"
+        onClose={() => setOpenDrawer(false)}
+        open={openDrawer}
+        closeIcon={<CloseOutlined />}
+        width={250}
+      >
+        <div className="drawer-menu">
+          <Link to="/" onClick={() => setOpenDrawer(false)}>
+            Trang chủ
+          </Link>
+          <Link to="/rooms" onClick={() => setOpenDrawer(false)}>
+            Danh sách phòng
+          </Link>
+          <Link to="/news" onClick={() => setOpenDrawer(false)}>
+            Tin tức & Mẹo thuê trọ
+          </Link>
+          <Link to="/about" onClick={() => setOpenDrawer(false)}>
+            Giới thiệu
+          </Link>
+          <Link to="/contact" onClick={() => setOpenDrawer(false)}>
+            Liên hệ
+          </Link>
+          <Link to="/terms" onClick={() => setOpenDrawer(false)}>
+            Điều khoản dịch vụ
+          </Link>
+          <Link to="/complaint" onClick={() => setOpenDrawer(false)}>
+            Khiếu nại
+          </Link>
+
+          {/* User menu in drawer */}
+          {isLoggedIn ? (
+            <div className="drawer-user-section">
+              <div className="drawer-user-info">
+                <Avatar size="small" icon={<UserOutlined />} />
+                <Text strong>{userName}</Text>
+              </div>
+              <Link to="/notifications" onClick={() => setOpenDrawer(false)}>
+                <BellOutlined /> Thông báo (3)
+              </Link>
+              <Link to="/profile" onClick={() => setOpenDrawer(false)}>
+                <UserSwitchOutlined /> Thông tin cá nhân
+              </Link>
+              <Link to="/my-contracts" onClick={() => setOpenDrawer(false)}>
+                <UserOutlined /> Hợp đồng của tôi
+              </Link>
+              <Link to="/invoices" onClick={() => setOpenDrawer(false)}>
+                <UserOutlined /> Hóa đơn của tôi
+              </Link>
+              <Link to="/my-move-out-requests" onClick={() => setOpenDrawer(false)}>
+                <LogoutOutlined /> Yêu cầu hoàn cọc
+              </Link>
+              <Link to="/settings" onClick={() => setOpenDrawer(false)}>
+                <SettingOutlined /> Cài đặt
+              </Link>
+              <Button
+                type="link"
+                danger
+                icon={<LogoutOutlined />}
+                onClick={() => {
+                  setIsLoggedIn(false);
+                  setUserName("");
+                  localStorage.removeItem("currentUser");
+                  localStorage.removeItem("token");
+                  setOpenDrawer(false);
+                  navigate("/");
+                }}
+                style={{ padding: 0, marginTop: 8 }}
+              >
+                Đăng xuất
+              </Button>
+            </div>
+          ) : (
+
+              <Link to="/login" onClick={() => setOpenDrawer(false)}>
+                Đăng nhập
+              </Link>
+        
+          )}
+        </div>
+      </Drawer>
     </div>
   );
 };

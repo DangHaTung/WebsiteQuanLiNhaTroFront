@@ -1,0 +1,345 @@
+/* Contracts/Terms Page Styles */
+.contracts-container {
+  min-height: 100vh;
+  background: #ffffff;
+  padding: 20px 0;
+}
+
+.terms-card {
+  transition: all 0.3s ease;
+  border: none;
+  border-radius: 12px;
+}
+
+.terms-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12) !important;
+}
+
+.payment-card {
+  transition: all 0.3s ease;
+  border: none;
+  border-radius: 12px;
+}
+
+.payment-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12) !important;
+}
+
+.contact-card {
+  transition: all 0.3s ease;
+  border: none;
+  border-radius: 12px;
+  height: 100%;
+}
+
+.contact-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12) !important;
+}
+
+.acceptance-card {
+  transition: all 0.3s ease;
+  border: none;
+  border-radius: 12px;
+  height: 100%;
+}
+
+.acceptance-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12) !important;
+}
+
+/* Terms sections styling */
+.ant-collapse {
+  background: transparent;
+  border: none;
+}
+
+.ant-collapse > .ant-collapse-item {
+  border: 1px solid #f0f0f0;
+  margin-bottom: 16px;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+
+.ant-collapse > .ant-collapse-item > .ant-collapse-header {
+  background: #ffffff;
+  border: 1px solid #f0f0f0;
+  padding: 16px 20px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.ant-collapse > .ant-collapse-item > .ant-collapse-header:hover {
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.ant-collapse > .ant-collapse-item > .ant-collapse-content {
+  border: 1px solid #f0f0f0;
+  border-top: none;
+  background: #ffffff;
+  border-radius: 0 0 8px 8px;
+}
+
+.ant-collapse > .ant-collapse-item > .ant-collapse-content > .ant-collapse-content-box {
+  padding: 20px;
+}
+
+/* Icon styling in headers */
+.ant-collapse-header-text {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ant-collapse-header-text strong {
+  color: #333;
+  font-size: 16px;
+}
+
+/* List styling */
+.ant-list-item {
+  transition: all 0.2s ease;
+  padding: 8px 0 !important;
+}
+
+.ant-list-item:hover {
+  background: rgba(102, 126, 234, 0.05);
+  border-radius: 4px;
+}
+
+/* Timeline styling */
+.ant-timeline {
+  padding: 20px 0;
+}
+
+.ant-timeline-item {
+  padding-bottom: 20px;
+}
+
+.ant-timeline-item-content {
+  background: #ffffff;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.ant-timeline-item-tail {
+  border-color: #1890ff;
+}
+
+/* Contact info styling */
+.contact-info-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+}
+
+.contact-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 20px;
+}
+
+.contact-details {
+  flex: 1;
+}
+
+.contact-title {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.contact-value {
+  color: #666;
+  font-size: 14px;
+}
+
+/* Acceptance section styling */
+.acceptance-benefits {
+  background: #f6ffed;
+  border-left: 4px solid #52c41a;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.acceptance-benefits h4 {
+  color: #389e0d;
+  margin-bottom: 16px;
+  font-size: 16px;
+}
+
+.acceptance-benefits ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.acceptance-benefits li {
+  margin-bottom: 8px;
+  color: #333;
+}
+
+/* Button styling đồng bộ với trang home */
+.btn-animated {
+  margin-top: 12px;
+  font-weight: 600;
+  position: relative;
+  overflow: hidden;
+  color: #fff !important;
+  background: linear-gradient(90deg, #2563eb, #3b82f6, #60a5fa);
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+/* Hiệu ứng nổi khi hover */
+.btn-animated:hover {
+  transform: translateY(-2px);
+}
+
+/* Ánh sáng quét ngang */
+.btn-animated::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 80%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    transparent,
+    rgba(255, 255, 255, 0.5),
+    transparent
+  );
+  transition: all 0.5s ease;
+}
+
+.btn-animated:hover::before {
+  left: 100%;
+}
+
+/* Alert styling */
+.ant-alert {
+  border-radius: 8px;
+  border: none;
+}
+
+.ant-alert-warning {
+  background: #fff2e8;
+  border-left: 4px solid #faad14;
+}
+
+.ant-alert-info {
+  background: #e6f7ff;
+  border-left: 4px solid #1890ff;
+}
+
+.ant-alert-success {
+  background: #f6ffed;
+  border-left: 4px solid #52c41a;
+}
+
+/* Card styling */
+.ant-card {
+  border: 1px solid #f0f0f0;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  background: #ffffff;
+}
+
+.ant-card-head {
+  border: none;
+  background: transparent;
+}
+
+.ant-card-head-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .contracts-container {
+    padding: 16px;
+    background: #ffffff;
+  }
+
+  .ant-collapse-header-text {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .ant-timeline-item-content {
+    margin-left: 0;
+  }
+
+  .contact-info-item {
+    flex-direction: column;
+    text-align: center;
+    gap: 8px;
+  }
+
+  .acceptance-benefits {
+    padding: 16px;
+  }
+
+  .acceptance-benefits ul {
+    padding-left: 16px;
+  }
+}
+
+/* Animation for loading states */
+.contracts-container.loading {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Success state styling for buttons */
+.btn-animated.success {
+  background: #52c41a !important;
+  color: white !important;
+}
+
+.btn-animated.success:hover {
+  background: #389e0d !important;
+  transform: translateY(-2px);
+}
+
+@keyframes successPulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+    box-shadow: 0 8px 30px rgba(82, 196, 26, 0.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
